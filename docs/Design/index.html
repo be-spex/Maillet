@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maillet – Click-Dummy</title>
+<style>
+:root{
+  --bg:#f4f4f7; --panel:#ffffff; --panel2:#f9f9fb; --hover:#f1f1f6; --text:#17171f; --muted:#6c6c7e; --faint:#a0a0b2;
+  --line:#e6e6ee; --accent:#6d5dfc; --accent-soft:#efedff; --accent-2:#22c3b5; --ok:#12b07f; --warn:#f2a20c; --danger:#e5484d;
+  --shadow:0 1px 2px rgba(20,20,40,.04),0 6px 20px rgba(20,20,40,.06); --shadow-lg:0 20px 60px rgba(20,20,40,.18);
+  --r:14px; --r-sm:9px;
+  --font:"Inter","Cantarell","Noto Sans","Segoe UI",system-ui,sans-serif; --mono:"JetBrains Mono","Fira Code",ui-monospace,monospace;
+}
+[data-theme=dark]{
+  --bg:#0e0f14; --panel:#171821; --panel2:#1c1e28; --hover:#22242f; --text:#ececf4; --muted:#9a9bb2; --faint:#62647a;
+  --line:#272938; --accent:#8b7dff; --accent-soft:#25223f; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.3); --shadow-lg:0 24px 70px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input,textarea{font:inherit;color:inherit}
+kbd{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+.muted{color:var(--muted)} .faint{color:var(--faint)}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.i.sm{width:15px;height:15px}
+
+/* ---------- Layout ---------- */
+#app{display:grid;grid-template-columns:76px 1fr;height:100vh}
+.rail{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:4px}
+.logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:grid;place-items:center;font-weight:800;font-size:19px;margin-bottom:14px;box-shadow:0 6px 18px rgba(109,93,252,.35)}
+.rail .nav{position:relative;width:56px;padding:9px 0 7px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10.5px;font-weight:550}
+.rail .nav:hover{background:var(--hover);color:var(--text)}
+.rail .nav.on{background:var(--accent-soft);color:var(--accent)}
+.rail .nav .badge{position:absolute;top:4px;right:6px}
+.rail .spacer{flex:1}
+.badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;display:inline-grid;place-items:center}
+.badge.soft{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+main{display:flex;flex-direction:column;min-width:0;height:100vh}
+.top{display:flex;align-items:center;gap:10px;padding:12px 22px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(8px)}
+.search-trigger{flex:1;max-width:560px;display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:11px;background:var(--panel);border:1px solid var(--line);color:var(--muted);text-align:left}
+.search-trigger:hover{border-color:var(--accent)}
+.search-trigger span{flex:1}
+.top .grow{flex:1}
+.tbtn{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:10px;color:var(--muted);font-weight:550;font-size:13px}
+.tbtn:hover{background:var(--hover);color:var(--text)}
+.tbtn.on{background:var(--accent-soft);color:var(--accent)}
+#view{flex:1;overflow:auto;padding:22px 26px 90px}
+
+/* ---------- Generic ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-weight:600;font-size:13px}
+.btn:hover{border-color:var(--faint)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 35%,transparent)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.big{padding:12px 18px;font-size:14px;border-radius:12px}
+.btn.big kbd{background:rgba(255,255,255,.2);border-color:transparent;color:#fff}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover{background:var(--hover)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.panel>header{display:flex;align-items:center;gap:10px;padding:14px 16px 6px}
+.panel>header h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0;font-weight:700;display:flex;align-items:center;gap:7px}
+.panel>header .grow{flex:1}
+.link{color:var(--accent);font-weight:600;font-size:12.5px}
+.link:hover{text-decoration:underline}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600;background:var(--panel2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip:hover{border-color:var(--faint);color:var(--text)}
+.chip.on{background:var(--text);color:var(--panel);border-color:var(--text)}
+.chip .dot,.dot{width:8px;height:8px;border-radius:50%;background:var(--c,var(--accent));flex:none}
+.chip.topic{background:color-mix(in srgb,var(--c) 13%,var(--panel));border-color:color-mix(in srgb,var(--c) 30%,transparent);color:color-mix(in srgb,var(--c) 75%,var(--text))}
+.chip.sug{border-style:dashed;color:var(--accent);background:transparent}
+.chip.sug:hover{background:var(--accent-soft)}
+.chip.ghost{background:transparent;border-style:dashed}
+.chip.auto::after{content:"auto";font-size:9.5px;opacity:.65;text-transform:uppercase;letter-spacing:.05em}
+.av{--h:250;width:34px;height:34px;border-radius:50%;display:inline-grid;place-items:center;font-weight:700;font-size:12.5px;flex:none;
+  background:hsl(var(--h) 70% 92%);color:hsl(var(--h) 45% 35%)}
+[data-theme=dark] .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}
+.av.lg{width:46px;height:46px;font-size:16px}
+.av.xs{width:24px;height:24px;font-size:10px;border:2px solid var(--panel)}
+.empty{padding:34px 20px;text-align:center;color:var(--muted)}
+.empty .big{font-size:34px;margin-bottom:6px}
+h1{font-size:26px;margin:0;letter-spacing:-.02em}
+.section-title{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.section-title h1{flex:1}
+
+/* ---------- Home ---------- */
+.hero{display:flex;align-items:center;gap:20px;margin-bottom:18px}
+.hero>div{flex:1}
+.hero p{margin:4px 0 0}
+.hero b{color:var(--text)}
+.otp-strip{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:stretch}
+.otp-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.otp{position:relative;display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:var(--r);background:linear-gradient(135deg,var(--accent-soft),var(--panel));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);box-shadow:0 8px 26px color-mix(in srgb,var(--accent) 18%,transparent);text-align:left;animation:pop .35s ease}
+.otp:hover{transform:translateY(-1px)}
+.otp small{display:block;color:var(--muted);font-size:11.5px;font-weight:600}
+.otp .code{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:.12em}
+.ring{--p:1;width:30px;height:30px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*360deg),var(--line) 0);display:grid;place-items:center}
+.ring::after{content:"";width:22px;height:22px;border-radius:50%;background:var(--panel)}
+.home-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+@media (max-width:1100px){.home-grid{grid-template-columns:1fr}}
+.side-col{display:flex;flex-direction:column;gap:18px}
+.filters{display:flex;gap:6px;flex-wrap:wrap;padding:4px 16px 12px}
+.filters .sep{width:1px;background:var(--line);margin:0 4px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;padding:4px 16px 16px}
+.mcard{position:relative;display:flex;flex-direction:column;gap:7px;padding:13px 14px 11px;border-radius:12px;background:var(--panel);border:1px solid var(--line);cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;animation:pop .3s ease both}
+.mcard:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:var(--shadow);transform:translateY(-1px)}
+.mcard.unread::before{content:"";position:absolute;left:-1px;top:14px;bottom:14px;width:3px;border-radius:3px;background:var(--accent)}
+.mcard.dragging{opacity:.4;transform:scale(.97)}
+.mcard.g-rauschen{opacity:.72}
+.mc-head{display:flex;gap:10px;align-items:center}
+.mc-from{flex:1;min-width:0;line-height:1.25}
+.mc-from b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-from small{color:var(--muted);font-size:11.5px}
+.mc-subj{font-weight:650;font-size:13.5px;line-height:1.3}
+.mc-prev{color:var(--muted);font-size:12.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mc-foot{display:flex;align-items:center;gap:6px;min-height:26px}
+.mc-foot .grow{flex:1}
+.mc-acts{display:flex;gap:2px;opacity:0;transition:opacity .15s}
+.mcard:hover .mc-acts,.mcard:focus-within .mc-acts{opacity:1}
+.ib{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+.ib:hover{background:var(--hover);color:var(--text)}
+.ib.on{color:var(--accent)}
+.pinmark{color:var(--accent)}
+.grp-tag{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+.sticky-list{display:flex;flex-direction:column;gap:8px;padding:6px 14px 14px}
+.sticky{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--c,#f2a20c) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--c,#f2a20c) 25%,transparent);cursor:pointer;text-align:left;width:100%}
+.sticky:hover{border-color:color-mix(in srgb,var(--c,#f2a20c) 55%,transparent)}
+.sticky b{display:block;font-size:13px}
+.sticky small{color:var(--muted)}
+.sticky .grow{flex:1;min-width:0}
+.row{display:flex;align-items:center;gap:10px;padding:8px 16px;width:100%;text-align:left}
+.row:hover{background:var(--hover)}
+.row .grow{flex:1;min-width:0}
+.row .t{display:block;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-pad{padding:4px 0 10px}
+.topic-row{display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:0;width:100%;text-align:left;transition:background .12s}
+.topic-row:hover{background:var(--hover)}
+.topic-row .bar{width:4px;height:22px;border-radius:3px;background:var(--c)}
+.topic-row .grow{flex:1;font-weight:600}
+.drop-over{outline:2px dashed var(--accent);outline-offset:-2px;background:var(--accent-soft)!important}
+.due{font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--panel2);color:var(--muted)}
+.due.heute{background:color-mix(in srgb,var(--warn) 18%,transparent);color:color-mix(in srgb,var(--warn) 80%,var(--text))}
+.due.ue{background:color-mix(in srgb,var(--danger) 15%,transparent);color:var(--danger)}
+.acc-row{display:flex;align-items:center;gap:10px;padding:7px 16px}
+.acc-row .grow{flex:1}
+.live{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 20%,transparent)}
+.live.local{background:var(--accent-2);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent-2) 20%,transparent)}
+.hint-line{font-size:12px;color:var(--faint);padding:0 16px 14px;display:flex;gap:6px;align-items:center}
+
+/* ---------- Dock ---------- */
+#dock{position:fixed;left:50%;bottom:22px;transform:translate(-50%,140%);display:flex;gap:8px;padding:10px;border-radius:18px;background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:var(--shadow-lg);transition:transform .25s cubic-bezier(.2,.9,.3,1.2),opacity .2s;opacity:0;pointer-events:none;z-index:40;max-width:94vw;flex-wrap:wrap;justify-content:center}
+#dock.show{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+.dz{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:78px;padding:10px 8px;border-radius:12px;border:1.5px dashed var(--line);font-size:11.5px;font-weight:650;color:var(--muted);transition:all .12s}
+.dz.topic{border-color:color-mix(in srgb,var(--c) 45%,transparent);color:color-mix(in srgb,var(--c) 80%,var(--text))}
+.dz.drop-over{transform:scale(1.08);border-style:solid}
+.dz .dsep{width:1px}
+.dock-sep{width:1px;background:var(--line);margin:4px 2px}
+
+/* ---------- Reader ---------- */
+#scrim{position:fixed;inset:0;background:rgba(10,10,20,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+#scrim.show{opacity:1;pointer-events:auto}
+#reader{position:fixed;top:0;right:0;bottom:0;width:min(640px,96vw);background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow-lg);transform:translateX(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:30;display:flex;flex-direction:column}
+#reader.show{transform:none}
+.rd-top{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.rd-top .grow{flex:1}
+.rd-scroll{flex:1;overflow:auto;padding:20px 26px 40px}
+.rd-head{display:flex;gap:14px;align-items:center}
+.rd-head .grow{flex:1;min-width:0}
+.rd-head small{color:var(--muted)}
+.rd-subj{font-size:21px;letter-spacing:-.01em;margin:16px 0 10px;line-height:1.25}
+.rd-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.rd-actions{display:flex;flex-wrap:wrap;gap:6px;padding:10px 0 14px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.ab{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);background:var(--panel)}
+.ab:hover{color:var(--text);border-color:var(--faint)}
+.ab.on{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:var(--accent-soft)}
+.ab kbd{padding:0 4px;font-size:10px}
+.finds{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 12px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);margin-bottom:16px}
+.finds>span{font-size:11.5px;font-weight:700;color:var(--accent);display:flex;gap:5px;align-items:center;margin-right:4px}
+.find{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:8px;background:var(--panel);border:1px solid var(--line);font-size:12px}
+.find:hover{border-color:var(--accent);color:var(--accent)}
+.find em{font-style:normal;color:var(--faint);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.rd-body{white-space:pre-wrap;font-size:15px;line-height:1.65;max-width:620px}
+.rd-body::selection,.rd-body *::selection{background:color-mix(in srgb,var(--accent) 30%,transparent)}
+.att-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.att{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);font-size:12.5px;font-weight:600}
+.related{margin-top:26px;padding-top:14px;border-top:1px solid var(--line)}
+.related h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.tip{display:flex;gap:8px;align-items:center;margin-top:20px;padding:10px 12px;border-radius:10px;background:var(--accent-soft);color:var(--accent);font-size:12.5px;font-weight:550}
+.offline-badge{display:inline-flex;gap:5px;align-items:center;font-size:11.5px;font-weight:700;color:var(--accent-2);background:color-mix(in srgb,var(--accent-2) 12%,transparent);padding:3px 8px;border-radius:6px}
+#selbubble{position:fixed;display:none;gap:4px;padding:5px;border-radius:11px;background:var(--text);color:var(--panel);box-shadow:var(--shadow-lg);z-index:60;transform:translate(-50%,-110%)}
+#selbubble button{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:8px;font-size:12.5px;font-weight:650}
+#selbubble button:hover{background:rgba(127,127,127,.25)}
+
+/* ---------- Popovers / Modals ---------- */
+#pop{position:fixed;z-index:70;display:none;min-width:280px;max-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);padding:8px;animation:pop .15s ease}
+#pop input{width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);outline:none;margin-bottom:6px}
+#pop input:focus{border-color:var(--accent)}
+.pi{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:9px;text-align:left;font-weight:550}
+.pi:hover,.pi.sel{background:var(--hover)}
+.pi .grow{flex:1}
+.pi kbd{font-size:10px}
+.pop-hint{font-size:11.5px;color:var(--faint);padding:6px 10px 2px;border-top:1px solid var(--line);margin-top:6px}
+.pop-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:6px 10px}
+#modal{position:fixed;inset:0;z-index:65;display:none;place-items:center;background:rgba(10,10,20,.35);backdrop-filter:blur(2px)}
+#modal.show{display:grid}
+.dlg{width:min(520px,94vw);max-height:90vh;overflow:auto;background:var(--panel);border-radius:18px;box-shadow:var(--shadow-lg);padding:22px 24px;animation:pop .2s ease}
+.dlg h3{margin:0 0 4px;font-size:18px;display:flex;gap:9px;align-items:center}
+.dlg .sub{color:var(--muted);margin:0 0 16px;font-size:13px}
+.dlg label.l{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.05em}
+.dlg input[type=text],.dlg textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);outline:none}
+.dlg input[type=text]:focus,.dlg textarea:focus{border-color:var(--accent);background:var(--panel)}
+.dlg textarea{min-height:90px;resize:vertical}
+.dlg .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{padding:7px 11px;border-radius:9px;border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--muted)}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.src{margin-top:14px;font-size:12.5px;color:var(--muted);display:flex;gap:8px;align-items:center;padding:9px 11px;border-radius:9px;background:var(--panel2)}
+.check{display:flex;gap:9px;align-items:center;margin-top:12px;font-size:13px}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.folder-pick{border:1px solid var(--line);border-radius:11px;padding:6px;max-height:220px;overflow:auto}
+.fp{display:flex;gap:8px;align-items:center;width:100%;padding:7px 9px;border-radius:8px;text-align:left;font-weight:550}
+.fp:hover{background:var(--hover)}
+.fp.on{background:var(--accent-soft);color:var(--accent)}
+.fp .grow{flex:1}
+.path{font-family:var(--mono);font-size:11.5px;color:var(--muted);word-break:break-all;margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--panel2)}
+.tagsug{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+
+/* ---------- Toasts / Notifications ---------- */
+#toasts{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;z-index:80;pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;border-radius:12px;background:var(--text);color:var(--panel);box-shadow:var(--shadow-lg);font-weight:550;font-size:13px;animation:up .25s ease}
+.toast button{padding:5px 10px;border-radius:8px;font-weight:700;color:var(--accent-2)}
+.toast button:hover{background:rgba(127,127,127,.25)}
+#notify{position:fixed;top:14px;right:14px;display:flex;flex-direction:column;gap:10px;z-index:90}
+.note{width:360px;padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-lg);animation:slide .3s ease}
+.note .nh{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--muted);font-weight:600}
+.note .nh .mini{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:grid;place-items:center;font-size:10px;font-weight:800}
+.note .nh .grow{flex:1}
+.note b{display:block;margin:7px 0 2px;font-size:13.5px}
+.note p{margin:0;color:var(--muted);font-size:12.5px}
+.note .na{display:flex;gap:6px;margin-top:10px}
+.note .na button{flex:1;padding:7px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font-size:12px;font-weight:650}
+.note .na button:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ---------- Triage ---------- */
+.triage{max-width:760px;margin:0 auto}
+.tr-top{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.progress{flex:1;height:6px;border-radius:6px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:6px;transition:width .3s}
+.stack{position:relative;padding-bottom:22px}
+.stack .ghostcard{position:absolute;left:24px;right:24px;height:60px;bottom:6px;border-radius:18px;background:var(--panel);border:1px solid var(--line);opacity:.6}
+.stack .ghostcard.g2{left:46px;right:46px;bottom:-4px;opacity:.35}
+.tcardfront{position:relative;z-index:2;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-lg);padding:24px 28px;transition:transform .25s ease,opacity .25s ease;animation:pop .25s ease}
+.tcardfront.out-left{transform:translateX(-120%) rotate(-8deg);opacity:0}
+.tcardfront.out-right{transform:translateX(120%) rotate(8deg);opacity:0}
+.tcardfront.out-up{transform:translateY(-60%) scale(.9);opacity:0}
+.tcardfront .rd-subj{font-size:22px}
+.tcardfront .rd-body{font-size:14.5px;max-height:260px;overflow:auto}
+.sugg{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
+.sugg>span{font-size:12px;font-weight:700;color:var(--accent);display:flex;gap:5px;align-items:center}
+.tr-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:20px}
+.ta{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;border-radius:13px;background:var(--panel);border:1px solid var(--line);font-weight:650;font-size:12.5px;color:var(--muted)}
+.ta:hover{color:var(--text);border-color:var(--accent);transform:translateY(-1px)}
+.ta.main{background:var(--accent);color:#fff;border-color:var(--accent)}
+.done-screen{text-align:center;padding:60px 20px}
+.done-screen .big{font-size:64px;animation:bounce 1s ease}
+.stats{display:flex;gap:12px;justify-content:center;margin:22px 0;flex-wrap:wrap}
+.stat{padding:14px 18px;border-radius:14px;background:var(--panel);border:1px solid var(--line);min-width:100px}
+.stat b{display:block;font-size:24px}
+.stat small{color:var(--muted);font-weight:600}
+
+/* ---------- Topics ---------- */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.tcard{position:relative;text-align:left;padding:18px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden;transition:transform .15s}
+.tcard:hover{transform:translateY(-2px)}
+.tcard::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:var(--c)}
+.tcard h3{margin:4px 0 12px;font-size:17px;display:flex;gap:8px;align-items:center}
+.tc-stats{display:flex;gap:12px;color:var(--muted);font-size:12.5px;font-weight:600}
+.tc-stats span{display:flex;gap:4px;align-items:center}
+.tc-people{display:flex;margin-top:14px}
+.tc-people .av{margin-right:-7px}
+.tc-rule{margin-top:12px;font-size:11.5px;color:var(--faint);display:flex;gap:5px;align-items:center}
+.tcard.new{border:1.5px dashed var(--line);box-shadow:none;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.tcard.new::before{display:none}
+.tcard.new input{padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);outline:none}
+.swatches{display:flex;gap:6px}
+.sw{width:20px;height:20px;border-radius:50%;background:var(--c);border:2px solid transparent}
+.sw.on{border-color:var(--text)}
+.ws-head{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.ws-head .bigdot{width:18px;height:18px;border-radius:6px;background:var(--c);cursor:pointer}
+.ws-head h1[contenteditable]{outline:none;border-radius:6px;padding:0 4px}
+.ws-head h1[contenteditable]:focus{background:var(--panel2)}
+.rules{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 20px;font-size:12.5px;color:var(--muted)}
+.ws-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start}
+.ws-grid .cards{grid-template-columns:1fr;padding:6px 12px 14px}
+
+/* ---------- Tasks ---------- */
+.kanban{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;align-items:start}
+@media (max-width:1100px){.kanban{grid-template-columns:repeat(2,1fr)}}
+.col{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:10px;min-height:200px}
+.col>header{display:flex;align-items:center;gap:8px;padding:4px 6px 10px;font-weight:700;font-size:13px}
+.col>header .grow{flex:1}
+.col>header small{color:var(--faint);font-weight:500;font-size:11.5px;display:block}
+.task{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow);animation:pop .25s ease both}
+.task.done .tt{text-decoration:line-through;color:var(--muted)}
+.task .th{display:flex;gap:9px;align-items:flex-start}
+.task .tt{flex:1;font-weight:600;font-size:13px}
+.tick{width:18px;height:18px;border-radius:6px;border:1.8px solid var(--faint);flex:none;margin-top:1px;display:grid;place-items:center}
+.tick.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.task .tm{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.srcmail{display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--muted);margin-top:8px;padding:6px 8px;border-radius:8px;background:var(--panel2);width:100%;text-align:left}
+.srcmail:hover{color:var(--accent)}
+.srcmail span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quickadd{display:flex;gap:8px;margin-bottom:16px}
+.quickadd input{flex:1;max-width:520px;padding:10px 14px;border-radius:11px;border:1px solid var(--line);background:var(--panel);outline:none}
+.quickadd input:focus{border-color:var(--accent)}
+.nudge{font-size:11.5px;font-weight:700;color:var(--warn)}
+
+/* ---------- Knowledge ---------- */
+.kgrid{columns:3 280px;column-gap:14px}
+.kcard{break-inside:avoid;margin-bottom:14px;padding:14px 16px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);animation:pop .25s ease both}
+.kcard .kk{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;gap:6px;align-items:center}
+.kcard .kk .grow{flex:1}
+.kcard .kv{font-family:var(--mono);font-size:17px;font-weight:600;margin:8px 0 4px;word-break:break-word}
+.kcard h3{margin:8px 0 6px;font-size:15px}
+.kcard p{margin:0;color:var(--muted);font-size:13px;white-space:pre-wrap}
+.kcard .kf{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.ksearch{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.ksearch input{flex:1;max-width:460px;padding:10px 14px;border-radius:11px;border:1px solid var(--line);background:var(--panel);outline:none}
+.tagbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+
+/* ---------- Ablage ---------- */
+.ablage{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start}
+.tree{padding:8px}
+.tn{display:flex;gap:8px;align-items:center;width:100%;padding:7px 10px;border-radius:9px;text-align:left;font-weight:550;color:var(--muted)}
+.tn:hover{background:var(--hover);color:var(--text)}
+.tn.on{background:var(--accent-soft);color:var(--accent)}
+.tn .grow{flex:1}
+.localinfo{display:flex;gap:16px;align-items:center;padding:14px 16px;margin-bottom:14px}
+.localinfo .grow{flex:1}
+.localinfo b{display:block}
+.files{width:100%;border-collapse:collapse}
+.files td{padding:10px 14px;border-top:1px solid var(--line);font-size:13px}
+.files tr{cursor:pointer}
+.files tr:hover td{background:var(--hover)}
+.files .fn{font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+/* ---------- Palette ---------- */
+#palette{position:fixed;inset:0;z-index:75;display:none;background:rgba(10,10,20,.35);backdrop-filter:blur(3px);padding-top:12vh}
+#palette.show{display:block}
+.pal{width:min(640px,94vw);margin:0 auto;background:var(--panel);border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden;animation:pop .15s ease}
+.pal-in{display:flex;gap:10px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+.pal-in input{flex:1;border:0;outline:none;background:none;font-size:16px}
+.pal-res{max-height:56vh;overflow:auto;padding:6px}
+.pal-res .pop-title{padding:10px 12px 4px}
+.pal-hints{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--faint)}
+
+/* ---------- Tray ---------- */
+#tray{position:fixed;top:58px;right:16px;width:380px;z-index:50;display:none;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-lg);overflow:hidden;animation:pop .2s ease}
+#tray.show{display:block}
+.tr-h{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.tr-h .grow{flex:1}
+.tr-sec{padding:10px 8px}
+.tr-sec h5{margin:2px 8px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.tr-row{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px;width:100%;text-align:left}
+.tr-row:hover{background:var(--hover)}
+.tr-row .grow{flex:1;min-width:0}
+.tr-row .grow b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-row .grow small{display:block;color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-row .qa{display:none;gap:2px}
+.tr-row:hover .qa{display:flex}
+.tr-f{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
+.tr-f .btn{flex:1;justify-content:center}
+.dummy{position:fixed;right:14px;bottom:12px;z-index:15;display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--faint);background:var(--panel);border:1px solid var(--line);padding:4px 10px;border-radius:20px;box-shadow:var(--shadow)}
+.dummy button{color:var(--muted);text-decoration:underline}
+.shortcuts{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13px;align-items:center}
+
+/* ---------- Fluss & Bestand ---------- */
+.zone{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:0 0 8px 4px;display:flex;gap:8px;align-items:center}
+.zone b{color:var(--muted)}
+.zone .grow{flex:1}
+.goal{font-size:11.5px;font-weight:700;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:2px 9px;text-transform:none;letter-spacing:0}
+.board .panel{position:relative}
+.bctl{display:flex;gap:2px;margin-left:auto}
+.board.edit .panel{outline:2px dashed color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:3px}
+.addw{border:1.5px dashed var(--line);border-radius:var(--r);padding:14px;color:var(--muted);font-weight:600;display:flex;gap:8px;justify-content:center;align-items:center}
+.addw:hover{border-color:var(--accent);color:var(--accent)}
+.lv{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:9px 16px}
+.lv:hover{background:var(--hover)}
+.lv .grow{flex:1;min-width:0}
+.lv .grow b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv .grow small{color:var(--faint);font-size:11px}
+.lv .src{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:10px;font-weight:800;background:var(--panel2);border:1px solid var(--line);color:var(--muted);flex:none}
+.st{font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:7px;white-space:nowrap;background:var(--accent-soft);color:var(--accent)}
+.st.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.st.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:color-mix(in srgb,var(--warn) 80%,var(--text))}
+.st.bad{background:color-mix(in srgb,var(--danger) 15%,transparent);color:var(--danger)}
+.lv.flash{animation:flash 1.6s ease}
+.cheat{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:8px 16px}
+.cheat:hover{background:var(--hover)}
+.cheat .grow{flex:1;min-width:0}
+.cheat small{display:block;color:var(--muted);font-size:11.5px}
+.cheat code{font-family:var(--mono);font-size:13px;font-weight:600}
+.exp{display:inline-flex;gap:4px;align-items:center;font-size:11px;font-weight:600;color:var(--faint);white-space:nowrap}
+.mc-acts{position:absolute;right:10px;bottom:8px;background:var(--panel);padding-left:6px;border-radius:8px}
+.lv .meta{display:flex;gap:8px;align-items:center;margin-top:4px;min-width:0}
+.lv .meta small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist{display:flex;flex-direction:column;gap:2px;margin:4px 0}
+.hist div{display:flex;gap:10px;padding:6px 10px;border-radius:8px;font-size:12.5px}
+.hist div:first-child{background:var(--hover);font-weight:650}
+.hist span:first-child{color:var(--faint);min-width:52px}
+/* ---------- KI ---------- */
+.ai-line{display:flex;gap:6px;align-items:center;font-size:12px;font-weight:600;color:var(--accent);min-width:0}
+.ai-line span.t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc{display:inline-grid;place-items:center;min-width:20px;height:18px;padding:0 5px;border-radius:6px;font-size:11px;font-weight:800;background:var(--accent);color:#fff}
+.sc.s1,.sc.s2{background:var(--faint)}
+.sc.s3{background:color-mix(in srgb,var(--accent) 60%,var(--faint))}
+.ai-off{font-size:11px;color:var(--faint);display:flex;gap:5px;align-items:center}
+.ai-band{border-radius:12px;padding:12px 14px;margin-bottom:16px;background:linear-gradient(135deg,var(--accent-soft),color-mix(in srgb,var(--accent-2) 8%,var(--panel)));border:1px solid color-mix(in srgb,var(--accent) 25%,transparent)}
+.ai-band .h{display:flex;gap:8px;align-items:center;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
+.ai-band .h .grow{flex:1}
+.ai-band p{margin:6px 0 0;font-size:13.5px}
+.ai-band .row2{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.digest{grid-column:1/-1;display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border-radius:12px;background:linear-gradient(135deg,var(--accent-soft),var(--panel));border:1px dashed color-mix(in srgb,var(--accent) 45%,transparent)}
+.digest .grow{flex:1}
+.digest b{font-size:13.5px}
+.digest ul{margin:6px 0 8px;padding-left:18px;font-size:13px}
+.digest li{margin:2px 0}
+.digest li button{color:var(--accent);font-weight:600}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
+.pcard{padding:16px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}
+.pcard.off{opacity:.55}
+.pcard h3{margin:0;font-size:15px;display:flex;gap:8px;align-items:center}
+.pcard h3 .grow{flex:1}
+.pmeta{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.pcode{font-family:var(--mono);font-size:12px;line-height:1.5;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;white-space:pre-wrap;color:var(--muted)}
+.pfoot{display:flex;gap:8px;margin-top:12px}
+.sw-toggle{width:36px;height:20px;border-radius:20px;background:var(--line);position:relative;flex:none;transition:background .15s}
+.sw-toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+.sw-toggle.on{background:var(--accent)}
+.sw-toggle.on::after{left:18px}
+.ai-top{display:flex;gap:16px;align-items:center;padding:16px 18px;margin-bottom:16px}
+.ai-top .grow{flex:1}
+.answer{font-size:14px;line-height:1.6}
+.answer sup button{color:var(--accent);font-weight:700}
+.subt{display:flex;gap:8px;align-items:center;font-size:12.5px;padding:3px 0;color:var(--muted)}
+.subt .tick{width:15px;height:15px;border-radius:5px}
+@keyframes flash{0%,100%{background:transparent}20%{background:color-mix(in srgb,var(--accent) 22%,transparent)}}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(4px)}to{opacity:1;transform:none}}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes slide{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+@keyframes bounce{0%{transform:scale(.3)}50%{transform:scale(1.15)}70%{transform:scale(.95)}100%{transform:scale(1)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <nav class="rail" id="rail"></nav>
+  <main>
+    <header class="top">
+      <button class="search-trigger" data-act="palette"><svg class="i"><use href="#i-search"/></svg><span>Suchen oder Befehl …</span><kbd>Strg K</kbd></button>
+      <div class="grow"></div>
+      <button class="tbtn" data-act="simMenu"><svg class="i"><use href="#i-spark"/></svg>Simulieren</button>
+      <button class="tbtn" id="focusBtn" data-act="focus" title="Fokus-Modus: nur Menschen dürfen stören"><svg class="i"><use href="#i-bell"/></svg>Fokus</button>
+      <button class="tbtn" data-act="tray" title="So sieht Maillet im System-Tray aus"><svg class="i"><use href="#i-tray"/></svg>Tray-Popup</button>
+      <button class="tbtn" data-act="theme" title="Hell / Dunkel"><svg class="i"><use href="#i-moon"/></svg></button>
+      <button class="tbtn" data-act="keys" title="Tastenkürzel"><svg class="i"><use href="#i-kbd"/></svg></button>
+    </header>
+    <section id="view"></section>
+  </main>
+</div>
+<div id="scrim" data-act="closeReader"></div>
+<aside id="reader"></aside>
+<div id="dock"></div>
+<div id="pop"></div>
+<div id="modal"></div>
+<div id="palette"></div>
+<div id="tray"></div>
+<div id="selbubble"><button data-act="selKnow"><svg class="i sm"><use href="#i-bulb"/></svg>Merken</button><button data-act="selTask"><svg class="i sm"><use href="#i-task"/></svg>Aufgabe</button></div>
+<div id="toasts"></div>
+<div id="notify"></div>
+<div class="dummy">Click-Dummy · alle Daten fiktiv · <button data-act="reset">Zurücksetzen</button></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+    <symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+    <symbol id="i-task" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v12h16V8M10 12h4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-tray" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 8h18M15 5.5h3"/></symbol>
+    <symbol id="i-reply" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v4"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h4"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 7"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></symbol>
+    <symbol id="i-belloff" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4M3 3l18 18"/></symbol>
+    <symbol id="i-kbd" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6z"/><path d="M14 2v5h5"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  </defs>
+</svg>
+
+<script>
+'use strict';
+/* =====================================================================
+   Maillet Click-Dummy – alles in einer Datei, keine Abhängigkeiten.
+   Zustand: D (Daten), S (UI-Zustand). Jede Aktion → render().
+   ===================================================================== */
+
+const ic = (n, cls = '') => `<svg class="i ${cls}"><use href="#i-${n}"/></svg>`;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = p => p + Math.random().toString(36).slice(2, 8);
+const initials = n => n.replace(/[^\p{L}\s-]/gu, '').split(/[\s-]+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+const hue = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+const avatar = (name, size = '') => `<span class="av ${size}" style="--h:${hue(name)}">${esc(initials(name))}</span>`;
+const GROUPS = { mensch: 'Menschen', maschine: 'Maschinen', rauschen: 'Rauschen' };
+const DUE = { heute: 'Heute', morgen: 'Morgen', fr: 'Fr 13.11.', nw: 'Nächste Woche', ue: 'Überfällig', '': 'Ohne Termin' };
+const STATUS = { open: 'Offen', doing: 'In Arbeit', wait: 'Warte auf …', done: 'Erledigt' };
+const COLORS = ['#6d5dfc', '#0ea5a4', '#f2a20c', '#ec4899', '#64748b', '#3b82f6', '#22c55e', '#ef4444'];
+
+function seed() {
+  return {
+    accounts: [
+      { id: 'arbeit', name: 'Arbeit', addr: 'du@firma.example', kind: 'imap', sync: 'gerade eben' },
+      { id: 'privat', name: 'Privat', addr: 'du@mail.example', kind: 'imap', sync: 'vor 2 Min' },
+      { id: 'lokal', name: 'Ablage', addr: '~/Maillet/Ablage', kind: 'local', sync: 'lokal, kein Sync nötig' },
+    ],
+    topics: [
+      { id: 't1', name: 'Projekt Atlas', color: '#6d5dfc' },
+      { id: 't2', name: 'Kunde Nordwind', color: '#0ea5a4' },
+      { id: 't3', name: 'Team & HR', color: '#f2a20c' },
+      { id: 't4', name: 'Reisen', color: '#ec4899' },
+      { id: 't5', name: 'Rechnungen', color: '#64748b' },
+    ],
+    rules: [{ id: 'r1', topic: 't2', match: '@nordwind.de' }],
+    folders: ['Projekte', 'Projekte/Atlas', 'Projekte/Nordwind', 'Verträge', 'Personal', 'Persönlich'],
+    otps: [{ id: 'o1', service: 'GitHub', code: '492104', acc: 'arbeit', mail: null, exp: Date.now() + 105000, ttl: 120000 }],
+    mails: [
+      { id: 'm1', acc: 'arbeit', from: 'Jana Wolff', addr: 'jana.wolff@firma.example', group: 'mensch', unread: true, time: '09:14', date: '2026-11-10',
+        subject: 'Atlas: Review der Spezifikation bis Freitag', attach: ['Atlas-Login-Spec-v0.9.pdf'],
+        ai: { score: 4, why: 'Projekt Atlas, Frist Freitag', ask: 'Review der Spezifikation, Fokus Kapitel 3, bis Fr 13.11.', sum: 'Jana bittet um ein Review der Login-Spezifikation v0.9 bis Freitag, vor allem Session-Handling und Fehlerfälle.' },
+        body: `Hallo,
+
+anbei die Spezifikation für den neuen Login-Flow (v0.9). Kannst du bitte bis Freitag ein Review machen? Mir geht es vor allem um Kapitel 3 (Session-Handling) und die Fehlerfälle.
+
+Kostenstelle: KST 4711-ATL
+
+Danke dir!
+Jana` },
+      { id: 'm2', acc: 'arbeit', from: 'Malte Hansen', addr: 'm.hansen@nordwind.de', group: 'mensch', unread: true, time: '08:51', date: '2026-11-10',
+        subject: 'Angebot Phase 2 – drei Rückfragen',
+        ai: { score: 5, why: 'Kunde Nordwind, Budget und Termin 18.12.', ask: '3 Fragen zum Angebot beantworten, Call vorschlagen', sum: 'Nordwind gibt Phase 2 noch nicht frei: offen sind Migration im Festpreis, ein früherer Go-Live am 18.12. und der Ansprechpartner für den Betrieb.', mood: 'sachlich, kaufbereit – Risiko: Termindruck', subtasks: ['Klären: Datenmigration im Festpreis?', 'Go-Live 18.12.2026 prüfen', 'Ansprechpartner Betrieb benennen'], task: 'Rückfragen Nordwind zu Phase 2 beantworten' },
+        body: `Guten Tag,
+
+vielen Dank für das Angebot zu Phase 2. Bevor wir intern freigeben, haben wir drei Rückfragen:
+
+1. Ist die Datenmigration im Festpreis enthalten?
+2. Können wir den Go-Live auf den 18.12.2026 vorziehen?
+3. Wer ist auf Ihrer Seite Ansprechpartner für den Betrieb?
+
+Am besten klären wir das in einem kurzen Call. Sie erreichen mich unter +49 40 1234 567.
+
+Beste Grüße
+Malte Hansen
+Einkauf · Nordwind Logistik GmbH` },
+      { id: 'm3', acc: 'arbeit', from: 'IT-Service', addr: 'it-service@firma.example', group: 'maschine', unread: true, time: '08:30', date: '2026-11-10',
+        subject: 'Ihr VPN-Zugang ist eingerichtet',
+        ai: { score: 3, why: 'betrifft dich direkt, läuft am 31.12. ab', ask: null, sum: 'VPN für die Gruppe Engineering ist eingerichtet, gültig bis 31.12.2026. Zugangsdaten folgen separat.' },
+        body: `Hallo,
+
+Ihr VPN-Zugang wurde eingerichtet.
+
+Server: vpn.firma.example
+Gruppe: Engineering
+Gültig bis: 31.12.2026
+
+Die Zugangsdaten erhalten Sie separat. Bei Fragen: IT-Hotline +49 40 555 0100.
+
+Ihr IT-Service` },
+      { id: 'm4', acc: 'arbeit', from: 'Lena Brandt', addr: 'lena.brandt@firma.example', group: 'mensch', unread: true, time: '08:02', date: '2026-11-10',
+        subject: 'Urlaubsantrag genehmigt', topic: 't3',
+        body: `Hallo,
+
+dein Urlaub vom 22.12.2026 bis 02.01.2027 ist genehmigt. Bitte trage deine Vertretung im Teamkalender ein.
+
+Viele Grüße
+Lena (HR)` },
+      { id: 'm5', acc: 'arbeit', from: 'Deutsche Bahn', addr: 'buchung@bahn.example', group: 'maschine', unread: true, time: '07:40', date: '2026-11-10',
+        subject: 'Reisebestätigung Hamburg → München',
+        ai: { score: 3, why: 'Reise in zwei Wochen', ask: null, sum: 'Bahnreise Hamburg–München, hin 24.11. 07:12, zurück 26.11. 17:04, Wagen 7 Platz 45.' },
+        body: `Vielen Dank für Ihre Buchung.
+
+Auftragsnummer: Q7X4KD
+Hinfahrt: 24.11.2026, 07:12 Hamburg Hbf
+Rückfahrt: 26.11.2026, 17:04 München Hbf
+Sitzplatz: Wagen 7, Platz 45
+
+Gute Reise!` },
+      { id: 'm6', acc: 'arbeit', from: 'Jira', addr: 'jira@firma.example', group: 'maschine', archived: true, absorbed: 'l1', time: '07:12', date: '2026-11-10',
+        subject: '[ATLAS-412] Dir zugewiesen: Login-Flow überarbeiten',
+        body: `Jana Wolff hat dir ATLAS-412 zugewiesen.
+
+Priorität: Hoch
+Fällig: 20.11.2026
+
+https://jira.firma.example/browse/ATLAS-412` },
+      { id: 'm7', acc: 'arbeit', from: 'heise Developer', addr: 'newsletter@heise.example', group: 'rauschen', unread: true, time: '06:00', date: '2026-11-10',
+        subject: 'Developer Weekly #47: Rust 1.95, WebGPU und mehr', expires: 'in 7 Tagen',
+        ai: { score: 2, why: 'passt zu deinem Radar: Rust', radar: 'Rust 1.95 ist erschienen' }, body: `Die Themen dieser Woche: Rust 1.95 ist da, WebGPU in allen großen Browsern, und warum Monorepos wieder im Trend liegen.
+
+Zum Abbestellen hier klicken.` },
+      { id: 'm8', acc: 'privat', from: 'LinkedIn', addr: 'notifications@linkedin.example', group: 'rauschen', unread: true, time: 'gestern', date: '2026-11-09',
+        subject: 'Du hast 5 neue Kontaktanfragen', expires: 'in 7 Tagen', body: `5 Personen möchten sich mit dir vernetzen. Jetzt ansehen.` },
+      { id: 'm9', acc: 'arbeit', from: 'Tom Becker', addr: 'tom.becker@firma.example', group: 'mensch', unread: true, time: '09:20', date: '2026-11-10',
+        subject: 'Mittag heute?', expires: 'heute 12:30',
+        ai: { score: 2, why: 'Kollege, kurzfristig', ask: 'Antwort vor 12:30: Kantine oder Thai' }, body: `Hey,
+
+12:30 Kantine oder Thai um die Ecke?
+
+Tom` },
+      { id: 'm10', acc: 'privat', from: 'Anna Krüger', addr: 'anna.k@mail.example', group: 'mensch', unread: true, time: 'gestern', date: '2026-11-09',
+        subject: 'Sonntag Kaffee?', body: `Hi!
+
+Hast du Sonntag Zeit? Wir könnten um 15 Uhr zu Mama fahren.
+
+LG Anna` },
+      { id: 'm11', acc: 'arbeit', from: 'Malte Hansen', addr: 'm.hansen@nordwind.de', group: 'mensch', time: 'Fr', date: '2026-11-06', pinned: true,
+        subject: 'Protokoll Kickoff Phase 2', attach: ['Protokoll-Kickoff-P2.pdf'],
+        body: `Hallo zusammen,
+
+anbei das Protokoll unseres Kickoffs. Die nächsten Schritte:
+
+– Angebot Phase 2 bis 09.11.
+– Abstimmung Betriebskonzept im Dezember
+– Freigaben bis 50.000 € durch den Einkauf, darüber durch die Geschäftsführung
+
+Beste Grüße
+Malte Hansen` },
+      { id: 'm12', acc: 'arbeit', from: 'Jana Wolff', addr: 'jana.wolff@firma.example', group: 'mensch', time: 'Mo', date: '2026-11-09', pinned: true, topic: 't1',
+        subject: 'Atlas Meilensteinplan v3', attach: ['Atlas-Meilensteine-v3.xlsx'],
+        body: `Hi,
+
+hier der aktualisierte Meilensteinplan. Wichtigste Änderung: Beta-Release verschiebt sich auf den 15.01.2027.
+
+Kostenstelle für alle Atlas-Buchungen bleibt KST 4711-ATL.
+
+Jana` },
+      { id: 'm13', acc: 'arbeit', from: 'Personalabteilung', addr: 'personal@firma.example', group: 'maschine', time: '02.11.', date: '2026-11-02', topic: 't3',
+        subject: 'Neue Reisekostenrichtlinie ab 2027',
+        body: `Liebe Kolleginnen und Kollegen,
+
+ab dem 01.01.2027 gilt die neue Reisekostenrichtlinie:
+
+Hotel: max. 120 € pro Nacht
+Bahn: 1. Klasse ab 4 Stunden Fahrzeit
+Abrechnung: spätestens 30 Tage nach Reiseende
+
+Ihre Personalabteilung` },
+      { id: 'm14', acc: 'arbeit', from: 'Hostwerk GmbH', addr: 'rechnung@hostwerk.example', group: 'maschine', time: '01.11.', date: '2026-11-01', topic: 't5',
+        subject: 'Rechnung 2026-1187', attach: ['Rechnung-2026-1187.pdf'],
+        body: `Sehr geehrte Damen und Herren,
+
+anbei Ihre Rechnung für November.
+
+Betrag: 49,90 €
+IBAN: DE12 5001 0517 0648 4898 90
+Fällig: 20.11.2026
+
+Mit freundlichen Grüßen
+Hostwerk GmbH` },
+      { id: 'm15', acc: 'privat', from: 'DHL', addr: 'noreply@dhl.example', group: 'maschine', archived: true, absorbed: 'l2', time: 'gestern', date: '2026-11-09',
+        subject: 'Ihr Paket kommt morgen', body: `Ihr Paket wird morgen zwischen 10:00 und 14:00 zugestellt.` },
+      // Nur in der lokalen Ablage (dateibasiertes Konto)
+      { id: 'm16', acc: 'lokal', ablage: 'Verträge', from: 'Malte Hansen', addr: 'm.hansen@nordwind.de', group: 'mensch', time: '14.03.', date: '2026-03-14', topic: 't2', size: '1,8 MB',
+        subject: 'Rahmenvertrag Nordwind – unterschrieben', attach: ['Rahmenvertrag-signiert.pdf'],
+        body: `Hallo,
+
+anbei der beidseitig unterschriebene Rahmenvertrag. Laufzeit bis 31.03.2029, Kündigungsfrist 6 Monate.
+
+Beste Grüße
+Malte Hansen` },
+      { id: 'm17', acc: 'lokal', ablage: 'Projekte/Atlas', from: 'Jana Wolff', addr: 'jana.wolff@firma.example', group: 'mensch', time: '02.09.', date: '2026-09-02', topic: 't1', size: '24 KB',
+        subject: 'ADR-007: Session-Tokens im Backend', body: `Entscheidung: Session-Tokens werden ausschließlich im Backend gehalten. Das Frontend bekommt nur ein HttpOnly-Cookie.
+
+Begründung: kleinere Angriffsfläche, einfachere Rotation.` },
+      { id: 'm18', acc: 'lokal', ablage: 'Personal', from: 'Personalabteilung', addr: 'personal@firma.example', group: 'maschine', time: '20.01.', date: '2026-01-20', topic: 't3', size: '310 KB',
+        subject: 'Zielvereinbarung 2026', attach: ['Zielvereinbarung-2026.pdf'], body: `Anbei deine unterschriebene Zielvereinbarung für 2026.` },
+      { id: 'm19', acc: 'lokal', ablage: 'Projekte/Nordwind', from: 'Malte Hansen', addr: 'm.hansen@nordwind.de', group: 'mensch', time: '03.11.25', date: '2025-11-03', topic: 't2', size: '6,2 MB',
+        subject: 'Kickoff Phase 1 – Folien', attach: ['Kickoff-P1.pdf'], body: `Hier die Folien vom Kickoff Phase 1, wie besprochen.` },
+    ],
+    live: [
+      { id: 'l1', src: 'Jira', title: 'ATLAS-412 · Login-Flow überarbeiten', state: 'Dir zugewiesen', tone: '', time: '07:12', hist: [['07:12', 'Dir zugewiesen (Jana Wolff)', 'm6'], ['gestern', 'Angelegt']] },
+      { id: 'l2', src: 'DHL', title: 'Paket 0034 0434 1188', state: 'Zustellung morgen 10–14 Uhr', tone: '', time: 'gestern', hist: [['gestern', 'In Zustellung morgen 10–14 Uhr', 'm15'], ['Mo', 'Versendet']] },
+      { id: 'l3', src: 'CI', title: 'atlas-backend · main', state: '✓ grün', tone: 'ok', time: '08:55', hist: [['08:55', 'Pipeline #2291 grün'], ['08:40', 'Pipeline #2290 fehlgeschlagen'], ['gestern', 'Pipeline #2289 grün']] },
+      { id: 'l4', src: '€', title: 'Rechnung 2026-1187 · Hostwerk', state: 'offen · fällig 20.11.', tone: 'warn', time: '01.11.', hist: [['01.11.', 'Rechnung eingegangen (49,90 €)', 'm14']] },
+    ],
+    ai: { on: true, model: 'local',
+      block: [{ kind: 'topic', id: 't3', label: 'Thema Team & HR' }, { kind: 'acc', id: 'privat', label: 'Konto Privat' }],
+      prompts: [
+        { id: 'p1', on: true, name: 'Newsletter-Radar', scope: 'Gruppe Rauschen', trigger: '2× täglich gebündelt', out: 'Kurzliste', text: 'Mich interessieren Rust, Tauri, Linux-Desktop und IMAP.\nNenne nur Beiträge zu diesen Themen, je ein Satz mit Quelle.\nAlles andere ignorieren.' },
+        { id: 'p2', on: true, name: 'Bitte an mich?', scope: 'Gruppe Menschen', trigger: 'bei Eingang', out: 'Ja/Nein · was · bis wann', text: 'Enthält die Mail eine Bitte, Frage oder Aufgabe an mich?\nWenn ja: Was genau, und bis wann?\nMehrere Fragen als Liste.' },
+        { id: 'p3', on: true, name: 'Wichtigkeit', scope: 'Konto Arbeit', trigger: 'bei Eingang', out: 'Punktzahl 1–5 · Grund', text: 'Wichtig ist, was Budget, Termine, den Kunden Nordwind oder meine Projekte (Atlas) betrifft.\nBewerte 1–5 und begründe in wenigen Worten.' },
+        { id: 'p4', on: true, name: 'Kundenstimmung', scope: 'Thema Kunde Nordwind', trigger: 'beim Öffnen', out: 'Kurzfassung', text: 'Wie ist die Stimmung des Kunden?\nGibt es Risiken für Termin oder Budget?' },
+        { id: 'p5', on: false, name: 'Jira-Tagesstand', scope: 'Absender Jira', trigger: 'täglich 9:00', out: 'Kurzfassung', text: 'Was hat sich seit gestern an meinen Tickets geändert?\nNur Änderungen, die eine Reaktion von mir brauchen.' },
+      ], sent: 14 },
+    tasks: [
+      { id: 'k1', title: 'Kickoff-Protokoll an das Team verteilen', mail: 'm11', due: 'heute', status: 'doing', topic: 't2' },
+      { id: 'k2', title: 'Änderung am Rahmenvertrag klären', mail: 'm16', due: '', status: 'wait', topic: 't2', waitFor: 'Nordwind', since: 4 },
+      { id: 'k3', title: 'Reisekosten Oktober einreichen', mail: 'm13', due: 'fr', status: 'open', topic: 't3' },
+      { id: 'k4', title: 'Hosting-Rechnung freigeben', mail: 'm14', due: 'ue', status: 'open', topic: 't5' },
+      { id: 'k5', title: 'Meilensteinplan kommentieren', mail: 'm12', due: '', status: 'done', topic: 't1' },
+    ],
+    know: [
+      { id: 'w1', kind: 'fact', title: 'IT-Hotline', content: '+49 40 555 0100', tags: ['IT'], mail: null, fav: true },
+      { id: 'w2', kind: 'fact', title: 'Kostenstelle Atlas', content: 'KST 4711-ATL', tags: ['Atlas', 'Controlling'], topic: 't1', mail: 'm12', fav: true },
+      { id: 'w3', kind: 'note', title: 'Nordwind: Wer entscheidet?', content: 'Malte Hansen (Einkauf) gibt bis 50.000 € frei. Darüber entscheidet die Geschäftsführung (Frau Iversen).\nRechnungen immer an einkauf@nordwind.de.', tags: ['Nordwind', 'Ansprechpartner'], topic: 't2', mail: 'm11' },
+      { id: 'w4', kind: 'note', title: 'Reisekosten-Regeln 2027', content: 'Hotel max. 120 €/Nacht · Bahn 1. Klasse ab 4 h · Abrechnung binnen 30 Tagen', tags: ['Reisen', 'Richtlinie'], topic: 't3', mail: 'm13' },
+      { id: 'w5', kind: 'fact', title: 'Rahmenvertrag Nordwind – Laufzeit', content: 'bis 31.03.2029 · Kündigung 6 Monate', tags: ['Nordwind', 'Vertrag'], topic: 't2', mail: 'm16' },
+    ],
+  };
+}
+
+let D = seed();
+applyRules();
+const S = { view: 'home', filter: 'alle', open: null, topic: null, folder: 'Projekte/Atlas', kq: '', ktag: null, focus: false,
+  tq: [], ti: 0, tstats: null, tfilter: 'alle', pal: { q: '', idx: 0 }, drag: null, dragTask: null, sel: '',
+  sortAI: false, editBoard: false, board: ['pinned', 'live', 'today', 'cheat', 'topics'], flash: null };
+
+/* ---------- Abfragen ---------- */
+const mail = id => D.mails.find(m => m.id === id);
+const topic = id => D.topics.find(t => t.id === id);
+const acc = id => D.accounts.find(a => a.id === id);
+const inbox = () => D.mails.filter(m => m.acc !== 'lokal' && !m.archived && !m.snoozed);
+const unread = () => inbox().filter(m => m.unread).sort((a, b) => (a.group === 'mensch' ? 0 : a.group === 'maschine' ? 1 : 2) - (b.group === 'mensch' ? 0 : b.group === 'maschine' ? 1 : 2));
+const domain = a => a.slice(a.indexOf('@'));
+const GENERIC = ['@firma.example', '@mail.example'];
+
+function applyRules() {
+  for (const m of D.mails) if (!m.topic) {
+    const r = D.rules.find(r => m.addr.endsWith(r.match));
+    if (r) { m.topic = r.topic; m.auto = true; }
+  }
+}
+function suggestTopic(m) {
+  if (m.topic) return null;
+  const s = m.subject.toLowerCase();
+  const kw = [['atlas', 't1'], ['nordwind', 't2'], ['urlaub', 't3'], ['personal', 't3'], ['reise', 't4'], ['bahn', 't4'], ['rechnung', 't5']];
+  for (const [k, t] of kw) if (s.includes(k) && topic(t)) return { t: topic(t), why: `„${k}“ im Betreff` };
+  const same = D.mails.find(x => x !== m && x.addr === m.addr && x.topic);
+  if (same) return { t: topic(same.topic), why: `${m.from} ist schon dort` };
+  return null;
+}
+function finds(m) {
+  const out = [], b = m.body, seen = new Set();
+  const push = (kind, label, value) => { if (!seen.has(value)) { seen.add(value); out.push({ kind, label, value }); } };
+  for (const x of b.matchAll(/bis (Montag|Dienstag|Mittwoch|Donnerstag|Freitag|morgen|heute)/gi)) push('deadline', 'Frist', x[0]);
+  for (const x of b.matchAll(/^([A-ZÄÖÜ][\wäöüß .-]{2,22}):\s*(.+)$/gm)) if (!/^(Hallo|Hi|Hey)/.test(x[1])) push('fact', x[1].trim(), x[2].trim());
+  for (const x of b.matchAll(/\+49[\d \/-]{6,}\d/g)) push('phone', 'Telefon', x[0]);
+  for (const x of b.matchAll(/https?:\/\/[^\s)]+/g)) push('link', 'Link', x[0]);
+  for (const x of b.matchAll(/\b\d{1,2}\.\d{1,2}\.\d{4}\b/g)) push('date', 'Datum', x[0]);
+  return out.slice(0, 7);
+}
+function guessDue(text) {
+  const t = text.toLowerCase();
+  if (t.includes('heute')) return 'heute';
+  if (t.includes('morgen')) return 'morgen';
+  if (t.includes('freitag')) return 'fr';
+  if (/\d{1,2}\.\d{1,2}\./.test(t)) return 'nw';
+  return '';
+}
+
+/* ---------- Bausteine ---------- */
+const topicChip = (t, m) => t ? `<button class="chip topic ${m && m.auto ? 'auto' : ''}" style="--c:${t.color}" data-act="pickTopic" data-id="${m ? m.id : ''}" title="Thema ändern"><span class="dot"></span>${esc(t.name)}</button>` : '';
+const dueChip = d => d ? `<span class="due ${d}">${DUE[d]}</span>` : '';
+
+function card(m) {
+  const t = topic(m.topic), sug = suggestTopic(m);
+  const tp = t ? topicChip(t, m)
+    : sug ? `<button class="chip sug" data-act="acceptSug" data-id="${m.id}" data-topic="${sug.t.id}" title="Vorschlag (${esc(sug.why)}) – Klick übernimmt">${ic('spark', 'sm')}${esc(sug.t.name)}?</button>`
+    : `<button class="chip ghost" data-act="pickTopic" data-id="${m.id}">${ic('hash', 'sm')}Thema</button>`;
+  return `<article class="mcard ${m.unread ? 'unread' : ''} g-${m.group}" draggable="true" data-mail="${m.id}" data-act="open" data-id="${m.id}">
+    <div class="mc-head">${avatar(m.from)}<div class="mc-from"><b>${esc(m.from)}</b><small>${esc(acc(m.acc).name)} · ${esc(m.time)}</small></div>
+      ${m.pinned ? `<span class="pinmark" title="Angepinnt">${ic('pin', 'sm')}</span>` : ''}${m.attach ? `<span class="faint" title="${esc(m.attach.join(', '))}">${ic('clip', 'sm')}</span>` : ''}</div>
+    <div class="mc-subj">${esc(m.subject)}</div>
+    <div class="mc-prev">${esc(m.body.replace(/\s+/g, ' ').slice(0, 160))}</div>
+    ${aiLine(m)}
+    <div class="mc-foot">${tp}${m.expires ? `<span class="exp" title="Verlässt den Fluss danach von selbst">${ic('clock', 'sm')}läuft ab ${esc(m.expires)}</span>` : ''}<span class="grow"></span>
+      <div class="mc-acts">
+        <button class="ib ${m.pinned ? 'on' : ''}" data-act="pin" data-id="${m.id}" title="Anpinnen (P)">${ic('pin', 'sm')}</button>
+        <button class="ib" data-act="task" data-id="${m.id}" title="Aufgabe daraus (A)">${ic('task', 'sm')}</button>
+        <button class="ib" data-act="know" data-id="${m.id}" title="Ins Wissen (M)">${ic('bulb', 'sm')}</button>
+        <button class="ib" data-act="snooze" data-id="${m.id}" title="Später (S)">${ic('clock', 'sm')}</button>
+        <button class="ib" data-act="archive" data-id="${m.id}" title="Erledigt / Archiv (E)">${ic('check', 'sm')}</button>
+      </div></div>
+  </article>`;
+}
+
+/* ---------- Rail ---------- */
+function renderRail() {
+  const nU = unread().length, nT = D.tasks.filter(t => t.status !== 'done').length;
+  const nav = (v, icon, label, badge) => `<button class="nav ${S.view === v || (v === 'topics' && S.view === 'topic') ? 'on' : ''}" data-act="view" data-view="${v}">${ic(icon)}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+  $('#rail').innerHTML = `<div class="logo" title="Maillet">M</div>
+    ${nav('home', 'home', 'Übersicht', nU)}
+    ${nav('triage', 'zap', 'Triage')}
+    ${nav('topics', 'hash', 'Themen')}
+    ${nav('tasks', 'task', 'Aufgaben', nT)}
+    ${nav('know', 'bulb', 'Wissen')}
+    ${nav('ablage', 'box', 'Ablage')}
+    ${nav('ai', 'spark', 'KI')}
+    <div class="spacer"></div>
+    <button class="nav" data-act="settings">${ic('gear')}Konten</button>`;
+}
+
+/* ---------- Übersicht ---------- */
+function greet() { const h = new Date().getHours(); return h < 11 ? 'Guten Morgen' : h < 17 ? 'Hallo' : 'Guten Abend'; }
+function otpStrip() {
+  const live = D.otps.filter(o => o.exp > Date.now());
+  if (!live.length) return '';
+  return `<div class="otp-strip"><div class="otp-label">${ic('key', 'sm')}Frische Codes</div>
+    ${live.map(o => `<button class="otp" data-act="otp" data-id="${o.id}" title="Klick kopiert den Code und archiviert die Mail">
+      <span class="ring" data-exp="${o.exp}" data-ttl="${o.ttl}"></span>
+      <span><small>${esc(o.service)} · ${esc(acc(o.acc).name)}</small><span class="code">${o.code.slice(0, 3)} ${o.code.slice(3)}</span></span>
+      <span class="faint">${ic('copy')}</span></button>`).join('')}</div>`;
+}
+function vHome() {
+  const u = unread(), f = S.filter;
+  let shown = u.filter(m => f === 'alle' || m.group === f || m.acc === f);
+  if (S.sortAI && D.ai.on) shown = [...shown].sort((a, b) => ((aiFor(b) || {}).score || 0) - ((aiFor(a) || {}).score || 0));
+  const cnt = g => u.filter(m => m.group === g || m.acc === g).length;
+  const people = cnt('mensch');
+  const today = D.tasks.filter(t => t.status !== 'done' && ['heute', 'ue'].includes(t.due));
+  const waiting = D.tasks.filter(t => t.status === 'wait');
+  const nAbs = D.mails.filter(m => m.absorbed).length;
+  const noise = shown.filter(m => m.group === 'rauschen');
+  const p1 = D.ai.prompts.find(p => p.id === 'p1');
+  const digest = D.ai.on && p1 && p1.on && noise.length ? digestCard(noise) : '';
+  const fchip = (k, label) => `<button class="chip ${f === k ? 'on' : ''}" data-act="filter" data-f="${k}">${label}${k === 'alle' ? '' : ` <span class="faint">${cnt(k)}</span>`}</button>`;
+  return `
+  <div class="hero">
+    <div><h1>${greet()}.</h1>
+      <p class="muted">${u.length ? `<b>${u.length} neue Mails</b>, davon <b>${people} von Menschen</b>.` : 'Keine neuen Mails.'}
+      ${today.length ? ` <b>${today.length} Aufgaben</b> sind heute dran.` : ''}${waiting.length ? ` Du wartest auf <b>${waiting.length} Antwort${waiting.length > 1 ? 'en' : ''}</b>.` : ''}</p></div>
+    ${u.length ? `<button class="btn primary big" data-act="view" data-view="triage">${ic('zap')}Triage starten <kbd>${u.length}</kbd></button>` : ''}
+  </div>
+  ${otpStrip()}
+  <div class="home-grid">
+    <div>
+      <div class="zone"><b>Fluss</b> · erscheint, um abgearbeitet zu werden<span class="grow"></span><span class="goal">${u.length ? `noch ${u.length} · Ziel 0` : 'Ziel erreicht ✓'}</span></div>
+      <section class="panel">
+        <header><h2>${ic('mail', 'sm')}Neu</h2><span class="grow"></span>
+          ${D.ai.on ? `<button class="chip ${!S.sortAI ? 'on' : ''}" data-act="sortAI" data-v="0">Zeit</button><button class="chip ${S.sortAI ? 'on' : ''}" data-act="sortAI" data-v="1" title="Sortiert nach deinem Prompt „Wichtigkeit“">${ic('spark', 'sm')}Wichtigkeit</button>` : ''}</header>
+        <div class="filters">${fchip('alle', 'Alle')}${fchip('mensch', 'Menschen')}${fchip('maschine', 'Maschinen')}${fchip('rauschen', 'Rauschen')}<span class="sep"></span>${fchip('arbeit', 'Arbeit')}${fchip('privat', 'Privat')}</div>
+        <div class="cards">${digest}${shown.map(card).join('') || `<div class="empty" style="grid-column:1/-1"><div class="big">🌿</div>Nichts Neues hier. Genieß die Ruhe.</div>`}</div>
+        ${nAbs ? `<div class="hint-line">${ic('clock', 'sm')}${nAbs} Zustandsmeldungen (Jira, Paket …) sind direkt in Zustandskarten gewandert und tauchen hier nicht auf.</div>` : ''}
+        ${!digest && shown.some(m => m.group === 'rauschen') ? `<div class="hint-line">${ic('spark', 'sm')}Rauschen ist gedämpft und löst nie eine Benachrichtigung aus. <button class="link" data-act="archiveNoise">Alles Rauschen erledigen</button></div>` : ''}
+      </section>
+    </div>
+    <div>
+      <div class="zone"><b>Board</b> · bleibt, drängt nicht<span class="grow"></span><button class="link" data-act="boardEdit">${S.editBoard ? 'Fertig' : 'Anpassen'}</button></div>
+      <div class="side-col board ${S.editBoard ? 'edit' : ''}">${S.board.map(widget).join('')}${S.editBoard ? `<button class="addw" data-act="bAdd">${ic('plus', 'sm')}Karte hinzufügen</button>` : ''}</div>
+    </div>
+  </div>`;
+}
+function digestCard(noise) {
+  const rel = noise.filter(m => aiFor(m) && aiFor(m).radar);
+  return `<div class="digest">${ic('spark')}<div class="grow"><b>Newsletter-Radar</b> <span class="muted">· ${noise.length} Mails im Rauschen, ${rel.length} passend zu deinem Prompt</span>
+    <ul>${rel.map(m => `<li><button data-act="open" data-id="${m.id}">${esc(m.ai.radar)}</button> <span class="faint">– ${esc(m.from)}</span></li>`).join('') || '<li class="muted">Nichts Relevantes dabei.</li>'}</ul>
+    <button class="btn" data-act="archiveNoise">${ic('check', 'sm')}Alles Rauschen erledigen</button> <button class="btn ghost" data-act="aiWhy" data-p="p1">Warum?</button></div></div>`;
+}
+const WIDGETS = {
+  pinned: { t: 'Angepinnt', i: 'pin' }, live: { t: 'Zustand', i: 'clock' }, today: { t: 'Heute dran', i: 'task' }, cheat: { t: 'Spickzettel', i: 'key' },
+  topics: { t: 'Themen', i: 'hash' }, owe: { t: 'Ich schulde Antworten', i: 'reply' }, smart: { t: 'Smart-Karte: Rechnungen', i: 'search' }, accounts: { t: 'Konten', i: 'mail' },
+};
+function widget(w, i) {
+  const W = WIDGETS[w];
+  const pinned = D.mails.filter(m => m.pinned && !(m.archived && !m.ablage));
+  const extra = { pinned: `<span class="badge soft">${pinned.length}</span>`, today: `<button class="link" data-act="view" data-view="tasks">Alle Aufgaben</button>`, topics: `<button class="link" data-act="view" data-view="topics">Verwalten</button>`, cheat: `<button class="link" data-act="view" data-view="know">Wissen</button>` }[w] || '';
+  const ctl = S.editBoard ? `<span class="bctl"><button class="ib" data-act="bMove" data-i="${i}" data-d="-1" title="Nach oben">↑</button><button class="ib" data-act="bMove" data-i="${i}" data-d="1" title="Nach unten">↓</button><button class="ib" data-act="bDel" data-i="${i}" title="Vom Board nehmen">${ic('x', 'sm')}</button></span>` : extra;
+  let body = '';
+  if (w === 'pinned') body = `<div class="sticky-list" data-drop="pin">${pinned.map(m => { const t = topic(m.topic); return `<button class="sticky" style="--c:${t ? t.color : '#f2a20c'}" data-act="open" data-id="${m.id}">
+      ${avatar(m.from, 'xs')}<span class="grow"><b>${esc(m.subject)}</b><small>${esc(m.from)} · ${esc(m.time)}${m.attach ? ' · 📎' : ''}</small></span>
+      <span class="ib" data-act="pin" data-id="${m.id}" title="Lösen">${ic('x', 'sm')}</span></button>`; }).join('') || '<div class="faint" style="padding:8px 2px;font-size:12.5px">Hierher ziehen, was griffbereit bleiben soll.</div>'}</div>`;
+  if (w === 'live') body = `<div class="list-pad">${D.live.map(l => `<button class="lv ${S.flash === l.id ? 'flash' : ''}" data-act="live" data-id="${l.id}"><span class="src">${esc(l.src)}</span><span class="grow"><b>${esc(l.title)}</b><span class="meta"><span class="st ${l.tone}">${esc(l.state)}</span><small>${l.hist.length} Updates · ${esc(l.time)}</small></span></span></button>`).join('') || '<div class="faint" style="padding:6px 16px">Keine laufenden Vorgänge.</div>'}</div><div class="hint-line">Zustandsmails aktualisieren diese Karten, statt den Fluss zu füllen.</div>`;
+  if (w === 'today') { const ts = D.tasks.filter(t => t.status !== 'done' && ['heute', 'ue'].includes(t.due)).concat(D.tasks.filter(t => t.status === 'wait'));
+    body = `<div class="list-pad" data-drop="task">${ts.map(t => `<button class="row" data-act="${t.mail ? 'open' : 'view'}" data-id="${t.mail || ''}" data-view="tasks">
+      <span class="tick ${t.status === 'done' ? 'on' : ''}" data-act="toggleTask" data-id="${t.id}">${t.status === 'done' ? ic('check', 'sm') : ''}</span>
+      <span class="grow"><span class="t">${esc(t.title)}</span></span>${t.status === 'wait' ? `<span class="nudge">wartet ${t.since} T</span>` : dueChip(t.due)}</button>`).join('') || '<div class="faint" style="padding:6px 16px;font-size:12.5px">Nichts fällig. 👌</div>'}</div>`; }
+  if (w === 'cheat') body = `<div class="list-pad">${D.know.filter(k => k.fav).map(k => `<button class="cheat" data-act="copyKnow" data-id="${k.id}" title="Klick kopiert"><span class="grow"><small>${esc(k.title)}</small><code>${esc(k.content)}</code></span><span class="faint">${ic('copy', 'sm')}</span></button>`).join('') || ''}</div><div class="hint-line">Fakten im Wissen mit ★ hierher holen.</div>`;
+  if (w === 'topics') body = `<div class="list-pad">${D.topics.map(t => { const n = inbox().filter(m => m.topic === t.id && m.unread).length; return `<button class="topic-row" style="--c:${t.color}" data-act="openTopic" data-id="${t.id}" data-drop="topic:${t.id}">
+      <span class="bar"></span><span class="grow">${esc(t.name)}</span>${n ? `<span class="badge" style="background:${t.color}">${n}</span>` : ''}</button>`; }).join('')}</div><div class="hint-line">Mail auf ein Thema ziehen ordnet sie zu.</div>`;
+  if (w === 'owe') { const ms = inbox().filter(m => m.group === 'mensch' && ((m.ai && m.ai.ask) || /\?\s*$/m.test(m.body)));
+    body = `<div class="list-pad">${ms.map(m => `<button class="row" data-act="open" data-id="${m.id}">${avatar(m.from, 'xs')}<span class="grow"><span class="t">${esc(m.from)}</span><small class="faint">${esc(m.subject)}</small></span><span class="nudge">${esc(m.time)}</span></button>`).join('') || '<div class="faint" style="padding:6px 16px">Du schuldest niemandem eine Antwort. ✓</div>'}</div>`; }
+  if (w === 'smart') { const ms = D.mails.filter(m => /rechnung/i.test(m.subject));
+    body = `<div class="hint-line" style="padding-top:2px"><span class="chip">betreff:rechnung</span></div><div class="list-pad">${ms.map(m => `<button class="row" data-act="open" data-id="${m.id}">${ic('file', 'sm')}<span class="grow"><span class="t">${esc(m.subject)}</span><small class="faint">${esc(m.from)} · ${esc(m.time)}</small></span></button>`).join('')}</div>`; }
+  if (w === 'accounts') body = `<div class="list-pad">${D.accounts.map(a => `<div class="acc-row"><span class="live ${a.kind === 'local' ? 'local' : ''}"></span><span class="grow"><b>${esc(a.name)}</b> <span class="faint">${esc(a.addr)}</span></span><small class="faint">${esc(a.sync)}</small></div>`).join('')}</div>`;
+  return `<section class="panel"><header><h2>${ic(W.i, 'sm')}${W.t}</h2><span class="grow"></span>${ctl}</header>${body}</section>`;
+}
+function livePop(anchor, id) {
+  const l = D.live.find(x => x.id === id); S.popCtx = { kind: 'live', id };
+  openPop(anchor, `<div class="pop-title">${esc(l.src)} · ${esc(l.title)}</div><div class="hist">${l.hist.map(([t, s, mid]) => `<div><span>${esc(t)}</span><span class="grow" style="flex:1">${esc(s)}</span>${mid ? `<button class="link" data-act="open" data-id="${mid}">Mail</button>` : ''}</div>`).join('')}</div>
+    <div class="pop-hint">Neue Meldungen aktualisieren diese Karte. Die Mails selbst gelten als erledigt.</div>
+    <button class="pi" data-act="liveDel" data-id="${l.id}">${ic('x', 'sm')}<span class="grow">Karte vom Board entfernen</span></button>`);
+}
+function aiBlocked(m) { return D.ai.block.find(b => (b.kind === 'topic' && m.topic === b.id) || (b.kind === 'acc' && m.acc === b.id)); }
+function aiFor(m) { if (!D.ai.on || aiBlocked(m)) return null; return m.ai || null; }
+function aiLine(m) {
+  if (!D.ai.on) return '';
+  const b = aiBlocked(m); if (b) return `<div class="ai-off">${ic('spark', 'sm')}KI gesperrt · ${esc(b.label)}</div>`;
+  const a = m.ai; if (!a) return '';
+  const txt = a.ask ? a.ask : a.radar ? 'Radar: ' + a.radar : a.why;
+  return `<div class="ai-line" title="${esc('Wichtigkeit ' + a.score + '/5: ' + a.why)}"><span class="sc s${a.score}">${a.score}</span><span class="t">${esc(txt)}</span></div>`;
+}
+function aiBand(m, short) {
+  if (!D.ai.on) return '';
+  const b = aiBlocked(m);
+  if (b) return `<div class="ai-band" style="opacity:.8"><div class="h">${ic('spark', 'sm')}KI-Assistenz</div><p class="muted">Für diese Mail gesperrt (${esc(b.label)}). Es wurden keine Daten an die KI gegeben.</p></div>`;
+  const a = m.ai; if (!a) return '';
+  return `<div class="ai-band"><div class="h">${ic('spark', 'sm')}KI-Assistenz<span class="grow"></span><span class="sc s${a.score}" title="Wichtigkeit">${a.score}/5</span><button class="link" data-act="aiWhy" data-id="${m.id}" style="text-transform:none;letter-spacing:0">Warum?</button></div>
+    ${a.sum ? `<p>${esc(a.sum)}</p>` : a.radar ? `<p>Passt zu deinem Radar: <b>${esc(a.radar)}</b></p>` : ''}
+    ${a.ask ? `<p><b>Bitte an dich:</b> ${esc(a.ask)}</p>` : ''}
+    ${a.mood && !short ? `<p><b>Kundenstimmung:</b> ${esc(a.mood)}</p>` : ''}
+    ${!short ? `<p class="muted" style="font-size:12px">Wichtigkeit ${a.score}/5 – ${esc(a.why)}</p>` : ''}
+    ${a.subtasks ? `<div class="row2"><button class="chip sug" data-act="aiTask" data-id="${m.id}">${ic('task', 'sm')}Aufgabe mit ${a.subtasks.length} Teilaufgaben</button></div>` : ''}
+  </div>`;
+}
+const MODEL = { local: 'Lokal · Ollama (llama3.1:8b)', api: 'API · eigener Schlüssel' };
+function aiWhy(mid, pid) {
+  const m = mail(mid);
+  const ps = pid ? [D.ai.prompts.find(p => p.id === pid)] : D.ai.prompts.filter(p => p.on && (p.id === 'p3' && m.acc === 'arbeit' || p.id === 'p2' && m.group === 'mensch' || p.id === 'p4' && m.topic === 't2' || p.id === 'p1' && m.group === 'rauschen'));
+  modal(`<h3>${ic('spark')}Wie kam das zustande?</h3><p class="sub">${m ? `Mail „${esc(m.subject)}“` : 'Gebündelte Auswertung'} · ${D.ai.model === 'local' ? 'lokal verarbeitet – nichts hat den Rechner verlassen' : 'an den API-Anbieter gesendet'}</p>
+    ${ps.map(p => `<label class="l">Prompt: ${esc(p.name)} <span style="text-transform:none;letter-spacing:0;font-weight:500">· ${esc(p.scope)} · ${esc(p.trigger)}</span></label><div class="pcode">${esc(p.text)}</div>`).join('')}
+    <label class="l">Modell</label><div class="src">${ic('spark', 'sm')}${MODEL[D.ai.model]}</div>
+    <label class="l">Gesendete Daten</label><div class="src">${ic('mail', 'sm')}${pid === 'p1' ? 'Absender und Betreff aller Rauschen-Mails, je die ersten 600 Zeichen' : 'Absender, Betreff, die ersten 1.200 Zeichen. Keine Anhänge.'}</div>
+    <div class="foot"><button class="btn ghost" data-act="view" data-view="ai">Prompts bearbeiten</button><button class="btn primary" data-act="closeModal">Verstanden</button></div>`);
+}
+function askAI(q) {
+  const t = q.toLowerCase();
+  let ans = null, src = [];
+  if (/nordwind/.test(t) && /(frei|entscheid|genehmig)/.test(t)) { ans = 'Bis 50.000 € gibt Malte Hansen (Einkauf) frei¹, darüber entscheidet die Geschäftsführung, Frau Iversen². Rechnungen gehen an einkauf@nordwind.de².'; src = [['m11', 'Protokoll Kickoff Phase 2'], ['w3', 'Wissen: Nordwind – Wer entscheidet?']]; }
+  else if (/(kostenstelle|kst)/.test(t)) { ans = 'Für Projekt Atlas gilt die Kostenstelle KST 4711-ATL¹ ². Sie steht auch auf deinem Spickzettel.'; src = [['m12', 'Atlas Meilensteinplan v3'], ['m1', 'Atlas: Review der Spezifikation']]; }
+  else if (/(hotel|reise|bahn)/.test(t)) { ans = 'Ab 2027: Hotel bis 120 € pro Nacht, Bahn 1. Klasse ab 4 Stunden Fahrzeit, Abrechnung spätestens 30 Tage nach Reiseende¹. Deine nächste Reise: Hamburg → München vom 24. bis 26.11.².'; src = [['m13', 'Neue Reisekostenrichtlinie ab 2027'], ['m5', 'Reisebestätigung Hamburg → München']]; }
+  else if (/(vertrag|laufzeit|kündig)/.test(t)) { ans = 'Der Rahmenvertrag mit Nordwind läuft bis 31.03.2029, die Kündigungsfrist beträgt 6 Monate¹.'; src = [['m16', 'Rahmenvertrag Nordwind – unterschrieben (Ablage/Verträge)']]; }
+  const ex = ['Wer gibt bei Nordwind frei?', 'Welche Kostenstelle hat Atlas?', 'Was zahlt die Firma fürs Hotel?', 'Wie lange läuft der Nordwind-Vertrag?'];
+  modal(`<h3>${ic('spark')}${esc(q)}</h3><p class="sub">Antwort aus Mails, Ablage und Wissen · ${MODEL[D.ai.model]}</p>
+    ${ans ? `<div class="answer">${esc(ans).replace(/([¹²])/g, '<sup>$1</sup>')}</div>
+      <label class="l">Quellen</label>${src.map(([id, l], i) => `<button class="srcmail" data-act="${id[0] === 'w' ? 'view' : 'open'}" data-view="know" data-id="${id}">${'¹²'[i]} ${ic(id[0] === 'w' ? 'bulb' : 'mail', 'sm')}<span>${esc(l)}</span></button>`).join('')}`
+      : `<p class="muted">Im Dummy kennt die KI nur ein paar Beispielfragen:</p>${ex.map(e => `<button class="pi" data-act="askEx" data-q="${esc(e)}">${ic('spark', 'sm')}<span class="grow">${esc(e)}</span></button>`).join('')}`}
+    <div class="foot">${ans ? `<button class="btn" data-act="askKnow" data-q="${esc(q)}" data-a="${esc(ans.replace(/[¹²]/g, ''))}">${ic('bulb', 'sm')}Ins Wissen übernehmen</button>` : ''}<button class="btn primary" data-act="closeModal">Schließen</button></div>`);
+}
+function vAI() {
+  const A = D.ai;
+  return `<div class="section-title"><h1>KI-Assistenz</h1><span class="muted">Liest mit, nach deinen Kriterien. Entscheiden tust du.</span></div>
+  <div class="panel ai-top"><button class="sw-toggle ${A.on ? 'on' : ''}" data-act="aiToggle" title="Hauptschalter"></button>
+    <div class="grow"><b>${A.on ? 'KI-Assistenz ist an' : 'KI-Assistenz ist aus'}</b><br><span class="muted">${A.on ? `Heute ${A.sent} Mails ausgewertet · ${A.model === 'local' ? 'nichts hat den Rechner verlassen' : 'Daten gingen an den API-Anbieter'}` : 'Keine Mail wird ausgewertet. Alle Grundfunktionen bleiben.'}</span></div>
+    <div class="seg">${[['local', 'Lokal (Ollama)'], ['api', 'Eigener API-Schlüssel']].map(([k, l]) => `<button class="${A.model === k ? 'on' : ''}" data-act="aiModel" data-v="${k}">${l}</button>`).join('')}</div></div>
+  <div class="section-title" style="margin:24px 0 12px"><h2 style="margin:0;font-size:16px;flex:1">Deine Prompts</h2><button class="btn primary" data-act="newPrompt">${ic('plus')}Prompt</button></div>
+  <div class="pgrid">${A.prompts.map(p => `<div class="pcard ${p.on ? '' : 'off'}"><h3>${ic('spark', 'sm')}<span class="grow">${esc(p.name)}</span><button class="sw-toggle ${p.on ? 'on' : ''}" data-act="promptToggle" data-id="${p.id}" title="An/Aus"></button></h3>
+    <div class="pmeta"><span class="chip">${ic('hash', 'sm')}${esc(p.scope)}</span><span class="chip">${ic('clock', 'sm')}${esc(p.trigger)}</span><span class="chip">${ic('file', 'sm')}${esc(p.out)}</span></div>
+    <div class="pcode">${esc(p.text)}</div>
+    <div class="pfoot"><button class="btn" data-act="promptTest" data-id="${p.id}">${ic('zap', 'sm')}An einer Mail testen</button></div></div>`).join('')}</div>
+  <div class="section-title" style="margin:28px 0 8px"><h2 style="margin:0;font-size:16px;flex:1">Sperrbereiche</h2></div>
+  <p class="muted" style="margin-top:0">Mails aus diesen Bereichen werden nie an die KI gegeben.</p>
+  <div class="tagbar">${A.block.map((b, i) => `<span class="chip">${esc(b.label)} <span data-act="unblock" data-i="${i}" style="cursor:pointer" title="Freigeben">✕</span></span>`).join('')}<button class="chip ghost" data-act="addBlock">${ic('plus', 'sm')}Bereich sperren</button></div>
+  <p class="muted" style="margin-top:22px;font-size:12.5px">Tipp: In der Suche (Strg K) eine Frage mit „?“ eingeben – die KI antwortet aus Mails, Ablage und Wissen, mit Quellen.</p>`;
+}
+const TESTS = {
+  p1: ['m7', 'Radar: „Rust 1.95 ist erschienen“ (heise Developer). Die übrigen Beiträge passen nicht zu deinen Themen.'],
+  p2: ['m2', 'Ja. 3 Fragen an dich: (1) Migration im Festpreis? (2) Go-Live 18.12. möglich? (3) Ansprechpartner Betrieb? Frist: keine genannt, Call erwünscht.'],
+  p3: ['m2', '5/5 – Kunde Nordwind, Budget (Festpreis) und Termin (18.12.).'],
+  p4: ['m2', 'Sachlich und kaufbereit. Risiko: Der vorgezogene Go-Live erzeugt Termindruck.'],
+  p5: ['m6', 'Seit gestern: ATLAS-412 wurde dir zugewiesen (Priorität hoch, fällig 20.11.). Sonst keine Änderungen.'],
+};
+function promptTest(pid) {
+  const p = D.ai.prompts.find(x => x.id === pid), [mid, out] = TESTS[pid] || ['m1', 'Testlauf erfolgreich.'], m = mail(mid);
+  modal(`<h3>${ic('zap')}Test: ${esc(p.name)}</h3><p class="sub">An der Mail „${esc(m.subject)}“ von ${esc(m.from)} · ${MODEL[D.ai.model]}</p>
+    <div class="ai-band"><div class="h">${ic('spark', 'sm')}Ergebnis · ${esc(p.out)}</div><p>${esc(out)}</p></div>
+    <div class="foot"><button class="btn primary" data-act="closeModal">Gut so</button></div>`);
+}
+function newPrompt() {
+  S.mctx = { kind: 'prompt', scope: 'Gruppe Menschen', trigger: 'bei Eingang', out: 'Kurzfassung' };
+  const seg = (k, opts) => `<div class="seg" data-seg="${k}">${opts.map(o => `<button class="${o === S.mctx[k] ? 'on' : ''}" data-act="seg" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
+  modal(`<h3>${ic('spark')}Neuer Prompt</h3><p class="sub">Beschreibe in eigenen Worten, worauf die KI achten soll.</p>
+    <label class="l">Name</label><input type="text" id="pName" placeholder="z. B. Eskalationen erkennen">
+    <label class="l">Anweisung</label><textarea id="pText" placeholder="z. B. Ist der Absender unzufrieden oder droht er mit Konsequenzen? Antworte mit Ja/Nein und einem Satz."></textarea>
+    <label class="l">Gilt für</label>${seg('scope', ['Alle Mails', 'Gruppe Menschen', 'Gruppe Maschinen', 'Gruppe Rauschen', ...D.topics.slice(0, 2).map(t => 'Thema ' + t.name)])}
+    <label class="l">Wann</label>${seg('trigger', ['bei Eingang', '2× täglich gebündelt', 'beim Öffnen', 'nur auf Knopfdruck'])}
+    <label class="l">Ausgabe</label>${seg('out', ['Kurzfassung', 'Ja/Nein · Grund', 'Punktzahl 1–5 · Grund', 'Liste'])}
+    <div class="foot"><button class="btn ghost" data-act="closeModal">Abbrechen</button><button class="btn primary" data-act="savePrompt">Anlegen</button></div>`, md => md.querySelector('#pName').focus());
+}
+
+/* ---------- Triage ---------- */
+function startTriage() {
+  const u = unread().filter(m => S.tfilter === 'alle' || m.group === S.tfilter);
+  S.tq = u.map(m => m.id); S.ti = 0; S.tstats = { archived: 0, tasks: 0, pinned: 0, know: 0, ablage: 0, snoozed: 0, skipped: 0, t0: Date.now() };
+}
+function triageCurrent() {
+  while (S.ti < S.tq.length) { const m = mail(S.tq[S.ti]); if (m && !m.archived && !m.snoozed && m.acc !== 'lokal') return m; S.ti++; }
+  return null;
+}
+function vTriage() {
+  if (!S.tstats) startTriage();
+  const m = triageCurrent(), total = S.tq.length;
+  const fseg = ['alle', 'mensch', 'maschine', 'rauschen'].map(k => `<button class="chip ${S.tfilter === k ? 'on' : ''}" data-act="tfilter" data-f="${k}">${k === 'alle' ? 'Alle' : GROUPS[k]}</button>`).join('');
+  if (!m) {
+    const st = S.tstats, secs = Math.max(1, Math.round((Date.now() - st.t0) / 1000));
+    return `<div class="triage"><div class="done-screen"><div class="big">🎉</div><h1>Alles gesichtet.</h1>
+      <p class="muted">${total ? `${total} Mails in ${secs < 60 ? secs + ' Sekunden' : Math.round(secs / 60) + ' Minuten'} – stark.` : 'Hier gibt es gerade nichts zu tun.'}</p>
+      <div class="stats">${[['archived', 'erledigt'], ['tasks', 'zu Aufgaben'], ['know', 'gemerkt'], ['pinned', 'angepinnt'], ['ablage', 'abgelegt'], ['snoozed', 'auf später']].filter(([k]) => st[k]).map(([k, l]) => `<div class="stat"><b>${st[k]}</b><small>${l}</small></div>`).join('')}</div>
+      <button class="btn" data-act="view" data-view="home">${ic('home')}Zur Übersicht</button></div></div>`;
+  }
+  const t = topic(m.topic), sug = suggestTopic(m), fs = finds(m);
+  const dl = fs.find(f => f.kind === 'deadline');
+  return `<div class="triage">
+    <div class="tr-top"><button class="btn ghost" data-act="view" data-view="home">${ic('back')}Übersicht</button>
+      <div class="progress"><i style="width:${(S.ti / total) * 100}%"></i></div><b>${S.ti + 1} / ${total}</b></div>
+    <div class="filters" style="padding:0 0 16px;justify-content:center">${fseg}</div>
+    <div class="stack"><div class="ghostcard g2"></div><div class="ghostcard"></div>
+      <div class="tcardfront" id="front">
+        <div class="rd-head">${avatar(m.from, 'lg')}<div class="grow"><b>${esc(m.from)}</b><br><small>${esc(m.addr)} · ${esc(acc(m.acc).name)} · ${esc(m.time)}</small></div><span class="grp-tag">${GROUPS[m.group]}</span></div>
+        <h2 class="rd-subj">${esc(m.subject)}</h2>
+        <div class="rd-meta">${t ? topicChip(t, m) : ''}${m.attach ? m.attach.map(a => `<span class="chip">${ic('clip', 'sm')}${esc(a)}</span>`).join('') : ''}</div>
+        ${aiBand(m, true)}
+        <div class="rd-body">${esc(m.body)}</div>
+        ${(sug || dl || fs.length) ? `<div class="sugg"><span>${ic('spark', 'sm')}Vorschläge</span>
+          ${sug ? `<button class="chip sug" data-act="acceptSug" data-id="${m.id}" data-topic="${sug.t.id}">${ic('hash', 'sm')}${esc(sug.t.name)}</button>` : ''}
+          ${dl ? `<button class="chip sug" data-act="task" data-id="${m.id}">${ic('task', 'sm')}Aufgabe „${esc(m.subject.slice(0, 28))}…“ ${dl.value}</button>` : ''}
+          ${fs.filter(f => ['fact', 'phone'].includes(f.kind)).slice(0, 2).map(f => `<button class="chip sug" data-act="find" data-id="${m.id}" data-kind="${f.kind}" data-label="${esc(f.label)}" data-val="${esc(f.value)}">${ic('bulb', 'sm')}${esc(f.label)} merken</button>`).join('')}
+        </div>` : ''}
+      </div></div>
+    <div class="tr-actions">
+      <button class="ta main" data-act="tArchive">${ic('check')}Erledigt <kbd>E</kbd></button>
+      <button class="ta" data-act="tTask">${ic('task')}Aufgabe <kbd>A</kbd></button>
+      <button class="ta" data-act="pickTopic" data-id="${m.id}">${ic('hash')}Thema <kbd>T</kbd></button>
+      <button class="ta" data-act="tPin">${ic('pin')}Anpinnen <kbd>P</kbd></button>
+      <button class="ta" data-act="know" data-id="${m.id}">${ic('bulb')}Merken <kbd>M</kbd></button>
+      <button class="ta" data-act="ablage" data-id="${m.id}">${ic('box')}Ablegen <kbd>L</kbd></button>
+      <button class="ta" data-act="snooze" data-id="${m.id}">${ic('clock')}Später <kbd>S</kbd></button>
+      <button class="ta" data-act="tSkip">${ic('next')}Weiter <kbd>→</kbd></button>
+    </div></div>`;
+}
+function triageAdvance(dir = 'left', stat) {
+  if (stat && S.tstats) S.tstats[stat]++;
+  const f = $('#front');
+  const go = () => { S.ti++; render(); };
+  if (f) { f.classList.add('out-' + dir); setTimeout(go, 220); } else go();
+}
+
+/* ---------- Themen ---------- */
+function topicStats(id) {
+  return { mails: D.mails.filter(m => m.topic === id && !(m.archived && !m.ablage)).length, tasks: D.tasks.filter(t => t.topic === id && t.status !== 'done').length,
+    know: D.know.filter(k => k.topic === id).length, files: D.mails.filter(m => m.topic === id && m.ablage).length };
+}
+function vTopics() {
+  return `<div class="section-title"><h1>Themen</h1><span class="muted">Ein Thema ist ein Arbeitsraum: Mails, Aufgaben, Wissen und Ablage an einem Ort.</span></div>
+  <div class="tgrid">${D.topics.map(t => { const s = topicStats(t.id); const ppl = [...new Set(D.mails.filter(m => m.topic === t.id).map(m => m.from))].slice(0, 5); const rules = D.rules.filter(r => r.topic === t.id);
+    return `<button class="tcard" style="--c:${t.color}" data-act="openTopic" data-id="${t.id}" data-drop="topic:${t.id}">
+      <h3><span class="dot" style="--c:${t.color}"></span>${esc(t.name)}</h3>
+      <div class="tc-stats"><span>${ic('mail', 'sm')}${s.mails}</span><span>${ic('task', 'sm')}${s.tasks}</span><span>${ic('bulb', 'sm')}${s.know}</span><span>${ic('box', 'sm')}${s.files}</span></div>
+      <div class="tc-people">${ppl.map(p => avatar(p, 'xs')).join('')}</div>
+      ${rules.length ? `<div class="tc-rule">${ic('spark', 'sm')}automatisch: ${rules.map(r => esc(r.match)).join(', ')}</div>` : ''}</button>`; }).join('')}
+    <div class="tcard new"><b>Neues Thema</b><input id="newTopic" type="text" placeholder="z. B. Messe 2027 …" data-enter="createTopicInline">
+      <div class="swatches">${COLORS.map((c, i) => `<button class="sw ${i === (S.newColor ?? 5) ? 'on' : ''}" style="--c:${c}" data-act="swatch" data-i="${i}"></button>`).join('')}</div>
+      <span class="faint" style="font-size:12px">Enter legt an. Tipp: Themen entstehen auch direkt beim Zuordnen.</span></div>
+  </div>`;
+}
+function vTopic() {
+  const t = topic(S.topic); if (!t) { S.view = 'topics'; return vTopics(); }
+  const ms = D.mails.filter(m => m.topic === t.id && m.acc !== 'lokal' && !m.archived);
+  const ts = D.tasks.filter(x => x.topic === t.id);
+  const ks = D.know.filter(k => k.topic === t.id);
+  const fs = D.mails.filter(m => m.topic === t.id && m.ablage);
+  const rules = D.rules.filter(r => r.topic === t.id);
+  return `<div style="--c:${t.color}">
+    <button class="btn ghost" data-act="view" data-view="topics" style="margin:-6px 0 8px -10px">${ic('back')}Themen</button>
+    <div class="ws-head"><span class="bigdot" data-act="cycleColor" data-id="${t.id}" title="Farbe wechseln"></span><h1 contenteditable="true" spellcheck="false" data-rename="${t.id}">${esc(t.name)}</h1></div>
+    <div class="rules">${ic('spark', 'sm')}Automatisch zuordnen:
+      ${rules.map(r => `<span class="chip">${esc(r.match)} <span data-act="delRule" data-id="${r.id}" title="Regel entfernen" style="cursor:pointer">✕</span></span>`).join('') || '<span class="faint">noch keine Regel</span>'}
+      <button class="chip ghost" data-act="addRule" data-id="${t.id}">${ic('plus', 'sm')}Regel</button></div>
+    <div class="ws-grid">
+      <section class="panel"><header><h2>${ic('mail', 'sm')}Mails</h2><span class="grow"></span><span class="badge soft">${ms.length}</span></header><div class="cards">${ms.map(card).join('') || '<div class="faint" style="padding:10px">Keine offenen Mails.</div>'}</div></section>
+      <section class="panel"><header><h2>${ic('task', 'sm')}Aufgaben</h2></header><div class="list-pad">${ts.map(x => taskRow(x)).join('') || '<div class="faint" style="padding:6px 16px">Keine Aufgaben.</div>'}</div></section>
+      <section class="panel"><header><h2>${ic('bulb', 'sm')}Wissen</h2></header><div style="padding:8px 12px 2px">${ks.map(kcard).join('') || '<div class="faint" style="padding:6px 4px 12px">Noch nichts gemerkt.</div>'}</div></section>
+      <section class="panel"><header><h2>${ic('box', 'sm')}Ablage</h2></header><div class="list-pad">${fs.map(m => `<button class="row" data-act="open" data-id="${m.id}">${ic('file', 'sm')}<span class="grow"><span class="t">${esc(m.subject)}</span><small class="faint">${esc(m.ablage)} · ${esc(m.time)}</small></span><span class="offline-badge">offline</span></button>`).join('') || '<div class="faint" style="padding:6px 16px">Nichts lokal abgelegt.</div>'}</div></section>
+    </div></div>`;
+}
+const taskRow = t => `<button class="row" data-act="${t.mail ? 'open' : 'view'}" data-id="${t.mail || ''}" data-view="tasks"><span class="tick ${t.status === 'done' ? 'on' : ''}" data-act="toggleTask" data-id="${t.id}">${t.status === 'done' ? ic('check', 'sm') : ''}</span><span class="grow"><span class="t" style="${t.status === 'done' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(t.title)}</span></span>${t.status === 'wait' ? `<span class="nudge">wartet</span>` : dueChip(t.due)}</button>`;
+
+/* ---------- Aufgaben ---------- */
+function vTasks() {
+  const col = (st, sub) => { const ts = D.tasks.filter(t => t.status === st); return `<div class="col" data-drop="col:${st}"><header><span class="grow">${STATUS[st]}<small>${sub}</small></span><span class="badge soft">${ts.length}</span></header>${ts.map(taskCard).join('')}</div>`; };
+  return `<div class="section-title"><h1>Aufgaben</h1><span class="muted">Viele Mails sind eigentlich Aufgaben. Hier landen sie, verknüpft mit ihrer Mail.</span></div>
+  <div class="quickadd"><input type="text" id="qa" placeholder="Neue Aufgabe … (Enter) – z. B. „Angebot prüfen bis Freitag“" data-enter="quickTask"></div>
+  <div class="kanban">${col('open', 'zu tun')}${col('doing', 'gerade dran')}${col('wait', 'Ball liegt bei anderen')}${col('done', 'diese Woche')}</div>`;
+}
+function taskCard(t) {
+  const m = mail(t.mail), tp = topic(t.topic);
+  return `<div class="task ${t.status === 'done' ? 'done' : ''}" draggable="true" data-task="${t.id}">
+    <div class="th"><span class="tick ${t.status === 'done' ? 'on' : ''}" data-act="toggleTask" data-id="${t.id}">${t.status === 'done' ? ic('check', 'sm') : ''}</span><span class="tt">${esc(t.title)}</span></div>
+    <div class="tm">${dueChip(t.due)}${tp ? `<span class="chip topic" style="--c:${tp.color}"><span class="dot"></span>${esc(tp.name)}</span>` : ''}
+      ${t.status === 'wait' ? `<span class="nudge">seit ${t.since || 0} Tagen</span><button class="chip" data-act="nudge" data-id="${t.id}">Nachfassen</button>` : ''}
+      ${t.subtasks ? `<span class="chip">${t.subtasks.filter(x => x.done).length}/${t.subtasks.length}</span>` : ''}</div>
+    ${t.subtasks ? `<div style="margin-top:6px">${t.subtasks.map((x, j) => `<div class="subt"><span class="tick ${x.done ? 'on' : ''}" data-act="subTick" data-id="${t.id}" data-j="${j}">${x.done ? ic('check', 'sm') : ''}</span>${esc(x.t)}</div>`).join('')}</div>` : ''}
+    ${m ? `<button class="srcmail" data-act="open" data-id="${m.id}">${ic('mail', 'sm')}<span>${esc(m.from)} · ${esc(m.subject)}</span></button>` : ''}</div>`;
+}
+
+/* ---------- Wissen ---------- */
+function kcard(k) {
+  const m = mail(k.mail), tp = topic(k.topic);
+  return `<div class="kcard"><div class="kk">${ic(k.kind === 'fact' ? 'key' : 'bulb', 'sm')}${k.kind === 'fact' ? 'Fakt' : 'Notiz'}<span class="grow"></span>
+      ${k.kind === 'fact' ? `<button class="ib ${k.fav ? 'on' : ''}" data-act="favKnow" data-id="${k.id}" title="${k.fav ? 'Vom Spickzettel nehmen' : 'Auf den Spickzettel (Board)'}">${k.fav ? '★' : '☆'}</button><button class="ib" data-act="copyKnow" data-id="${k.id}" title="Kopieren">${ic('copy', 'sm')}</button>` : ''}</div>
+    ${k.kind === 'fact' ? `<div class="muted" style="font-weight:600;margin-top:6px">${esc(k.title)}</div><div class="kv">${esc(k.content)}</div>` : `<h3>${esc(k.title)}</h3><p>${esc(k.content)}</p>`}
+    <div class="kf">${tp ? `<span class="chip topic" style="--c:${tp.color}"><span class="dot"></span>${esc(tp.name)}</span>` : ''}${(k.tags || []).map(x => `<button class="chip" data-act="ktag" data-tag="${esc(x)}">#${esc(x)}</button>`).join('')}</div>
+    ${m ? `<button class="srcmail" data-act="open" data-id="${m.id}">${ic('mail', 'sm')}<span>Quelle: ${esc(m.from)} · ${esc(m.subject)}</span></button>` : ''}</div>`;
+}
+function vKnow() {
+  const q = S.kq.toLowerCase();
+  const tags = [...new Set(D.know.flatMap(k => k.tags || []))].sort();
+  const ks = D.know.filter(k => (!S.ktag || (k.tags || []).includes(S.ktag)) && (!q || (k.title + ' ' + k.content + ' ' + (k.tags || []).join(' ')).toLowerCase().includes(q)));
+  return `<div class="section-title"><h1>Wissen</h1><button class="btn primary" data-act="know">${ic('plus')}Notiz</button></div>
+  <p class="muted" style="margin:-8px 0 16px">Was man sich merken muss: Kostenstellen, Ansprechpartner, Regeln, Zugänge. Bleibt, auch wenn die Mail längst gelöscht ist.</p>
+  <div class="ksearch"><input type="text" id="kq" placeholder="Im Wissen suchen …" value="${esc(S.kq)}" data-input="kq"></div>
+  <div class="tagbar"><button class="chip ${!S.ktag ? 'on' : ''}" data-act="ktag" data-tag="">Alle</button>${tags.map(x => `<button class="chip ${S.ktag === x ? 'on' : ''}" data-act="ktag" data-tag="${esc(x)}">#${esc(x)}</button>`).join('')}</div>
+  <div class="kgrid">${ks.map(kcard).join('') || '<div class="empty">Nichts gefunden.</div>'}</div>`;
+}
+
+/* ---------- Ablage ---------- */
+function vAblage() {
+  const inF = f => D.mails.filter(m => m.ablage && (m.ablage === f || m.ablage.startsWith(f + '/')));
+  const files = inF(S.folder);
+  const all = D.mails.filter(m => m.ablage);
+  return `<div class="section-title"><h1>Ablage</h1><span class="muted">Dein lokales Mail-Konto: dateibasiert, offline, unabhängig vom Server.</span></div>
+  <div class="panel localinfo">${ic('box')}<div class="grow"><b>~/Maillet/Ablage</b><span class="muted">Maildir · ${all.length} Mails · ${D.folders.length} Ordner · durchsuchbar, sicherbar, mit jedem Mailprogramm lesbar</span></div><span class="offline-badge">immer offline verfügbar</span></div>
+  <div class="ablage">
+    <section class="panel tree">${D.folders.map(f => { const depth = f.split('/').length - 1, n = inF(f).length; return `<button class="tn ${S.folder === f ? 'on' : ''}" style="padding-left:${10 + depth * 18}px" data-act="folder" data-f="${esc(f)}">${ic('folder', 'sm')}<span class="grow">${esc(f.split('/').pop())}</span><span class="faint">${n || ''}</span></button>`; }).join('')}
+      <button class="tn" data-act="newFolder">${ic('plus', 'sm')}<span class="grow">Neuer Ordner</span></button></section>
+    <section class="panel"><header><h2>${ic('folder', 'sm')}${esc(S.folder)}</h2></header>
+      <table class="files">${files.map(m => `<tr data-act="open" data-id="${m.id}"><td style="width:40px">${avatar(m.from, 'xs')}</td><td><b>${esc(m.subject)}</b><div class="fn">${esc(fileName(m))}</div></td><td class="muted">${esc(m.from)}</td><td class="muted">${esc(m.date)}</td><td class="faint">${esc(m.size || '40 KB')}</td></tr>`).join('') || `<tr><td class="empty" colspan="5">Leer. Mails landen hier über „Ablegen“ (L) oder per Ziehen.</td></tr>`}</table>
+    </section></div>`;
+}
+const slug = s => s.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+const fileName = m => `${m.ablage}/${m.date}_${slug(m.subject)}.eml`;
+
+/* ---------- Reader ---------- */
+function renderReader() {
+  const r = $('#reader'), m = mail(S.open);
+  $('#scrim').classList.toggle('show', !!m);
+  r.classList.toggle('show', !!m);
+  if (!m) return;
+  const t = topic(m.topic), fs = finds(m);
+  const ts = D.tasks.filter(x => x.mail === m.id), ks = D.know.filter(k => k.mail === m.id);
+  const list = S.view === 'triage' ? [] : (m.acc === 'lokal' ? [] : unread().map(x => x.id));
+  r.innerHTML = `<div class="rd-top"><button class="ib" data-act="closeReader" title="Schließen (Esc)">${ic('x')}</button>
+      <span class="muted" style="font-size:12.5px">${esc(acc(m.acc).name)} · ${GROUPS[m.group]}</span><span class="grow"></span>
+      ${m.ablage ? `<span class="offline-badge">${ic('box', 'sm')}lokal · ${esc(m.ablage)}</span>` : ''}
+    </div>
+    <div class="rd-scroll">
+      <div class="rd-head">${avatar(m.from, 'lg')}<div class="grow"><b>${esc(m.from)}</b><br><small>${esc(m.addr)} · ${esc(m.time)}</small></div></div>
+      <h2 class="rd-subj">${esc(m.subject)}</h2>
+      <div class="rd-meta">${t ? topicChip(t, m) : `<button class="chip ghost" data-act="pickTopic" data-id="${m.id}">${ic('hash', 'sm')}Thema zuordnen</button>`}${m.pinned ? `<span class="chip" style="color:var(--accent)">${ic('pin', 'sm')}angepinnt</span>` : ''}</div>
+      <div class="rd-actions">
+        <button class="ab" data-act="reply" data-id="${m.id}">${ic('reply', 'sm')}Antworten</button>
+        <button class="ab ${m.pinned ? 'on' : ''}" data-act="pin" data-id="${m.id}">${ic('pin', 'sm')}${m.pinned ? 'Gepinnt' : 'Anpinnen'} <kbd>P</kbd></button>
+        <button class="ab" data-act="task" data-id="${m.id}">${ic('task', 'sm')}Aufgabe <kbd>A</kbd></button>
+        <button class="ab" data-act="know" data-id="${m.id}">${ic('bulb', 'sm')}Merken <kbd>M</kbd></button>
+        <button class="ab ${m.ablage ? 'on' : ''}" data-act="ablage" data-id="${m.id}">${ic('box', 'sm')}${m.ablage ? 'Abgelegt' : 'Ablegen'} <kbd>L</kbd></button>
+        ${m.acc !== 'lokal' ? `<button class="ab" data-act="snooze" data-id="${m.id}">${ic('clock', 'sm')}Später <kbd>S</kbd></button>
+        <button class="ab" data-act="archive" data-id="${m.id}">${ic('check', 'sm')}Erledigt <kbd>E</kbd></button>` : ''}
+      </div>
+      ${fs.length ? `<div class="finds"><span>${ic('spark', 'sm')}Erkannt</span>${fs.map(f => `<button class="find" data-act="find" data-id="${m.id}" data-kind="${f.kind}" data-label="${esc(f.label)}" data-val="${esc(f.value)}" title="${['deadline', 'date'].includes(f.kind) ? 'Als Aufgabe mit Termin' : 'Ins Wissen übernehmen'}"><em>${esc(f.label)}</em>${esc(f.value.length > 34 ? f.value.slice(0, 32) + '…' : f.value)}</button>`).join('')}</div>` : ''}
+      ${aiBand(m)}
+      <div class="rd-body" id="rdbody">${esc(m.body)}</div>
+      ${m.attach ? `<div class="att-row">${m.attach.map(a => `<span class="att">${ic('file', 'sm')}${esc(a)}</span>`).join('')}</div>` : ''}
+      ${ts.length || ks.length ? `<div class="related"><h4>Aus dieser Mail entstanden</h4>${ts.map(taskRow).join('')}${ks.map(k => `<button class="row" data-act="view" data-view="know">${ic(k.kind === 'fact' ? 'key' : 'bulb', 'sm')}<span class="grow"><span class="t">${esc(k.title)}</span></span><span class="faint">Wissen</span></button>`).join('')}</div>` : ''}
+      <div class="tip">${ic('spark', 'sm')}Text markieren → als Wissen merken oder Aufgabe daraus machen.</div>
+    </div>`;
+}
+function openMail(id) {
+  const m = mail(id); if (!m) return;
+  S.open = id; if (S.view !== 'triage') m.unread = false;
+  render();
+}
+
+/* ---------- Dock (beim Ziehen) ---------- */
+function showDock() {
+  const m = mail(S.drag);
+  $('#dock').innerHTML = D.topics.map(t => `<div class="dz topic" style="--c:${t.color}" data-drop="topic:${t.id}"><span class="dot" style="--c:${t.color}"></span>${esc(t.name)}</div>`).join('')
+    + `<div class="dock-sep"></div>`
+    + [['pin', 'pin', m && m.pinned ? 'Lösen' : 'Anpinnen'], ['task', 'task', 'Aufgabe'], ['know', 'bulb', 'Merken'], ['ablage', 'box', 'Ablegen'], ['snooze', 'clock', 'Später'], ['archive', 'check', 'Erledigt']]
+      .map(([k, i, l]) => `<div class="dz" data-drop="${k}">${ic(i)}${l}</div>`).join('');
+  $('#dock').classList.add('show');
+}
+function hideDock() { $('#dock').classList.remove('show'); }
+
+/* ---------- Aktionen ---------- */
+function act(label, fn, undo = true) {
+  const snap = structuredClone(D);
+  const res = fn();
+  render();
+  if (res === false) return;
+  toast(label, undo ? [{ label: 'Rückgängig', run: () => { D = snap; render(); toast('Rückgängig gemacht'); } }] : []);
+}
+function doPin(id) { const m = mail(id); act(m.pinned ? 'Gelöst' : 'Angepinnt – bleibt in der Übersicht griffbereit', () => { m.pinned = !m.pinned; m.unread = false; }); }
+function doArchive(id) {
+  const m = mail(id);
+  act('Erledigt – liegt im Archiv des Servers', () => { m.archived = true; m.unread = false; if (S.open === id) S.open = null; });
+}
+function assignTopic(id, tid) {
+  const m = mail(id), t = topic(tid);
+  const snap = structuredClone(D);
+  m.topic = tid || null; m.auto = false;
+  render();
+  const d = domain(m.addr);
+  const others = D.mails.filter(x => x !== m && x.addr.endsWith(d) && x.topic !== tid && x.acc !== 'lokal').length;
+  const btns = [{ label: 'Rückgängig', run: () => { D = snap; render(); } }];
+  if (t && !GENERIC.includes(d) && !D.rules.some(r => r.match === d)) {
+    btns.unshift({ label: `Immer: ${d} → ${t.name}`, run: () => { D.rules.push({ id: uid('r'), topic: tid, match: d }); applyRules(); render(); toast(`Regel angelegt${others ? ` · ${others} weitere Mail(s) zugeordnet` : ''}`); } });
+  }
+  toast(t ? `→ ${t.name}` : 'Thema entfernt', btns);
+}
+function createTopic(name, color) {
+  const t = { id: uid('t'), name: name.trim(), color: color || COLORS[D.topics.length % COLORS.length] };
+  D.topics.push(t); return t;
+}
+const SNOOZE = [['Heute 16:00', 'clock'], ['Morgen 9:00', 'clock'], ['Montag 9:00', 'clock'], ['Wenn keine Antwort kommt (3 Tage)', 'reply'], ['Wenn ich im Büro bin', 'home']];
+function doSnooze(id, label) {
+  const m = mail(id);
+  act(`Kommt wieder: ${label}`, () => { m.snoozed = label; m.unread = false; if (S.open === id) S.open = null; });
+}
+
+/* ---------- Popover ---------- */
+function openPop(anchor, html, onMount) {
+  const p = $('#pop'); p.innerHTML = html; p.style.display = 'block';
+  const r = anchor.getBoundingClientRect();
+  const w = 320;
+  let left = Math.min(r.left, innerWidth - w - 12), top = r.bottom + 6;
+  if (top + 340 > innerHeight) top = Math.max(12, r.top - 346);
+  p.style.left = Math.max(12, left) + 'px'; p.style.top = top + 'px';
+  onMount && onMount(p);
+}
+function closePop() { $('#pop').style.display = 'none'; S.popCtx = null; }
+
+function topicPicker(anchor, id) {
+  S.popCtx = { kind: 'topic', id, q: '', idx: 0 };
+  const draw = () => {
+    const c = S.popCtx, q = c.q.trim().toLowerCase(), m = mail(id);
+    const list = D.topics.filter(t => !q || t.name.toLowerCase().includes(q));
+    const exact = D.topics.some(t => t.name.toLowerCase() === q);
+    const items = list.map((t, i) => `<button class="pi ${i === c.idx ? 'sel' : ''}" data-act="pickT" data-t="${t.id}"><span class="dot" style="--c:${t.color}"></span><span class="grow">${esc(t.name)}</span>${m.topic === t.id ? ic('check', 'sm') : i < 9 ? `<kbd>${i + 1}</kbd>` : ''}</button>`).join('');
+    $('#pop .pl').innerHTML = items + (q && !exact ? `<button class="pi ${list.length === 0 ? 'sel' : ''}" data-act="pickNew">${ic('plus', 'sm')}<span class="grow">„${esc(c.q.trim())}“ als neues Thema</span><kbd>↵</kbd></button>` : '')
+      + (m.topic ? `<button class="pi" data-act="pickT" data-t=""><span class="faint">${ic('x', 'sm')}</span><span class="grow muted">Thema entfernen</span></button>` : '');
+  };
+  const sug = suggestTopic(mail(id));
+  openPop(anchor, `<input id="tpq" placeholder="Thema suchen oder neu anlegen …" autocomplete="off">${sug ? `<div class="pop-title">${ic('spark', 'sm')} Vorschlag: ${esc(sug.t.name)} <span class="faint">(${esc(sug.why)})</span></div>` : ''}<div class="pl"></div><div class="pop-hint">Ziffer wählt · Enter legt neu an · Ziehen auf ein Thema geht auch</div>`, p => {
+    const inp = p.querySelector('#tpq'); inp.focus();
+    inp.addEventListener('input', () => { S.popCtx.q = inp.value; S.popCtx.idx = 0; draw(); });
+    inp.addEventListener('keydown', e => {
+      const q = inp.value.trim().toLowerCase(), list = D.topics.filter(t => !q || t.name.toLowerCase().includes(q));
+      if (/^[1-9]$/.test(e.key) && !inp.value) { const t = list[+e.key - 1]; if (t) { e.preventDefault(); closePop(); assignTopic(id, t.id); } }
+      else if (e.key === 'ArrowDown') { S.popCtx.idx = Math.min(S.popCtx.idx + 1, list.length - 1); draw(); e.preventDefault(); }
+      else if (e.key === 'ArrowUp') { S.popCtx.idx = Math.max(S.popCtx.idx - 1, 0); draw(); e.preventDefault(); }
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (list.length && !(list.length === 0)) { const exact = list.find(t => t.name.toLowerCase() === q); const t = exact || list[S.popCtx.idx]; if (t && (exact || q === '' || list.length)) { closePop(); assignTopic(id, t.id); return; } }
+        if (q) { const t = createTopic(inp.value); closePop(); assignTopic(id, t.id); }
+      } else if (e.key === 'Escape') closePop();
+    });
+    draw();
+  });
+}
+function snoozePicker(anchor, id) {
+  S.popCtx = { kind: 'snooze', id };
+  openPop(anchor, `<div class="pop-title">Wieder zeigen …</div>${SNOOZE.map(([l, i]) => `<button class="pi" data-act="snoozeAt" data-l="${esc(l)}">${ic(i, 'sm')}<span class="grow">${esc(l)}</span></button>`).join('')}<div class="pop-hint">„Wenn keine Antwort kommt“ erinnert nur, falls niemand antwortet.</div>`);
+}
+function simMenu(anchor) {
+  openPop(anchor, `<div class="pop-title">Ereignis simulieren</div>
+    <button class="pi" data-act="sim" data-k="mensch">${ic('mail', 'sm')}<span class="grow">Mail von Kollegin</span></button>
+    <button class="pi" data-act="sim" data-k="kunde">${ic('spark', 'sm')}<span class="grow">Mail vom Kunden (Regel greift)</span></button>
+    <button class="pi" data-act="sim" data-k="jira">${ic('clock', 'sm')}<span class="grow">Jira-Statuswechsel (Zustandskarte)</span></button>
+    <button class="pi" data-act="sim" data-k="otp">${ic('key', 'sm')}<span class="grow">Login-Code (OTP)</span></button>
+    <button class="pi" data-act="sim" data-k="news">${ic('mail', 'sm')}<span class="grow">Newsletter (Rauschen)</span></button>
+    <div class="pop-hint">Im Fokus-Modus melden sich nur Menschen.</div>`);
+}
+
+/* ---------- Dialoge ---------- */
+function modal(html, onMount) { const md = $('#modal'); md.innerHTML = `<div class="dlg">${html}</div>`; md.classList.add('show'); onMount && onMount(md); }
+function closeModal() { $('#modal').classList.remove('show'); S.mctx = null; }
+
+function taskDialog(id, pre = {}) {
+  const m = mail(id);
+  const title = pre.title || (m ? m.subject.replace(/^(\[[^\]]+\]\s*|Re:\s*|AW:\s*)/i, '').replace(/ bis \w+$/i, '') : '');
+  const due = pre.due ?? (m ? guessDue(m.body + ' ' + m.subject) : '');
+  S.mctx = { kind: 'task', id, due, status: 'open', subtasks: pre.subtasks || null };
+  modal(`<h3>${ic('task')}Aufgabe ${m ? 'aus Mail' : 'anlegen'}</h3><p class="sub">${m ? 'Die Mail bleibt mit der Aufgabe verknüpft – ein Klick öffnet sie wieder.' : 'Eine Aufgabe ohne Mail.'}</p>
+    <label class="l">Was ist zu tun?</label><input type="text" id="dTitle" value="${esc(title)}" data-enter="saveTask">
+    <label class="l">Fällig ${due ? `<span style="color:var(--accent);text-transform:none;letter-spacing:0">✦ aus der Mail erkannt</span>` : ''}</label>
+    <div class="seg" data-seg="due">${['heute', 'morgen', 'fr', 'nw', ''].map(d => `<button class="${d === due ? 'on' : ''}" data-act="seg" data-v="${d}">${DUE[d]}</button>`).join('')}</div>
+    ${pre.subtasks ? `<label class="l">Teilaufgaben <span style="color:var(--accent);text-transform:none;letter-spacing:0">✦ von der KI erkannt</span></label>${pre.subtasks.map(x => `<div class="subt"><span class="tick"></span>${esc(x)}</div>`).join('')}` : ''}
+    <label class="l">Status</label>
+    <div class="seg" data-seg="status">${['open', 'doing', 'wait'].map(s => `<button class="${s === 'open' ? 'on' : ''}" data-act="seg" data-v="${s}">${STATUS[s]}</button>`).join('')}</div>
+    ${m ? `<div class="src">${avatar(m.from, 'xs')}<span>${esc(m.from)} · ${esc(m.subject)}</span></div>
+    ${m.acc !== 'lokal' ? `<label class="check"><input type="checkbox" id="dArch" ${S.view !== 'triage' || true ? 'checked' : ''}> Mail danach als erledigt archivieren <span class="faint">(Posteingang ist keine Aufgabenliste)</span></label>` : ''}` : ''}
+    <div class="foot"><button class="btn ghost" data-act="closeModal">Abbrechen</button><button class="btn primary" data-act="saveTask">Aufgabe anlegen <kbd style="background:rgba(255,255,255,.2);border:0;color:#fff">↵</kbd></button></div>`,
+    md => { const i = md.querySelector('#dTitle'); i.focus(); i.select(); });
+}
+function knowDialog(id, pre = {}) {
+  const m = mail(id);
+  const kind = pre.kind || (pre.content && pre.content.length < 60 ? 'fact' : 'note');
+  S.mctx = { kind: 'know', id, k: kind, topic: m ? m.topic : null };
+  const tags = [...new Set(D.know.flatMap(k => k.tags || []))];
+  modal(`<h3>${ic('bulb')}Ins Wissen übernehmen</h3><p class="sub">Bleibt dauerhaft – auch wenn die Mail gelöscht wird. ${m ? 'Die Quelle wird verlinkt.' : ''}</p>
+    <div class="seg" data-seg="k">${[['fact', 'Fakt (Name → Wert)'], ['note', 'Notiz']].map(([k, l]) => `<button class="${k === kind ? 'on' : ''}" data-act="seg" data-v="${k}">${l}</button>`).join('')}</div>
+    <label class="l">Titel</label><input type="text" id="kTitle" value="${esc(pre.title || (m && !pre.content ? m.subject : ''))}" placeholder="z. B. Kostenstelle Atlas">
+    <label class="l">Inhalt</label><textarea id="kContent" placeholder="Wert oder Notiz …">${esc(pre.content || (m && !pre.content ? m.body.split('\n\n').slice(1, 3).join('\n\n') : ''))}</textarea>
+    <label class="l">Schlagworte</label><input type="text" id="kTags" value="${esc(m && topic(m.topic) ? topic(m.topic).name.split(' ').pop() : '')}" placeholder="durch Komma getrennt">
+    <div class="tagsug">${tags.map(t => `<button class="chip" data-act="addTag" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>
+    ${m && topic(m.topic) ? `<div class="src"><span class="dot" style="--c:${topic(m.topic).color}"></span>Wird dem Thema <b>${esc(topic(m.topic).name)}</b> zugeordnet</div>` : ''}
+    <div class="foot"><button class="btn ghost" data-act="closeModal">Abbrechen</button><button class="btn primary" data-act="saveKnow">Merken</button></div>`,
+    md => { const i = md.querySelector(pre.content && !pre.title ? '#kTitle' : '#kTitle'); i.focus(); });
+}
+function ablageDialog(id) {
+  const m = mail(id), t = topic(m.topic);
+  const sugg = t ? (D.folders.find(f => f.toLowerCase().includes(t.name.split(' ').pop().toLowerCase())) || null) : null;
+  S.mctx = { kind: 'ablage', id, folder: m.ablage || sugg || D.folders[0], mode: 'move' };
+  const draw = () => {
+    const c = S.mctx;
+    $('#modal .folder-pick').innerHTML = D.folders.map(f => `<button class="fp ${c.folder === f ? 'on' : ''}" style="padding-left:${9 + (f.split('/').length - 1) * 18}px" data-act="fpick" data-f="${esc(f)}">${ic('folder', 'sm')}<span class="grow">${esc(f.split('/').pop())}</span>${f === sugg ? '<span class="chip sug">Vorschlag</span>' : ''}</button>`).join('');
+    $('#modal .path').textContent = '~/Maillet/Ablage/' + fileName({ ...m, ablage: c.folder });
+  };
+  S.mctx.draw = draw;
+  modal(`<h3>${ic('box')}Lokal ablegen</h3><p class="sub">Als Datei in deinem lokalen Konto: offline lesbar, durchsuchbar, unabhängig vom Server und von Postfach-Limits.</p>
+    <label class="l">Ordner</label><div class="folder-pick"></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><input type="text" id="nf" placeholder="Neuer Unterordner in „…“" data-enter="newFolderInDlg" style="flex:1"><button class="btn" data-act="newFolderInDlg">${ic('plus', 'sm')}</button></div>
+    <label class="l">Was passiert auf dem Server?</label>
+    <div class="seg" data-seg="mode"><button class="on" data-act="seg" data-v="move">Verschieben (Server räumen)</button><button data-act="seg" data-v="copy">Kopie, Mail bleibt</button></div>
+    <div class="path"></div>
+    <div class="foot"><button class="btn ghost" data-act="closeModal">Abbrechen</button><button class="btn primary" data-act="saveAblage">Ablegen</button></div>`, draw);
+}
+function keysDialog() {
+  const k = [['Strg K  /  /', 'Suchen & Befehle'], ['E', 'Erledigt (archivieren)'], ['A', 'Aufgabe aus Mail'], ['T', 'Thema zuordnen (dann 1–9)'], ['P', 'Anpinnen'], ['M', 'Merken (Wissen)'], ['L', 'Lokal ablegen'], ['S', 'Später'], ['→', 'Weiter (Triage)'], ['Esc', 'Schließen / zurück'], ['G dann Ü/T/A/W/L', 'Zu Übersicht, Themen, Aufgaben, Wissen, Ablage'], ['?', 'Diese Übersicht']];
+  modal(`<h3>${ic('kbd')}Tastenkürzel</h3><p class="sub">Alles geht auch ohne Maus – gleiche Taste, gleiche Aktion, überall.</p>
+    <div class="shortcuts">${k.map(([a, b]) => `<kbd>${a}</kbd><span>${b}</span>`).join('')}</div>
+    <div class="foot"><button class="btn primary" data-act="closeModal">Alles klar</button></div>`);
+}
+function settingsDialog() {
+  modal(`<h3>${ic('gear')}Konten</h3><p class="sub">Nur angedeutet. Die lokale Ablage ist ein Konto wie jedes andere – nur ohne Server.</p>
+    ${D.accounts.map(a => `<div class="src" style="margin-top:8px"><span class="live ${a.kind === 'local' ? 'local' : ''}"></span><b>${esc(a.name)}</b><span class="grow">${esc(a.addr)}</span><span class="faint">${a.kind === 'local' ? 'Maildir' : 'IMAP · IDLE'}</span></div>`).join('')}
+    <div class="foot"><button class="btn" data-act="closeModal">${ic('plus', 'sm')}Konto hinzufügen</button><button class="btn primary" data-act="closeModal">Fertig</button></div>`);
+}
+
+/* ---------- Palette ---------- */
+const COMMANDS = [
+  ['Triage starten', 'zap', () => go('triage')], ['Übersicht', 'home', () => go('home')], ['Aufgaben', 'task', () => go('tasks')], ['Wissen', 'bulb', () => go('know')],
+  ['Ablage', 'box', () => go('ablage')], ['Themen', 'hash', () => go('topics')], ['KI-Assistenz & Prompts', 'spark', () => go('ai')], ['Neue Notiz', 'plus', () => knowDialog(null)], ['Neue Aufgabe', 'plus', () => taskDialog(null)],
+  ['Fokus-Modus umschalten', 'belloff', () => toggleFocus()], ['Hell / Dunkel', 'moon', () => toggleTheme()], ['Tray-Popup zeigen', 'tray', () => toggleTray(true)], ['Tastenkürzel', 'kbd', () => keysDialog()],
+];
+function palResults() {
+  const q = S.pal.q.trim().toLowerCase();
+  const res = [];
+  const raw = S.pal.q.trim();
+  if (D.ai.on && raw.length > 3 && (raw.endsWith('?') || raw.startsWith('?'))) res.push(['✦ KI fragen', [{ icon: 'spark', title: raw.replace(/^\?\s*/, ''), sub: 'Antwort aus Mails, Ablage und Wissen – mit Quellen', run: () => askAI(raw.replace(/^\?\s*/, '')) }]]);
+  const cmds = COMMANDS.filter(c => !q || c[0].toLowerCase().includes(q)).slice(0, q ? 4 : 6);
+  if (cmds.length) res.push(['Befehle', cmds.map(c => ({ icon: c[1], title: c[0], run: c[2] }))]);
+  if (q) {
+    let mq = q, from = null, tp = null;
+    const fm = q.match(/von:(\S+)/); if (fm) { from = fm[1]; mq = mq.replace(fm[0], '').trim(); }
+    const tm = q.match(/thema:(\S+)/); if (tm) { tp = tm[1]; mq = mq.replace(tm[0], '').trim(); }
+    const ms = D.mails.filter(m => (!from || (m.from + m.addr).toLowerCase().includes(from)) && (!tp || (topic(m.topic)?.name || '').toLowerCase().includes(tp))
+      && (!mq || (m.subject + ' ' + m.from + ' ' + m.body).toLowerCase().includes(mq))).slice(0, 7);
+    if (ms.length) res.push(['Mails', ms.map(m => ({ av: m.from, title: m.subject, sub: `${m.from} · ${m.ablage ? 'Ablage/' + m.ablage : acc(m.acc).name}${m.archived ? ' · archiviert' : ''}`, run: () => openMail(m.id) }))]);
+    const ts = D.tasks.filter(t => t.title.toLowerCase().includes(mq || q)).slice(0, 4);
+    if (ts.length) res.push(['Aufgaben', ts.map(t => ({ icon: 'task', title: t.title, sub: STATUS[t.status], run: () => go('tasks') }))]);
+    const ks = D.know.filter(k => (k.title + ' ' + k.content).toLowerCase().includes(mq || q)).slice(0, 4);
+    if (ks.length) res.push(['Wissen', ks.map(k => ({ icon: k.kind === 'fact' ? 'key' : 'bulb', title: k.title, sub: k.content.slice(0, 60), run: () => { S.kq = k.title; go('know'); } }))]);
+    const tps = D.topics.filter(t => t.name.toLowerCase().includes(q)).slice(0, 3);
+    if (tps.length) res.push(['Themen', tps.map(t => ({ dot: t.color, title: t.name, run: () => { S.topic = t.id; go('topic'); } }))]);
+  }
+  return res;
+}
+function renderPalette() {
+  const res = palResults(), flat = res.flatMap(r => r[1]);
+  S.pal.flat = flat; S.pal.idx = Math.min(S.pal.idx, Math.max(0, flat.length - 1));
+  let i = 0;
+  $('#palette .pal-res').innerHTML = res.map(([h, items]) => `<div class="pop-title">${h}</div>` + items.map(it => { const n = i++; return `<button class="pi ${n === S.pal.idx ? 'sel' : ''}" data-act="palRun" data-n="${n}">
+    ${it.av ? avatar(it.av, 'xs') : it.dot ? `<span class="dot" style="--c:${it.dot}"></span>` : ic(it.icon, 'sm')}<span class="grow">${esc(it.title)}${it.sub ? `<br><small class="faint">${esc(it.sub)}</small>` : ''}</span>${n === S.pal.idx ? '<kbd>↵</kbd>' : ''}</button>`; }).join('')).join('')
+    || `<div class="empty">Nichts gefunden für „${esc(S.pal.q)}“.</div>`;
+}
+function openPalette() {
+  S.pal = { q: '', idx: 0 };
+  const p = $('#palette');
+  p.innerHTML = `<div class="pal"><div class="pal-in">${ic('search')}<input id="palq" placeholder="Mails, Aufgaben, Wissen, Ablage, Befehle …" autocomplete="off"><kbd>Esc</kbd></div><div class="pal-res"></div>
+    <div class="pal-hints">Filter: <span class="chip">von:hansen</span><span class="chip">thema:atlas</span> · Frage mit <b>?</b> → KI · durchsucht Posteingang, Archiv <b>und</b> lokale Ablage</div></div>`;
+  p.classList.add('show');
+  const inp = $('#palq'); inp.focus();
+  inp.addEventListener('input', () => { S.pal.q = inp.value; S.pal.idx = 0; renderPalette(); });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { S.pal.idx = Math.min(S.pal.idx + 1, S.pal.flat.length - 1); renderPalette(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { S.pal.idx = Math.max(0, S.pal.idx - 1); renderPalette(); e.preventDefault(); }
+    else if (e.key === 'Enter') { const it = S.pal.flat[S.pal.idx]; if (it) { closePalette(); it.run(); } }
+    else if (e.key === 'Escape') closePalette();
+  });
+  renderPalette();
+}
+function closePalette() { $('#palette').classList.remove('show'); }
+
+/* ---------- Tray ---------- */
+function renderTray() {
+  const u = unread().filter(m => m.group !== 'rauschen').slice(0, 5), pins = D.mails.filter(m => m.pinned && !m.archived).slice(0, 3);
+  const live = D.otps.filter(o => o.exp > Date.now());
+  $('#tray').innerHTML = `<div class="tr-h"><div class="logo" style="width:30px;height:30px;font-size:14px;margin:0;border-radius:9px">M</div><div class="grow"><b>Maillet</b><br><small class="faint">${S.focus ? '🌙 Fokus aktiv – nur Menschen' : 'Alle Konten live'}</small></div><button class="ib" data-act="tray">${ic('x', 'sm')}</button></div>
+    ${live.length ? `<div class="tr-sec"><h5>Codes</h5>${live.map(o => `<button class="tr-row" data-act="otp" data-id="${o.id}">${ic('key')}<span class="grow"><b style="font-family:var(--mono);letter-spacing:.1em;font-size:16px">${o.code.slice(0, 3)} ${o.code.slice(3)}</b><small>${esc(o.service)} · Klick kopiert</small></span><span class="ring" data-exp="${o.exp}" data-ttl="${o.ttl}" style="width:22px;height:22px"></span></button>`).join('')}</div>` : ''}
+    <div class="tr-sec"><h5>Neu · ${unread().length}</h5>${u.map(m => `<div class="tr-row" data-act="trayOpen" data-id="${m.id}" style="cursor:pointer">${avatar(m.from, 'xs')}<span class="grow"><b>${esc(m.from)}</b><small>${esc(m.subject)}</small></span>
+      <span class="qa"><button class="ib" data-act="pin" data-id="${m.id}" title="Anpinnen">${ic('pin', 'sm')}</button><button class="ib" data-act="archive" data-id="${m.id}" title="Erledigt">${ic('check', 'sm')}</button></span></div>`).join('') || '<div class="faint" style="padding:6px 10px">Nichts Neues 🌿</div>'}</div>
+    ${pins.length ? `<div class="tr-sec"><h5>Angepinnt</h5>${pins.map(m => `<div class="tr-row" data-act="trayOpen" data-id="${m.id}" style="cursor:pointer">${ic('pin', 'sm')}<span class="grow"><b>${esc(m.subject)}</b></span></div>`).join('')}</div>` : ''}
+    ${D.live.length ? `<div class="tr-sec"><h5>Zustand</h5>${D.live.slice(0, 3).map(l => `<div class="tr-row"><span class="src" style="width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:9px;font-weight:800;background:var(--panel2);border:1px solid var(--line);flex:none">${esc(l.src)}</span><span class="grow"><b>${esc(l.title)}</b></span><span class="st ${l.tone}">${esc(l.state)}</span></div>`).join('')}</div>` : ''}
+    <div class="tr-f"><button class="btn" data-act="trayTriage">${ic('zap', 'sm')}Triage</button><button class="btn primary" data-act="tray">Maillet öffnen</button></div>`;
+}
+function toggleTray(force) { const t = $('#tray'); const on = force ?? !t.classList.contains('show'); t.classList.toggle('show', on); if (on) renderTray(); }
+
+/* ---------- Toasts & Benachrichtigungen ---------- */
+function toast(text, actions = []) {
+  const el = document.createElement('div'); el.className = 'toast';
+  el.innerHTML = `<span>${esc(text)}</span>`;
+  actions.forEach(a => { const b = document.createElement('button'); b.textContent = a.label; b.onclick = () => { el.remove(); a.run(); }; el.appendChild(b); });
+  $('#toasts').appendChild(el);
+  while ($('#toasts').children.length > 3) $('#toasts').firstChild.remove();
+  setTimeout(() => el.remove(), actions.length ? 6500 : 3200);
+}
+function notify(title, body, actions) {
+  const el = document.createElement('div'); el.className = 'note';
+  el.innerHTML = `<div class="nh"><span class="mini">M</span><span class="grow">Maillet · Desktop-Benachrichtigung</span><span>jetzt</span></div><b>${esc(title)}</b><p>${esc(body)}</p><div class="na"></div>`;
+  actions.forEach(a => { const b = document.createElement('button'); b.textContent = a.label; b.onclick = () => { el.remove(); a.run(); }; el.querySelector('.na').appendChild(b); });
+  $('#notify').appendChild(el);
+  setTimeout(() => el.remove(), 9000);
+}
+function simulate(kind) {
+  if (kind === 'jira') {
+    const l = D.live.find(x => x.id === 'l1');
+    if (!l) { toast('Zustandskarte wurde entfernt – Zurücksetzen stellt sie wieder her'); return; }
+    const st = [['In Arbeit', ''], ['In Review', ''], ['Erledigt', 'ok']];
+    const nx = st[Math.min(st.findIndex(x => x[0] === l.state) + 1, st.length - 1)];
+    const time = new Date().toTimeString().slice(0, 5);
+    const m = { id: uid('m'), acc: 'arbeit', from: 'Jira', addr: 'jira@firma.example', group: 'maschine', archived: true, absorbed: 'l1', time, date: '2026-11-10', subject: `[ATLAS-412] Status: ${nx[0]}`, body: `ATLAS-412 wurde auf „${nx[0]}“ gesetzt.` };
+    D.mails.unshift(m); l.state = nx[0]; l.tone = nx[1]; l.time = time; l.hist.unshift([time, `Status: ${nx[0]}`, m.id]);
+    S.flash = 'l1'; if (S.view !== 'home') go('home'); else render(); setTimeout(() => { S.flash = null; }, 1700);
+    toast(`ATLAS-412 → ${nx[0]} · Zustandskarte aktualisiert, nichts Neues im Fluss`, nx[0] === 'Erledigt' ? [{ label: 'Karte entfernen', run: () => { D.live = D.live.filter(x => x.id !== 'l1'); render(); } }] : []);
+    return;
+  }
+  if (kind === 'otp') {
+    const o = { id: uid('o'), service: ['Spotify', 'Claude', 'Lufthansa', 'Microsoft'][Math.floor(Math.random() * 4)], code: String(100000 + Math.floor(Math.random() * 899999)), acc: 'privat', exp: Date.now() + 120000, ttl: 120000 };
+    D.otps.push(o); render();
+    notify(`${o.service}: ${o.code}`, 'Login-Code erkannt', [{ label: 'Kopieren', run: () => copyOtp(o.id) }]);
+    return;
+  }
+  const tpl = {
+    mensch: { from: 'Sara Yilmaz', addr: 'sara.yilmaz@firma.example', group: 'mensch', subject: 'Kurze Frage zur Atlas-Demo morgen', body: `Hi,\n\nkönnen wir die Demo morgen um 10:00 machen statt um 14:00? Bitte gib mir bis heute Bescheid.\n\nRaum: 4.12 (Elbblick)\n\nDanke!\nSara` },
+    kunde: { from: 'Ines Iversen', addr: 'i.iversen@nordwind.de', group: 'mensch', subject: 'Freigabe Phase 2', body: `Sehr geehrte Damen und Herren,\n\ndie Geschäftsführung hat Phase 2 freigegeben. Bitte senden Sie uns die Auftragsbestätigung bis Freitag.\n\nBestellnummer: NW-2026-0815\n\nMit freundlichen Grüßen\nInes Iversen` },
+    news: { from: 'Produktnews', addr: 'news@saas.example', group: 'rauschen', subject: 'Neu: 12 Funktionen, die Sie lieben werden', body: `Entdecken Sie unsere neuesten Funktionen …\n\nAbbestellen` },
+  }[kind];
+  const m = { id: uid('m'), acc: 'arbeit', unread: true, time: new Date().toTimeString().slice(0, 5), date: '2026-11-10', ...tpl };
+  D.mails.unshift(m); applyRules(); render();
+  if (S.focus && m.group !== 'mensch') { toast('Still eingereiht (Fokus-Modus)'); return; }
+  if (m.group === 'rauschen') { toast('Neue Mail im Rauschen – ohne Benachrichtigung'); return; }
+  notify(m.from + (m.topic ? ` · ${topic(m.topic).name}` : ''), m.subject, [
+    { label: 'Öffnen', run: () => openMail(m.id) }, { label: 'Aufgabe', run: () => taskDialog(m.id) }, { label: 'Erledigt', run: () => doArchive(m.id) }]);
+}
+function copyText(t) { try { navigator.clipboard.writeText(t); } catch (e) { /* file:// ohne Berechtigung */ } }
+function copyOtp(id) {
+  const o = D.otps.find(x => x.id === id); if (!o) return;
+  copyText(o.code);
+  act(`Code ${o.code} kopiert · Mail archiviert`, () => { D.otps = D.otps.filter(x => x.id !== id); });
+  if ($('#tray').classList.contains('show')) renderTray();
+}
+function toggleFocus() { S.focus = !S.focus; $('#focusBtn').classList.toggle('on', S.focus); $('#focusBtn').innerHTML = `${ic(S.focus ? 'belloff' : 'bell')}Fokus`; toast(S.focus ? 'Fokus an – nur Menschen dürfen stören' : 'Fokus aus'); }
+function toggleTheme() { const r = document.documentElement; r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark'; }
+function go(v) { S.view = v; S.open = null; if (v === 'triage') S.tstats = null; closePop(); render(); $('#view').scrollTop = 0; }
+
+/* ---------- Render ---------- */
+function render() {
+  renderRail();
+  const v = { home: vHome, triage: vTriage, topics: vTopics, topic: vTopic, tasks: vTasks, know: vKnow, ablage: vAblage, ai: vAI }[S.view];
+  const active = document.activeElement && document.activeElement.id;
+  $('#view').innerHTML = v();
+  if (active === 'kq') { const k = $('#kq'); k.focus(); k.setSelectionRange(k.value.length, k.value.length); }
+  renderReader();
+  if ($('#tray').classList.contains('show')) renderTray();
+}
+
+/* ---------- Ereignisse ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!e.target.closest('#pop') && !(el && ['pickTopic', 'snooze', 'simMenu'].includes(el.dataset.act))) closePop();
+  if (!e.target.closest('#selbubble')) $('#selbubble').style.display = 'none';
+  if (!e.target.closest('#tray') && !(el && ['tray', 'pin', 'archive'].includes(el.dataset.act)) && !e.target.closest('[data-act=tray]')) toggleTray(false);
+  if (e.target.id === 'modal') return closeModal();
+  if (e.target.id === 'palette') return closePalette();
+  if (!el) return;
+  const a = el.dataset.act, id = el.dataset.id;
+  e.stopPropagation();
+  switch (a) {
+    case 'view': closeModal(); go(el.dataset.view); break;
+    case 'open': closePop(); closeModal(); openMail(id); break;
+    case 'sortAI': S.sortAI = el.dataset.v === '1'; render(); break;
+    case 'boardEdit': S.editBoard = !S.editBoard; render(); break;
+    case 'bMove': { const i = +el.dataset.i, j = i + +el.dataset.d; if (j >= 0 && j < S.board.length) { [S.board[i], S.board[j]] = [S.board[j], S.board[i]]; render(); } break; }
+    case 'bDel': S.board.splice(+el.dataset.i, 1); render(); break;
+    case 'bAdd': { const free = Object.keys(WIDGETS).filter(w => !S.board.includes(w)); openPop(el, `<div class="pop-title">Karte aufs Board</div>${free.map(w => `<button class="pi" data-act="bAddW" data-w="${w}">${ic(WIDGETS[w].i, 'sm')}<span class="grow">${WIDGETS[w].t}</span></button>`).join('') || '<div class="faint" style="padding:8px 10px">Alle Karten sind schon da.</div>'}<div class="pop-hint">Smart-Karten entstehen aus jeder Suche.</div>`); break; }
+    case 'bAddW': closePop(); S.board.push(el.dataset.w); render(); break;
+    case 'live': livePop(el, id); break;
+    case 'liveDel': closePop(); act('Zustandskarte entfernt', () => { D.live = D.live.filter(x => x.id !== id); }); break;
+    case 'aiToggle': D.ai.on = !D.ai.on; render(); toast(D.ai.on ? 'KI-Assistenz an' : 'KI-Assistenz aus – keine Mail wird mehr ausgewertet'); break;
+    case 'aiModel': D.ai.model = el.dataset.v; render(); toast(el.dataset.v === 'api' ? 'Achtung: Mails verlassen jetzt deinen Rechner' : 'Lokales Modell – nichts verlässt den Rechner'); break;
+    case 'promptToggle': { const pr = D.ai.prompts.find(x => x.id === id); pr.on = !pr.on; render(); break; }
+    case 'promptTest': promptTest(id); break;
+    case 'newPrompt': newPrompt(); break;
+    case 'savePrompt': { const n = $('#pName').value.trim(), t = $('#pText').value.trim(); if (!n || !t) break; const c = S.mctx; D.ai.prompts.push({ id: uid('p'), on: true, name: n, text: t, scope: c.scope, trigger: c.trigger, out: c.out }); closeModal(); render(); toast(`Prompt „${n}“ angelegt`); break; }
+    case 'aiWhy': aiWhy(id, el.dataset.p); break;
+    case 'aiTask': { const a = mail(id).ai; taskDialog(id, { title: a.task, subtasks: a.subtasks, due: '' }); break; }
+    case 'askEx': closeModal(); askAI(el.dataset.q); break;
+    case 'askKnow': closeModal(); knowDialog(null, { kind: 'note', title: el.dataset.q, content: el.dataset.a }); break;
+    case 'subTick': { const t = D.tasks.find(x => x.id === id); const st = t.subtasks[+el.dataset.j]; st.done = !st.done; if (t.subtasks.every(x => x.done) && t.status !== 'done') { t.status = 'done'; toast('Alle Teilaufgaben erledigt – Aufgabe abgeschlossen ✓'); } render(); break; }
+    case 'favKnow': { const k = D.know.find(x => x.id === id); k.fav = !k.fav; render(); toast(k.fav ? 'Auf dem Spickzettel (Board)' : 'Vom Spickzettel genommen'); break; }
+    case 'unblock': { const b = D.ai.block.splice(+el.dataset.i, 1)[0]; render(); toast(`${b.label} ist für die KI freigegeben`); break; }
+    case 'addBlock': { const opts = D.topics.map(t => ({ kind: 'topic', id: t.id, label: 'Thema ' + t.name })).concat(D.accounts.map(a => ({ kind: 'acc', id: a.id, label: 'Konto ' + a.name }))).filter(o => !D.ai.block.some(b => b.kind === o.kind && b.id === o.id));
+      S.popCtx = { kind: 'block', opts }; openPop(el, `<div class="pop-title">Für die KI sperren</div>${opts.map((o, i) => `<button class="pi" data-act="addBlockW" data-i="${i}"><span class="grow">${esc(o.label)}</span></button>`).join('')}`); break; }
+    case 'addBlockW': { const o = S.popCtx.opts[+el.dataset.i]; closePop(); D.ai.block.push(o); render(); toast(`${o.label} gesperrt`); break; }
+
+    case 'closeReader': S.open = null; render(); break;
+    case 'filter': S.filter = el.dataset.f; render(); break;
+    case 'pin': doPin(id); break;
+    case 'archive': doArchive(id); break;
+    case 'archiveNoise': act('Rauschen erledigt', () => { unread().filter(m => m.group === 'rauschen').forEach(m => { m.archived = true; m.unread = false; }); }); break;
+    case 'pickTopic': if (!id && S.view === 'triage') break; topicPicker(el, id || triageCurrent()?.id); break;
+    case 'pickT': { const pid = S.popCtx.id; closePop(); assignTopic(pid, el.dataset.t); break; }
+    case 'pickNew': { const c = S.popCtx; const t = createTopic(c.q); closePop(); assignTopic(c.id, t.id); break; }
+    case 'acceptSug': assignTopic(id, el.dataset.topic); break;
+    case 'snooze': snoozePicker(el, id); break;
+    case 'snoozeAt': { const sid = S.popCtx.id; closePop(); if (S.view === 'triage') { S.tstats.snoozed++; } doSnooze(sid, el.dataset.l); break; }
+    case 'task': taskDialog(id); break;
+    case 'know': knowDialog(id || null); break;
+    case 'ablage': ablageDialog(id); break;
+    case 'reply': toast('Antwort-Editor: schlichtes Fenster, Entwurf liegt auf dem Server (im Dummy nicht enthalten)'); break;
+    case 'find': {
+      const k = el.dataset.kind, v = el.dataset.val, l = el.dataset.label;
+      if (k === 'deadline' || k === 'date') taskDialog(id, { due: k === 'deadline' ? guessDue(v) : 'nw' });
+      else knowDialog(id, { kind: 'fact', title: l === 'Telefon' ? `Telefon ${mail(id).from}` : l === 'Link' ? mail(id).subject : l, content: v });
+      break;
+    }
+    case 'seg': { const seg = el.parentElement; seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el)); S.mctx[seg.dataset.seg] = el.dataset.v; break; }
+    case 'closeModal': closeModal(); break;
+    case 'saveTask': saveTask(); break;
+    case 'saveKnow': saveKnow(); break;
+    case 'saveAblage': saveAblage(); break;
+    case 'fpick': S.mctx.folder = el.dataset.f; S.mctx.draw(); break;
+    case 'newFolderInDlg': newFolderInDlg(); break;
+    case 'addTag': { const i = $('#kTags'); const cur = i.value.split(',').map(s => s.trim()).filter(Boolean); if (!cur.includes(el.dataset.tag)) cur.push(el.dataset.tag); i.value = cur.join(', '); break; }
+    case 'otp': copyOtp(id); break;
+    case 'openTopic': S.topic = id; go('topic'); break;
+    case 'swatch': S.newColor = +el.dataset.i; render(); $('#newTopic')?.focus(); break;
+    case 'cycleColor': { const t = topic(id); t.color = COLORS[(COLORS.indexOf(t.color) + 1) % COLORS.length]; render(); break; }
+    case 'addRule': { const m = prompt('Absender oder Domain, z. B. @kunde.de', '@'); if (m && m.length > 1) { D.rules.push({ id: uid('r'), topic: id, match: m.trim() }); applyRules(); render(); toast('Regel angelegt'); } break; }
+    case 'delRule': D.rules = D.rules.filter(r => r.id !== id); render(); break;
+    case 'toggleTask': { const t = D.tasks.find(x => x.id === id); act(t.status === 'done' ? 'Wieder offen' : 'Erledigt ✓', () => { t.status = t.status === 'done' ? 'open' : 'done'; }); break; }
+    case 'nudge': toast('Entwurf „Kurze Erinnerung …“ angelegt – als Antwort auf die Original-Mail'); break;
+    case 'ktag': S.ktag = el.dataset.tag || null; if (S.view !== 'know') go('know'); else render(); break;
+    case 'copyKnow': { const k = D.know.find(x => x.id === id); copyText(k.content); toast(`Kopiert: ${k.content}`); break; }
+    case 'folder': S.folder = el.dataset.f; render(); break;
+    case 'newFolder': { const n = prompt('Neuer Ordner (Pfad mit / möglich)', S.folder + '/'); if (n) { D.folders.push(n.replace(/\/+$/, '')); D.folders.sort(); S.folder = n.replace(/\/+$/, ''); render(); } break; }
+    case 'palette': openPalette(); break;
+    case 'palRun': { const it = S.pal.flat[+el.dataset.n]; closePalette(); it && it.run(); break; }
+    case 'simMenu': simMenu(el); break;
+    case 'sim': closePop(); simulate(el.dataset.k); break;
+    case 'focus': toggleFocus(); break;
+    case 'tray': toggleTray(); break;
+    case 'trayOpen': toggleTray(false); openMail(id); break;
+    case 'trayTriage': toggleTray(false); go('triage'); break;
+    case 'theme': toggleTheme(); break;
+    case 'keys': keysDialog(); break;
+    case 'settings': settingsDialog(); break;
+    case 'reset': D = seed(); applyRules(); Object.assign(S, { view: 'home', open: null, filter: 'alle', tstats: null, sortAI: false, editBoard: false, board: ['pinned', 'live', 'today', 'cheat', 'topics'] }); render(); toast('Dummy zurückgesetzt'); break;
+    case 'tArchive': { const m = triageCurrent(); m.archived = true; m.unread = false; triageAdvance('left', 'archived'); break; }
+    case 'tPin': { const m = triageCurrent(); m.pinned = true; m.unread = false; triageAdvance('up', 'pinned'); break; }
+    case 'tSkip': { const m = triageCurrent(); m.unread = false; triageAdvance('right', 'skipped'); break; }
+    case 'tTask': taskDialog(triageCurrent().id); break;
+    case 'selKnow': $('#selbubble').style.display = 'none'; knowDialog(S.open, { content: S.sel }); break;
+    case 'selTask': $('#selbubble').style.display = 'none'; taskDialog(S.open, { title: S.sel.slice(0, 80), due: guessDue(S.sel) }); break;
+  }
+});
+
+function saveTask() {
+  const c = S.mctx, title = $('#dTitle').value.trim(); if (!title) return;
+  const m = mail(c.id), arch = $('#dArch')?.checked;
+  closeModal();
+  const inTriage = S.view === 'triage' && m && triageCurrent() === m;
+  act(`Aufgabe angelegt${arch ? ' · Mail erledigt' : ''}`, () => {
+    D.tasks.unshift({ id: uid('k'), title, mail: c.id, due: c.due || '', status: c.status, topic: m ? m.topic : null, since: 0, waitFor: '', subtasks: c.subtasks ? c.subtasks.map(x => ({ t: x, done: false })) : null });
+    if (m && arch) { m.archived = true; m.unread = false; if (S.open === m.id) S.open = null; }
+  });
+  if (inTriage) { if (arch) triageAdvance('up', 'tasks'); else S.tstats.tasks++; }
+}
+function saveKnow() {
+  const c = S.mctx, title = $('#kTitle').value.trim(), content = $('#kContent').value.trim(); if (!title && !content) return;
+  const tags = $('#kTags').value.split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean);
+  closeModal();
+  if (S.view === 'triage' && S.tstats) S.tstats.know++;
+  act('Gemerkt – zu finden unter Wissen und in der Suche', () => { D.know.unshift({ id: uid('w'), kind: c.k, title: title || content.slice(0, 40), content, tags, topic: c.topic, mail: c.id }); });
+}
+function saveAblage() {
+  const c = S.mctx, m = mail(c.id);
+  closeModal();
+  const inTriage = S.view === 'triage' && triageCurrent() === m;
+  act(`Abgelegt in ${c.folder} · offline verfügbar`, () => { m.ablage = c.folder; m.unread = false; if (c.mode === 'move' && m.acc !== 'lokal') { m.archived = true; if (S.open === m.id && S.view !== 'ablage') S.open = null; } });
+  if (inTriage && c.mode === 'move') triageAdvance('up', 'ablage'); else if (inTriage) S.tstats.ablage++;
+}
+function newFolderInDlg() {
+  const n = $('#nf').value.trim(); if (!n) return;
+  const f = S.mctx.folder + '/' + n.replace(/\//g, '-');
+  if (!D.folders.includes(f)) { D.folders.push(f); D.folders.sort(); }
+  S.mctx.folder = f; $('#nf').value = ''; S.mctx.draw();
+}
+
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  const typing = tag === 'input' || tag === 'textarea' || e.target.isContentEditable;
+  if (typing) {
+    if (e.key === 'Enter' && e.target.dataset.enter) {
+      e.preventDefault();
+      const f = e.target.dataset.enter;
+      if (f === 'saveTask') saveTask();
+      else if (f === 'quickTask') { const v = e.target.value.trim(); if (v) { act('Aufgabe angelegt', () => { D.tasks.unshift({ id: uid('k'), title: v.replace(/ bis \w+$/i, ''), mail: null, due: guessDue(v), status: 'open', topic: null }); }); } }
+      else if (f === 'createTopicInline') { const v = e.target.value.trim(); if (v) { createTopic(v, COLORS[S.newColor ?? 5]); render(); toast(`Thema „${v}“ angelegt`); } }
+      else if (f === 'newFolderInDlg') newFolderInDlg();
+    }
+    if (e.key === 'Enter' && e.target.dataset.rename) { e.preventDefault(); e.target.blur(); }
+    if (e.key === 'Escape') { e.target.blur(); if ($('#modal').classList.contains('show')) closeModal(); }
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); return openPalette(); }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if ($('#modal').classList.contains('show')) { if (e.key === 'Escape') closeModal(); if (e.key === 'Enter' && S.mctx?.kind === 'ablage') saveAblage(); return; }
+  if ($('#pop').style.display === 'block' && e.key === 'Escape') return closePop();
+  if (S.g) { S.g = false; const map = { ü: 'home', u: 'home', h: 'home', t: 'topics', a: 'tasks', w: 'know', l: 'ablage', r: 'triage', k: 'ai', i: 'ai' }; if (map[e.key]) go(map[e.key]); return; }
+  if (e.key === 'g') { S.g = true; setTimeout(() => S.g = false, 1200); return; }
+  if (e.key === '/') { e.preventDefault(); return openPalette(); }
+  if (e.key === '?') return keysDialog();
+  if (e.key === 'Escape') { if (S.open) { S.open = null; render(); } else if ($('#tray').classList.contains('show')) toggleTray(false); else if (S.view === 'topic') go('topics'); else if (S.view !== 'home') go('home'); return; }
+  const target = S.open ? mail(S.open) : S.view === 'triage' ? triageCurrent() : null;
+  if (!target) return;
+  const k = e.key.toLowerCase();
+  const anchor = document.querySelector('#reader.show [data-act=pickTopic]') || document.querySelector('[data-act=pickTopic]') || $('#view');
+  if (S.view === 'triage' && !S.open) {
+    if (k === 'e') return el('tArchive'); if (k === 'p') return el('tPin'); if (e.key === 'ArrowRight') return el('tSkip'); if (k === 'a') return taskDialog(target.id);
+    if (e.key === 'Enter') return openMail(target.id);
+  } else {
+    if (k === 'e') return doArchive(target.id); if (k === 'p') return doPin(target.id); if (k === 'a') return taskDialog(target.id);
+  }
+  if (k === 't') return topicPicker(anchor, target.id);
+  if (k === 'm') return knowDialog(target.id);
+  if (k === 'l') return ablageDialog(target.id);
+  if (k === 's') return snoozePicker(document.querySelector('[data-act=snooze]') || anchor, target.id);
+  function el(a) { document.querySelector(`[data-act=${a}]`)?.click(); }
+});
+
+document.addEventListener('input', e => {
+  if (e.target.dataset.input === 'kq') { S.kq = e.target.value; render(); }
+});
+document.addEventListener('focusout', e => {
+  const id = e.target.dataset && e.target.dataset.rename;
+  if (id) { const t = topic(id), v = e.target.textContent.trim(); if (t && v && v !== t.name) { t.name = v; render(); toast('Thema umbenannt'); } }
+});
+
+/* Text markieren im Reader → Bubble */
+document.addEventListener('mouseup', e => {
+  if (!e.target.closest('#rdbody')) return;
+  setTimeout(() => {
+    const s = getSelection(), txt = s.toString().trim();
+    const b = $('#selbubble');
+    if (txt.length < 3) { b.style.display = 'none'; return; }
+    const r = s.getRangeAt(0).getBoundingClientRect();
+    S.sel = txt; b.style.display = 'flex'; b.style.left = (r.left + r.width / 2) + 'px'; b.style.top = r.top + 'px';
+  }, 10);
+});
+
+/* Drag & Drop: Mails auf Ziele, Aufgaben zwischen Spalten */
+document.addEventListener('dragstart', e => {
+  const t = e.target.closest && e.target.closest('[data-task]');
+  if (t) { S.dragTask = t.dataset.task; e.dataTransfer.setData('text/plain', S.dragTask); t.classList.add('dragging'); return; }
+  const c = e.target.closest && e.target.closest('[data-mail]');
+  if (!c) return;
+  S.drag = c.dataset.mail; e.dataTransfer.setData('text/plain', S.drag); e.dataTransfer.effectAllowed = 'move';
+  c.classList.add('dragging'); closePop(); showDock();
+});
+document.addEventListener('dragend', () => { hideDock(); document.querySelectorAll('.dragging,.drop-over').forEach(x => x.classList.remove('dragging', 'drop-over')); setTimeout(() => { S.drag = null; S.dragTask = null; }, 0); });
+document.addEventListener('dragover', e => {
+  const z = e.target.closest && e.target.closest('[data-drop]');
+  if (!z) return;
+  const isCol = z.dataset.drop.startsWith('col:');
+  if ((isCol && !S.dragTask) || (!isCol && !S.drag)) return;
+  e.preventDefault();
+  document.querySelectorAll('.drop-over').forEach(x => x !== z && x.classList.remove('drop-over'));
+  z.classList.add('drop-over');
+});
+document.addEventListener('drop', e => {
+  const z = e.target.closest && e.target.closest('[data-drop]');
+  if (!z) return;
+  e.preventDefault();
+  const d = z.dataset.drop;
+  if (d.startsWith('col:') && S.dragTask) { const t = D.tasks.find(x => x.id === S.dragTask), st = d.slice(4); if (t && t.status !== st) act(`→ ${STATUS[st]}`, () => { t.status = st; if (st === 'wait') t.since = 0; }); return; }
+  const id = S.drag; if (!id) return;
+  hideDock();
+  if (d.startsWith('topic:')) assignTopic(id, d.slice(6));
+  else if (d === 'pin') doPin(id);
+  else if (d === 'archive') doArchive(id);
+  else if (d === 'task') taskDialog(id);
+  else if (d === 'know') knowDialog(id);
+  else if (d === 'ablage') ablageDialog(id);
+  else if (d === 'snooze') snoozePicker(z, id);
+});
+
+/* OTP-Countdown */
+setInterval(() => {
+  let expired = false;
+  document.querySelectorAll('.ring[data-exp]').forEach(r => {
+    const left = +r.dataset.exp - Date.now();
+    if (left <= 0) expired = true;
+    r.style.setProperty('--p', Math.max(0, left / +r.dataset.ttl));
+  });
+  if (expired) { D.otps = D.otps.filter(o => o.exp > Date.now()); render(); }
+}, 500);
+
+render();
+setTimeout(() => notify('Jana Wolff', 'Atlas: Review der Spezifikation bis Freitag', [
+  { label: 'Öffnen', run: () => openMail('m1') }, { label: 'Aufgabe', run: () => taskDialog('m1') }, { label: 'Später', run: () => doSnooze('m1', 'Morgen 9:00') }]), 1200);
+</script>
+</body>
+</html>
