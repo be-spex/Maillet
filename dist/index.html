@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>OTP Scout Settings</title>
+<title>Maillet Settings</title>
 <style>
 :root {
   --bg:#f4f6fb; --surface:#ffffff; --surface-2:#eef1f7; --border:#d5dbe7;
@@ -212,7 +212,7 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 <div class="app">
 
 <aside class="sidebar">
-  <div class="brand">OTP Scout<small>Settings</small></div>
+  <div class="brand">Maillet<small>Settings</small></div>
   <button class="nav-btn" data-sec="accounts" onclick="go('accounts')">Accounts <span class="badge dot" id="dot-accounts"></span></button>
   <button class="nav-btn" data-sec="rules" onclick="go('rules')">Rules <span class="badge" id="badge-rules"></span></button>
   <button class="nav-btn" data-sec="catalog" onclick="go('catalog')">Catalog</button>
@@ -346,8 +346,8 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
     <div class="page-head"><h1>Import rules</h1></div>
     <div class="card">
       <div class="form-group">
-        <label>Rules as JSON <small>(from an OTP Scout export)</small></label>
-        <textarea id="import-json" class="mono" rows="6" placeholder='Paste here, e.g. { "type": "otp-scout-rules", "version": 1, "rules": [ … ] }' oninput="previewImport()"></textarea>
+        <label>Rules as JSON <small>(from an Maillet export)</small></label>
+        <textarea id="import-json" class="mono" rows="6" placeholder='Paste here, e.g. { "type": "maillet-rules", "version": 1, "rules": [ … ] }' oninput="previewImport()"></textarea>
         <div class="hint">Or <button class="link" onclick="importFromFile()">choose a file…</button> Rules with the same name are updated; their accounts, active state and position stay as they are.</div>
       </div>
       <div id="import-preview"></div>
@@ -358,7 +358,7 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 <!-- ======== Catalog ======== -->
 <section class="section" data-sec="catalog">
   <div class="page-head"><h1>Catalog</h1></div>
-  <div class="hint" style="margin:-6px 0 12px">Preconfigured rules for common services, loaded from the <a href="#" onclick="invoke('open_link',{url:CATALOG_PAGE});return false">OTP Scout catalog on GitHub</a>. <b>+</b> adds the rules of the selected language for all accounts, <b>▾</b> lets you pick accounts. They then appear under Rules.</div>
+  <div class="hint" style="margin:-6px 0 12px">Preconfigured rules for common services, loaded from the <a href="#" onclick="invoke('open_link',{url:CATALOG_PAGE});return false">Maillet catalog on GitHub</a>. <b>+</b> adds the rules of the selected language for all accounts, <b>▾</b> lets you pick accounts. They then appear under Rules.</div>
   <div class="catalog-bar">
     <input id="cat-filter" placeholder="Filter by name, e.g. Spotify" oninput="renderCatalog()">
     <select id="cat-lang" onchange="renderCatalog()"></select>
@@ -384,7 +384,7 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
       </div>
     </div>
     <div class="form-group">
-      <label>Token <small>(header <code>X-OTP-Scout-Token</code>, stored in system keyring)</small></label>
+      <label>Token <small>(header <code>X-Maillet-Token</code>, stored in system keyring)</small></label>
       <div class="token-row">
         <input id="api-token" class="mono" type="password" readonly>
         <button class="btn-sm" onclick="toggleToken()" id="api-token-show">Show</button>
@@ -988,8 +988,8 @@ async function shareRules(list, how, fileBase) {
   } catch(e) { showToast('Error: ' + e, 'error') }
 }
 
-const exportShown = how => shareRules(shownRules, how, 'otp-scout-rules')
-const exportRule = how => shareRules([editRule], how, `otp-scout-rule-${slug(editRule.label) || 'rule'}`)
+const exportShown = how => shareRules(shownRules, how, 'maillet-rules')
+const exportRule = how => shareRules([editRule], how, `maillet-rule-${slug(editRule.label) || 'rule'}`)
 
 // ---- Catalog suggestion: an app entry for catalog/catalog.json ----
 function toggleSuggest() {
@@ -1043,7 +1043,7 @@ async function copySnippet() {
 
 function openCatalogIssue() {
   if (!suggest.name.trim() || !suggest.lang) return showToast('Enter service and language.', 'error')
-  const body = `**Service:** ${suggest.name}\n**Language:** ${suggest.lang}\n\nTested with a real mail in OTP Scout.\n\n\`\`\`json\n${catalogSnippet()}\n\`\`\`\n`
+  const body = `**Service:** ${suggest.name}\n**Language:** ${suggest.lang}\n\nTested with a real mail in Maillet.\n\n\`\`\`json\n${catalogSnippet()}\n\`\`\`\n`
   const url = `${CATALOG_ISSUE}?title=${encodeURIComponent(`Catalog: ${suggest.name}`)}&body=${encodeURIComponent(body)}`
   invoke('open_link', { url }).catch(e => showToast('Error: ' + e, 'error'))
 }
@@ -1300,7 +1300,7 @@ function toggleToken() {
 function renderExample() {
   document.getElementById('api-example').textContent =
 `// ==UserScript==
-// @name         OTP Scout bridge
+// @name         Maillet bridge
 // @match        https://example.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      127.0.0.1
@@ -1312,12 +1312,12 @@ function otpScout(kind, value, ruleName) {
     url: 'http://127.0.0.1:${apiPort}/api/otp/' + kind,
     headers: {
       'Content-Type': 'application/json',
-      'X-OTP-Scout-Token': '${apiToken}',
+      'X-Maillet-Token': '${apiToken}',
     },
     data: JSON.stringify(kind === 'code'
       ? { code: value, ruleName }
       : { link: value, ruleName }),
-    onload: r => console.log('OTP Scout:', r.status, r.responseText),
+    onload: r => console.log('Maillet:', r.status, r.responseText),
   })
 }
 

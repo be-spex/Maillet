@@ -1,9 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "OTP Scout",
-  "mainBinaryName": "otp-scout",
+  "productName": "Maillet",
+  "mainBinaryName": "maillet",
   "version": "0.4.0",
-  "identifier": "net.speckels.otpscout",
+  "identifier": "net.speckels.maillet",
   "build": {
     "frontendDist": "../dist"
   },
@@ -19,10 +19,10 @@
     "publisher": "Bert Speckels <skrrytch@speckels.net>",
     "copyright": "© 2026 Bert Speckels",
     "license": "MIT",
-    "homepage": "https://github.com/Skrrytch/OTP-Scout",
+    "homepage": "https://github.com/Skrrytch/Maillet",
     "category": "Utility",
     "shortDescription": "Pops up one-time passwords and magic login links from your mailboxes",
-    "longDescription": "OTP Scout watches your IMAP mailboxes and pops up one-time passwords and magic login links the moment they arrive - copy the code or open the link with one click, without opening your mail client.",
+    "longDescription": "Maillet watches your IMAP mailboxes and pops up one-time passwords and magic login links the moment they arrive - copy the code or open the link with one click, without opening your mail client.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

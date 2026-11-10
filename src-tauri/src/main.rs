@@ -183,7 +183,7 @@ async fn get_catalog() -> Result<catalog::LoadedCatalog, String> {
 #[tauri::command]
 fn get_app_info(app: AppHandle) -> serde_json::Value {
     serde_json::json!({
-        "name": "OTP Scout",
+        "name": "Maillet",
         "tagline": "your one-time password helper",
         "version": app.package_info().version.to_string(),
     })
@@ -355,7 +355,7 @@ async fn run_with_reconnect(
             let _ = app
                 .notification()
                 .builder()
-                .title(format!("OTP Scout – {label}"))
+                .title(format!("Maillet – {label}"))
                 .body(format!("Connection failed: {e:#}"))
                 .show();
         }
@@ -473,7 +473,7 @@ fn spawn_check(app: AppHandle) {
 }
 
 fn main() {
-    // `RUST_LOG=otp_scout=debug` shows IDLE wake-ups and per-stage timings.
+    // `RUST_LOG=maillet=debug` shows IDLE wake-ups and per-stage timings.
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -553,7 +553,7 @@ fn main() {
             });
 
             let settings = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("index.html".into()))
-                .title("OTP Scout Settings")
+                .title("Maillet Settings")
                 .inner_size(820.0, 760.0)
                 .resizable(true)
                 .visible(false)
@@ -568,7 +568,7 @@ fn main() {
             });
 
             let about = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("about.html".into()))
-                .title("About OTP Scout")
+                .title("About Maillet")
                 .inner_size(360.0, 340.0)
                 .resizable(false)
                 .visible(false)
@@ -582,7 +582,7 @@ fn main() {
             });
 
             WebviewWindowBuilder::new(app, "code", WebviewUrl::App("code.html".into()))
-                .title("OTP Scout Code")
+                .title("Maillet Code")
                 .inner_size(POPUP_WIDTH, 250.0)
                 .resizable(false)
                 .decorations(false)
@@ -611,7 +611,7 @@ fn main() {
             let _tray = TrayIconBuilder::new()
                 .icon(icon)
                 .menu(&menu)
-                .tooltip("OTP Scout")
+                .tooltip("Maillet")
                 .on_menu_event(move |app, event| match event.id().as_ref() {
                     "quit" => app.exit(0),
                     "check_now" => spawn_check(app.clone()),

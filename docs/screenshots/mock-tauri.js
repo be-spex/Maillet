@@ -63,7 +63,7 @@
     get_log: () => [...log],
     get_catalog: () => ({ catalog: window.__DEMO_CATALOG__, offline_reason: null }),
     get_api_settings: () => ({ token: 'demo-token', config: { enabled: false, port: 6870, allowed_links: [] }, status: { state: 'off', message: '' } }),
-    get_app_info: () => ({ name: 'OTP Scout', tagline: 'your one-time password helper', version: '0.4.0' }),
+    get_app_info: () => ({ name: 'Maillet', tagline: 'your one-time password helper', version: '0.4.0' }),
     test_rule: testRule,
     save_rule: ({ rule: r }) => rules,
     get_last_code: () => null,

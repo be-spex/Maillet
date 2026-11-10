@@ -1,19 +1,19 @@
-# OTP Scout Rule Catalog
+# Maillet Rule Catalog
 
-`catalog.json` holds the preconfigured detection rules that OTP Scout offers under **Settings → Catalog**. The app downloads the file from this repository at runtime, so changes here reach all users without a new release.
+`catalog.json` holds the preconfigured detection rules that Maillet offers under **Settings → Catalog**. The app downloads the file from this repository at runtime, so changes here reach all users without a new release.
 
 ## ⚠️ Data quality
 
 Many rules in this catalog are **not verified**. Sender addresses, subject lines and code formats were partly collected from memory or generated with the help of AI tools. They have not been checked against real mails. Services also change their mails without notice and use different wording per language and region.
 
-Rules that were not yet checked against a real mail are marked as `unverified` for the affected language and appear with an *unverified* badge in the app. Treat them as a starting point: test them with the rule tester in OTP Scout and adjust them if needed.
+Rules that were not yet checked against a real mail are marked as `unverified` for the affected language and appear with an *unverified* badge in the app. Treat them as a starting point: test them with the rule tester in Maillet and adjust them if needed.
 
 ## 🙌 Help wanted
 
 This catalog only stays useful if people who actually receive these mails keep it up to date. Contributions are very welcome:
 
 - **Verify a rule:** You received a login mail from a service in the catalog? Compare sender and subject with the rule. If it matches, remove the language from `unverified`. If it doesn't, fix the rule.
-- **Add a service:** Add rules for services that log you in with a one-time code or magic link sent by mail. In OTP Scout, open a tested rule and choose *Share ▾ → Suggest for the catalog…*: it builds the app entry for `catalog.json` and can open a prefilled GitHub issue.
+- **Add a service:** Add rules for services that log you in with a one-time code or magic link sent by mail. In Maillet, open a tested rule and choose *Share ▾ → Suggest for the catalog…*: it builds the app entry for `catalog.json` and can open a prefilled GitHub issue.
 - **Add a language:** Add a variant for a language you receive mails in.
 - **Report broken rules:** Open an issue with the service name, the language and the (anonymized) sender and subject.
 

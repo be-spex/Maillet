@@ -1,12 +1,12 @@
 [package]
-name = "otp-scout"
+name = "maillet"
 version = "0.4.0"
 edition = "2021"
 rust-version = "1.90"
 description = "Linux tray app that watches IMAP mailboxes and pops up one-time passwords and magic login links the moment they arrive"
 authors = ["Bert Speckels <skrrytch@speckels.net>"]
 license = "MIT"
-repository = "https://github.com/Skrrytch/OTP-Scout"
+repository = "https://github.com/Skrrytch/Maillet"
 keywords = ["otp", "2fa", "imap", "tauri", "tray"]
 categories = ["email", "authentication", "gui"]
 

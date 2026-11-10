@@ -1,6 +1,6 @@
 # Rules
 
-A rule tells OTP Scout what a login mail looks like and where the code or link is. Out of the box, OTP Scout recognizes mails whose subject reads like *"123456 is your verification code"*. For other services, take ready-made rules from the [catalog](#catalog) or write your own.
+A rule tells Maillet what a login mail looks like and where the code or link is. Out of the box, Maillet recognizes mails whose subject reads like *"123456 is your verification code"*. For other services, take ready-made rules from the [catalog](#catalog) or write your own.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/rules-dark.png">
@@ -9,7 +9,7 @@ A rule tells OTP Scout what a login mail looks like and where the code or link i
 
 ## How Rules Are Checked
 
-1. For each new mail, OTP Scout first fetches only **sender and subject**.
+1. For each new mail, Maillet first fetches only **sender and subject**.
 2. The rules are checked **from top to bottom**. The first rule that finds a code or link wins. Reorder rules with ↑ and ↓.
 3. The mail text is downloaded only if a rule's sender and subject match and the code isn't in the subject.
 
@@ -64,7 +64,7 @@ Subject and body are written the way the text appears in the mail:
 
 ### Link rules
 
-For services that send a login link instead of a code. Enter sender and/or subject, and how the link starts. Be specific and include domain and path: only links starting exactly like this are ever offered. OTP Scout only opens `http(s)://` links.
+For services that send a login link instead of a code. Enter sender and/or subject, and how the link starts. Be specific and include domain and path: only links starting exactly like this are ever offered. Maillet only opens `http(s)://` links.
 
 ### Test before you save
 
@@ -113,5 +113,5 @@ Typical causes:
 - **The subject differs slightly**, e.g. a different dash, an extra word, or another language. Use `*` for parts that vary.
 - **The sender differs:** many services send from several addresses. Prefer a domain pattern like `*@example.com`.
 - **Another rule matched first.** Move the more specific rule up.
-- **The mail landed in another folder**, e.g. spam. OTP Scout watches only the folder set in the account.
+- **The mail landed in another folder**, e.g. spam. Maillet watches only the folder set in the account.
 - **The rule isn't checked by this account.** Look at **Checked by**.

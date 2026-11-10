@@ -7,9 +7,9 @@ use tokio::sync::Mutex;
 use crate::rule_store;
 use crate::rules::{CompiledRule, DetectionRule};
 
-const KEYRING_SERVICE: &str = "otp-scout";
-const CONFIG_DIR: &str = "otp-scout";
-/// Names used before the rename to OTP-Scout; migrated on first access.
+const KEYRING_SERVICE: &str = "maillet";
+const CONFIG_DIR: &str = "maillet";
+/// Names used before the rename to Maillet; migrated on first access.
 const LEGACY_KEYRING_SERVICE: &str = "authscout";
 const LEGACY_CONFIG_DIR: &str = "authscout";
 const CONFIG_FILE: &str = "config.json";
@@ -104,7 +104,7 @@ impl Default for ApiConfig {
 
 pub type SharedConfig = Arc<Mutex<AppConfig>>;
 
-/// `~/.config/otp-scout`, created if missing.
+/// `~/.config/maillet`, created if missing.
 pub fn config_dir() -> Result<std::path::PathBuf> {
     let dir = dirs::config_dir().context("No config dir")?.join(CONFIG_DIR);
     std::fs::create_dir_all(&dir)?;

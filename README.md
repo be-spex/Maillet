@@ -1,8 +1,10 @@
-# OTP Scout
+# Maillet
+
+> **Fork von [OTP Scout](https://github.com/Skrrytch/OTP-Scout).** Ziel ist ein leichtgewichtiges Mail-Programm im System-Tray: Benachrichtigungen, Tray und Mailbetrachter in einem. Stand und Plan: [MAILLET.md](MAILLET.md).
 
 *your one-time password helper* · a tray app for Linux
 
-**OTP Scout watches your mailboxes and pops up one-time passwords and magic login links the moment they arrive. Copy the code or open the link with one click, without opening your mail client.**
+**Maillet watches your mailboxes and pops up one-time passwords and magic login links the moment they arrive. Copy the code or open the link with one click, without opening your mail client.**
 
 <p align="center">
   <picture>
@@ -21,9 +23,9 @@ You log in somewhere and the site sends you a code by email. Instead of switchin
 
 ## What It Does for You
 
-- **Codes appear instantly.** The mail server tells OTP Scout about new mail right away (IMAP IDLE), with no polling.
+- **Codes appear instantly.** The mail server tells Maillet about new mail right away (IMAP IDLE), with no polling.
 - **One click to copy.** Click the code or press Enter, then paste it wherever you need it.
-- **Login links, too.** Some services, such as Claude, send a link instead of a code. OTP Scout recognizes it and opens it in your browser with one click.
+- **Login links, too.** Some services, such as Claude, send a link instead of a code. Maillet recognizes it and opens it in your browser with one click.
 
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/popup-link-dark.png">
@@ -45,14 +47,14 @@ You log in somewhere and the site sends you a code by email. Instead of switchin
 
 For Ubuntu 22.04+, Linux Mint 21+ and Debian 12+:
 
-1. Download the `.deb` file from the [latest release](https://github.com/Skrrytch/OTP-Scout/releases/latest).
+1. Download the `.deb` file from the [latest release](https://github.com/Skrrytch/Maillet/releases/latest).
 2. Install it by double-clicking it, or in a terminal:
    ```bash
-   sudo apt install ./otp-scout_*_amd64.deb
+   sudo apt install ./maillet_*_amd64.deb
    ```
-3. Start **OTP Scout** from your application menu. A magnifying-glass icon appears in the system tray.
+3. Start **Maillet** from your application menu. A magnifying-glass icon appears in the system tray.
 
-To uninstall: `sudo apt remove otp-scout`. Your settings in `~/.config/otp-scout/` are kept.
+To uninstall: `sudo apt remove maillet`. Your settings in `~/.config/maillet/` are kept.
 
 ## Quick Start
 
@@ -64,13 +66,13 @@ To uninstall: `sudo apt remove otp-scout`. Your settings in `~/.config/otp-scout
 ## Everyday Use
 
 - **Popup:** Enter or a click copies the code, Esc dismisses it. Several codes at once are stacked, and each disappears after two minutes. Hovering over the popup pauses the countdown.
-- **Tray menu:** *Check now* checks all mailboxes immediately. The menu also opens *Settings* and *About*, and *Quit* ends OTP Scout.
-- **Connection problems** show up on the account card and as a desktop notification. OTP Scout reconnects on its own.
+- **Tray menu:** *Check now* checks all mailboxes immediately. The menu also opens *Settings* and *About*, and *Quit* ends Maillet.
+- **Connection problems** show up on the account card and as a desktop notification. Maillet reconnects on its own.
 - **No popup for a mail?** The *Log* tab shows every checked mail and why each rule did or didn't match. See [Why wasn't a code detected?](docs/rules.md#why-wasnt-a-code-detected)
 
 ## Privacy & Security
 
-- **Everything stays on your computer.** OTP Scout talks only to your mail servers. The only other request loads the rule catalog from GitHub.
+- **Everything stays on your computer.** Maillet talks only to your mail servers. The only other request loads the rule catalog from GitHub.
 - **It reads as little as possible.** Only sender and subject of new mails are fetched. The mail text is downloaded only when a rule needs it. Nothing is marked as read.
 - **Nothing is written to disk.** Codes and mail text aren't stored. The *Log* tab keeps sender, subject and rule results in memory only, with codes masked.
 - **Your passwords stay safe.** They're kept in the system keyring (GNOME Keyring, KWallet), never in a plain text file.

@@ -1,5 +1,5 @@
 //! Local HTTP API (127.0.0.1 only) to trigger the code/link popup from outside,
-//! e.g. from a Tampermonkey script. Every request needs the `X-OTP-Scout-Token`
+//! e.g. from a Tampermonkey script. Every request needs the `X-Maillet-Token`
 //! header; links must be https and, if configured, match an allowed prefix.
 
 use axum::{
@@ -17,7 +17,7 @@ use tower_http::cors::{Any, CorsLayer};
 use crate::config;
 use crate::rules::RuleKind;
 
-pub const TOKEN_HEADER: &str = "x-otp-scout-token";
+pub const TOKEN_HEADER: &str = "x-maillet-token";
 const MAX_BODY: usize = 16 * 1024;
 const MAX_CODE_LEN: usize = 64;
 const MAX_LINK_LEN: usize = 2048;
@@ -231,7 +231,7 @@ fn deliver(ctx: &Ctx, kind: RuleKind, value: &str, rule: &str) -> Reply {
         "kind": kind,
         "account": "Browser",
         "rule": rule,
-        "from": "via OTP Scout API",
+        "from": "via Maillet API",
         "subject": null,
         "timestamp": now(),
     })

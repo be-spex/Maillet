@@ -1,27 +1,27 @@
 # Configuration Files
 
-Everything you set up in OTP Scout's settings is stored in `~/.config/otp-scout/` and in the system keyring. You don't need to edit these files by hand. This page is for backups, moving to another computer, troubleshooting and scripting.
+Everything you set up in Maillet's settings is stored in `~/.config/maillet/` and in the system keyring. You don't need to edit these files by hand. This page is for backups, moving to another computer, troubleshooting and scripting.
 
 | Path | Contains |
 |------|----------|
-| [`~/.config/otp-scout/config.json`](#1-configotp-scoutconfigjson) | Accounts (without passwords), API settings |
-| [`~/.config/otp-scout/rules.json`](#2-configotp-scoutrulesjson) | Detection rules and the accounts checking them |
-| [`~/.config/otp-scout/catalog-cache.json`](#3-configotp-scoutcatalog-cachejson) | Last downloaded rule catalog |
-| [System keyring](#4-system-keyring), service `otp-scout` | IMAP passwords, API token |
+| [`~/.config/maillet/config.json`](#1-configmailletconfigjson) | Accounts (without passwords), API settings |
+| [`~/.config/maillet/rules.json`](#2-configmailletrulesjson) | Detection rules and the accounts checking them |
+| [`~/.config/maillet/catalog-cache.json`](#3-configmailletcatalog-cachejson) | Last downloaded rule catalog |
+| [System keyring](#4-system-keyring), service `maillet` | IMAP passwords, API token |
 
 ## Backup and Moving to Another Computer
 
-- **Copy `~/.config/otp-scout/`.** That carries over accounts, rules and API settings.
+- **Copy `~/.config/maillet/`.** That carries over accounts, rules and API settings.
 - **Passwords aren't in these files.** They're in the keyring. After moving, edit each account and enter its password again. Until then the account shows *No password stored*.
 - **To pass on only rules**, e.g. to colleagues, use **Export** and **Import** in the rule list, see [Sharing rules](rules.md#sharing-rules). That leaves out accounts and account tags.
 
 ---
 
-## 1. `~/.config/otp-scout/config.json`
+## 1. `~/.config/maillet/config.json`
 
-**Purpose**: Accounts and API settings. Detection rules live in [`rules.json`](#2-configotp-scoutrulesjson).
+**Purpose**: Accounts and API settings. Detection rules live in [`rules.json`](#2-configmailletrulesjson).
 
-**Created by**: OTP Scout on first account save.
+**Created by**: Maillet on first account save.
 
 **Format**: JSON
 
@@ -75,7 +75,7 @@ Everything you set up in OTP Scout's settings is stored in `~/.config/otp-scout/
 }
 ```
 
-The API token is stored in the keyring (service `otp-scout`, username `api-token`).
+The API token is stored in the keyring (service `maillet`, username `api-token`).
 
 ### Field Reference
 
@@ -96,11 +96,11 @@ Versions up to 0.2.0 kept the rules in `accounts[].rules`. On first start they a
 
 ---
 
-## 2. `~/.config/otp-scout/rules.json`
+## 2. `~/.config/maillet/rules.json`
 
 **Purpose**: All detection rules, independent of accounts.
 
-**Created by**: OTP Scout on first account save, or when migrating an older `config.json`. An unreadable file is renamed to `rules.json.broken`, and OTP Scout starts without rules. Fix the file and rename it back, or import it via **Rules → Import…**.
+**Created by**: Maillet on first account save, or when migrating an older `config.json`. An unreadable file is renamed to `rules.json.broken`, and Maillet starts without rules. Fix the file and rename it back, or import it via **Rules → Import…**.
 
 Rule names (`label`) are unique, ignoring case and surrounding spaces, because import matches rules by name. The editor rejects a second rule with the same name.
 
@@ -209,7 +209,7 @@ New emails are all emails with a UID above the last one handled, read or not; on
 
 ```json
 {
-  "type": "otp-scout-rules",
+  "type": "maillet-rules",
   "version": 1,
   "rules": [
     { "label": "GitHub", "kind": "code", "sender": "noreply@github.com", "subject": "[GitHub] Please verify your device",
@@ -220,11 +220,11 @@ New emails are all emails with a UID above the last one handled, read or not; on
 
 ---
 
-## 3. `~/.config/otp-scout/catalog-cache.json`
+## 3. `~/.config/maillet/catalog-cache.json`
 
 **Purpose**: The last rule catalog downloaded from GitHub. It's shown in **Settings → Catalog** when GitHub is unreachable.
 
-**Created by**: OTP Scout each time the catalog is downloaded. It's safe to delete.
+**Created by**: Maillet each time the catalog is downloaded. It's safe to delete.
 
 ---
 
@@ -232,7 +232,7 @@ New emails are all emails with a UID above the last one handled, read or not; on
 
 **Purpose**: Secure storage of IMAP passwords and the API token.
 
-**Service name**: `otp-scout` (legacy `authscout` entries are copied on first use)
+**Service name**: `maillet` (legacy `authscout` entries are copied on first use)
 
 **Entries**:
 
@@ -246,18 +246,18 @@ New emails are all emails with a UID above the last one handled, read or not; on
 ### Manual Inspection
 
 ```bash
-# List otp-scout entries (Secret Service / gnome-keyring)
-secret-tool search service otp-scout
+# List maillet entries (Secret Service / gnome-keyring)
+secret-tool search service maillet
 
 # Look up a specific password
-secret-tool lookup service otp-scout <account-id>
+secret-tool lookup service maillet <account-id>
 ```
 
 ### Lifecycle
 
 - **Created**: When an account is saved with a non-empty password
 - **Updated**: When an account is edited with a new non-empty password
-- **Deleted**: When an account is removed from OTP Scout
+- **Deleted**: When an account is removed from Maillet
 - **Read**: On app startup and on "Reconnect All"
 
 Passwords are **never** written to `config.json`. The `pass` field is marked `#[serde(skip_serializing)]`: it is accepted from the settings UI, stored in the keyring and otherwise exists only in memory.
@@ -274,18 +274,18 @@ Passwords are **never** written to `config.json`. The `pass` field is marked `#[
 
 **Lifecycle**: Created on app start, deleted on app exit. Old files from crashed sessions may accumulate — they are safe to delete.
 
-**Note**: This directory is managed entirely by the `tray-icon` crate. OTP Scout does not interact with it directly.
+**Note**: This directory is managed entirely by the `tray-icon` crate. Maillet does not interact with it directly.
 
 ---
 
-## 6. What OTP Scout Doesn't Store
+## 6. What Maillet Doesn't Store
 
-OTP Scout doesn't create the following:
+Maillet doesn't create the following:
 
 - **No log files** — logging goes to stdout/stderr only; the Log tab keeps the last 500 entries in memory
 - **No code or mail history**: detected codes and mail text are never written to disk
-- **No cache directory** — no `~/.cache/otp-scout/`
-- **No autostart entry** — no `~/.config/autostart/otp-scout.desktop`
+- **No cache directory** — no `~/.cache/maillet/`
+- **No autostart entry** — no `~/.config/autostart/maillet.desktop`
 - **No lock file or PID file**
 
 

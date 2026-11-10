@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>OTP Scout Code</title>
+<title>Maillet Code</title>
 <style>
 :root {
   --bg:#ffffff; --surface-2:#eef1f7; --border:#d5dbe7; --text:#1c2333; --muted:#5b667a;
@@ -98,7 +98,7 @@ function render() {
     <div class="entry" data-id="${e.id}">
       <div class="top">
         <img src="icon.png" alt="">
-        <span><b>${esc(d.account || 'OTP Scout')}</b> · ${esc(d.rule || '')}</span>
+        <span><b>${esc(d.account || 'Maillet')}</b> · ${esc(d.rule || '')}</span>
         ${i === 0 && total > 1 ? `<span class="count" title="${total} pending">${total}</span>` : ''}
         <button class="close" title="Dismiss${i === 0 ? ' (Esc)' : ''}" onclick="remove(${e.id})">✕</button>
       </div>

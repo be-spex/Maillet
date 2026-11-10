@@ -1,6 +1,6 @@
 # Codes from Your Browser: the Local API
 
-Some codes never arrive by mail. A site may show a one-time code on another page, or a browser script may read it from a web app. OTP Scout can receive such codes and links over a small local HTTP API and show them in the same popup as mail codes.
+Some codes never arrive by mail. A site may show a one-time code on another page, or a browser script may read it from a web app. Maillet can receive such codes and links over a small local HTTP API and show them in the same popup as mail codes.
 
 The API is **off by default**. It listens on `127.0.0.1` only, so other computers can't reach it, and every request needs a secret token.
 
@@ -13,7 +13,7 @@ The API is **off by default**. It listens on `127.0.0.1` only, so other computer
 | Setting | Meaning |
 |---|---|
 | **Port** | Local port, 1024–65535. |
-| **Token** | Sent by every request in the header `X-OTP-Scout-Token`. It's stored in the system keyring. **Regenerate** invalidates the old token, so scripts using it must be updated. |
+| **Token** | Sent by every request in the header `X-Maillet-Token`. It's stored in the system keyring. **Regenerate** invalidates the old token, so scripts using it must be updated. |
 | **Allowed links** | Prefixes for `/api/otp/link`, e.g. `https://claude.ai/magic-link`. If the list is set, only links starting with one of them are shown. Empty = any `https://` link is accepted. |
 
 Codes from the API appear with the account *Browser*. Since they don't come from a mail, the popup offers no *… and destroy* button.
@@ -36,7 +36,7 @@ Codes from the API appear with the account *Browser*. Since they don't come from
 |---|---|---|
 | `200` | `{"ok": true}` | Shown in the popup. |
 | `400` | `{"ok": false, "error": "…"}` | Invalid body, e.g. an empty code or a link that doesn't start with `https://`. |
-| `401` | `{"ok": false, "error": "…"}` | Header `X-OTP-Scout-Token` missing or wrong. |
+| `401` | `{"ok": false, "error": "…"}` | Header `X-Maillet-Token` missing or wrong. |
 | `403` | `{"ok": false, "error": "…"}` | Link doesn't start with one of the *Allowed links*. |
 
 ### curl
@@ -44,7 +44,7 @@ Codes from the API appear with the account *Browser*. Since they don't come from
 ```bash
 curl -X POST http://127.0.0.1:6870/api/otp/code \
   -H 'Content-Type: application/json' \
-  -H 'X-OTP-Scout-Token: YOUR_TOKEN' \
+  -H 'X-Maillet-Token: YOUR_TOKEN' \
   -d '{"code": "123456", "ruleName": "Test"}'
 ```
 
@@ -54,7 +54,7 @@ Use `GM_xmlhttpRequest` with `@connect 127.0.0.1`. The request is then sent by t
 
 ```js
 // ==UserScript==
-// @name         OTP Scout bridge
+// @name         Maillet bridge
 // @match        https://example.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      127.0.0.1
@@ -64,9 +64,9 @@ function otpScout(kind, value, ruleName) {
   GM_xmlhttpRequest({
     method: 'POST',
     url: 'http://127.0.0.1:6870/api/otp/' + kind,
-    headers: { 'Content-Type': 'application/json', 'X-OTP-Scout-Token': 'YOUR_TOKEN' },
+    headers: { 'Content-Type': 'application/json', 'X-Maillet-Token': 'YOUR_TOKEN' },
     data: JSON.stringify(kind === 'code' ? { code: value, ruleName } : { link: value, ruleName }),
-    onload: r => console.log('OTP Scout:', r.status, r.responseText),
+    onload: r => console.log('Maillet:', r.status, r.responseText),
   })
 }
 
@@ -76,14 +76,14 @@ function otpScout(kind, value, ruleName) {
 
 ## Example: Outlook on the Web
 
-Microsoft accounts (Outlook.com, Microsoft 365) [can't be added over IMAP](accounts.md#microsoft-outlookcom-microsoft-365). If you read that mail in the browser anyway, a Tampermonkey script can watch the open Outlook tab instead. Outlook adds a new mail to the message list as soon as it arrives, with sender, subject and the start of the text. The script searches the visible text of the page for the mails described in its rules. When it finds one, it sends the code to OTP Scout and marks the entry in Outlook.
+Microsoft accounts (Outlook.com, Microsoft 365) [can't be added over IMAP](accounts.md#microsoft-outlookcom-microsoft-365). If you read that mail in the browser anyway, a Tampermonkey script can watch the open Outlook tab instead. Outlook adds a new mail to the message list as soon as it arrives, with sender, subject and the start of the text. The script searches the visible text of the page for the mails described in its rules. When it finds one, it sends the code to Maillet and marks the entry in Outlook.
 
 This script is in daily use with Atlassian verification mails in Microsoft 365.
 
 ```js
 // ==UserScript==
-// @name         OTP Scout for Outlook on the web
-// @description  Sends codes and links from new mails in Outlook on the web to OTP Scout
+// @name         Maillet for Outlook on the web
+// @description  Sends codes and links from new mails in Outlook on the web to Maillet
 // @match        https://outlook.cloud.microsoft/mail/*
 // @match        https://outlook.office.com/mail/*
 // @match        https://outlook.office365.com/mail/*
@@ -96,7 +96,7 @@ This script is in daily use with Atlassian verification mails in Microsoft 365.
   'use strict'
 
   const PORT = 6870
-  const TOKEN = 'YOUR_TOKEN' // from OTP Scout: Settings → API
+  const TOKEN = 'YOUR_TOKEN' // from Maillet: Settings → API
 
   // One entry per service. `indicator` identifies the mail; `extract` takes
   // the code or link from the text, its first group (…) is the value.
@@ -127,7 +127,7 @@ This script is in daily use with Atlassian verification mails in Microsoft 365.
         if (!value || processed.has(value)) continue
         processed.add(value)
         if (!reporting) continue
-        console.log(`[OTP Scout] ${rule.ruleName}: ${rule.type} found`)
+        console.log(`[Maillet] ${rule.ruleName}: ${rule.type} found`)
         send(rule, value)
         // Mark it in Outlook: codes green, links blue.
         node.style.backgroundColor = rule.type === 'code' ? 'lightgreen' : 'lightblue'
@@ -140,11 +140,11 @@ This script is in daily use with Atlassian verification mails in Microsoft 365.
     GM_xmlhttpRequest({
       method: 'POST',
       url: `http://127.0.0.1:${PORT}/api/otp/${rule.type}`,
-      headers: { 'Content-Type': 'application/json', 'X-OTP-Scout-Token': TOKEN },
+      headers: { 'Content-Type': 'application/json', 'X-Maillet-Token': TOKEN },
       // { ruleName, code } or { ruleName, link }
       data: JSON.stringify({ ruleName: rule.ruleName, [rule.type]: value }),
-      onload: r => console.log(`[OTP Scout] Sent, answer ${r.status}: ${r.responseText}`),
-      onerror: e => console.error(`[OTP Scout] Not sent – is OTP Scout running with the API on port ${PORT}?`, e),
+      onload: r => console.log(`[Maillet] Sent, answer ${r.status}: ${r.responseText}`),
+      onerror: e => console.error(`[Maillet] Not sent – is Maillet running with the API on port ${PORT}?`, e),
     })
   }
 
@@ -155,7 +155,7 @@ This script is in daily use with Atlassian verification mails in Microsoft 365.
     clearTimeout(pending)
     pending = setTimeout(checkMails, 500)
   }).observe(document.body, { childList: true, subtree: true, characterData: true })
-  console.log('[OTP Scout] Watching Outlook for configured mails…')
+  console.log('[Maillet] Watching Outlook for configured mails…')
 })()
 ```
 
@@ -164,7 +164,7 @@ This script is in daily use with Atlassian verification mails in Microsoft 365.
 1. Install [Tampermonkey](https://www.tampermonkey.net/) and add the script.
 2. Replace `YOUR_TOKEN` with the token from **Settings → API**, and adjust `PORT` if you changed it.
 3. Adjust `RULES` to your mails. `indicator` should be specific enough to hit only login mails. `extract` is a regular expression whose first group is the code.
-4. Keep Outlook open in a tab, e.g. pinned. Request a code and watch for the popup. The browser console (F12) shows `[OTP Scout]` messages.
+4. Keep Outlook open in a tab, e.g. pinned. Request a code and watch for the popup. The browser console (F12) shows `[Maillet]` messages.
 
 **Limits:**
 

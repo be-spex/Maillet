@@ -58,7 +58,7 @@ pub struct LoadedCatalog {
 fn parse(json: &str) -> Result<Catalog> {
     let catalog: Catalog = serde_json::from_str(json).context("Invalid catalog")?;
     if catalog.version > SUPPORTED_VERSION {
-        bail!("Catalog format v{} is newer than supported (v{SUPPORTED_VERSION}) – please update OTP Scout", catalog.version);
+        bail!("Catalog format v{} is newer than supported (v{SUPPORTED_VERSION}) – please update Maillet", catalog.version);
     }
     Ok(catalog)
 }
@@ -66,7 +66,7 @@ fn parse(json: &str) -> Result<Catalog> {
 async fn fetch() -> Result<String> {
     let client = reqwest::Client::builder()
         .timeout(FETCH_TIMEOUT)
-        .user_agent(concat!("OTP Scout/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("Maillet/", env!("CARGO_PKG_VERSION")))
         .build()?;
     let resp = client.get(CATALOG_URL).send().await?.error_for_status()?;
     Ok(resp.text().await?)

@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default capabilities for OTP Scout",
+  "description": "Default capabilities for Maillet",
   "windows": ["*"],
   "permissions": [
     "core:default",

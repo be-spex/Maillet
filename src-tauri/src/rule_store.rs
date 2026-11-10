@@ -150,7 +150,7 @@ pub fn check_unique_label(rules: &[DetectionRule], rule: &DetectionRule) -> Resu
 }
 
 /// Marks a file with shared rules, so other JSON is rejected with a clear message.
-const EXPORT_TYPE: &str = "otp-scout-rules";
+const EXPORT_TYPE: &str = "maillet-rules";
 
 /// A rule as shared with others: no id, accounts or active state, as those
 /// belong to the local installation. Only fields of the rule's kind are written.
@@ -210,12 +210,12 @@ struct ImportFile {
 
 /// Reads exported rules; a plain `rules.json` is accepted as well.
 pub fn parse_import(json: &str) -> Result<Vec<DetectionRule>> {
-    let file: ImportFile = serde_json::from_str(json).context("Not a valid OTP Scout rule export")?;
+    let file: ImportFile = serde_json::from_str(json).context("Not a valid Maillet rule export")?;
     if file.file_type.as_deref().is_some_and(|t| t != EXPORT_TYPE) {
-        bail!("Not an OTP Scout rule export");
+        bail!("Not an Maillet rule export");
     }
     if file.version > RULES_VERSION {
-        bail!("Export has version {}, this build supports up to {RULES_VERSION} – please update OTP Scout", file.version);
+        bail!("Export has version {}, this build supports up to {RULES_VERSION} – please update Maillet", file.version);
     }
     let mut seen = Vec::new();
     for rule in &file.rules {
@@ -421,7 +421,7 @@ mod tests {
 
     #[test]
     fn test_file_roundtrip() {
-        let dir = std::env::temp_dir().join(format!("otp-scout-test-{}", new_id()));
+        let dir = std::env::temp_dir().join(format!("maillet-test-{}", new_id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("rules.json");
         let rules = vec![DetectionRule {

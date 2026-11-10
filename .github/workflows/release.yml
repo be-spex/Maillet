@@ -55,14 +55,14 @@ jobs:
           version=$(jq -r .version tauri.conf.json)
           mkdir -p ../dist-release
           # Debian naming convention: lowercase package name
-          cp target/release/bundle/deb/*.deb "../dist-release/otp-scout_${version}_amd64.deb"
+          cp target/release/bundle/deb/*.deb "../dist-release/maillet_${version}_amd64.deb"
           cd ../dist-release
           sha256sum *.deb > SHA256SUMS
           ls -l
 
       - uses: actions/upload-artifact@v7
         with:
-          name: otp-scout-deb
+          name: maillet-deb
           path: dist-release/*
 
       - name: Publish release
@@ -75,8 +75,8 @@ jobs:
             ## Install (Ubuntu 22.04+, Linux Mint 21+, Debian 12+)
 
             ```bash
-            sudo apt install ./otp-scout_*_amd64.deb
+            sudo apt install ./maillet_*_amd64.deb
             ```
 
-            Then start **OTP Scout** from the application menu – it lives in the system tray.
+            Then start **Maillet** from the application menu – it lives in the system tray.
             Verify the download with `sha256sum -c SHA256SUMS`.
