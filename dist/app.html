@@ -130,6 +130,12 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .av{--h:250;width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;font-weight:700;font-size:12px;flex:none;background:hsl(var(--h) 70% 92%);color:hsl(var(--h) 45% 35%)}
 :root[data-theme=dark] .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}}
+.av-wrap{position:relative;display:inline-flex;flex:none}
+.av-badge{position:absolute;right:-3px;bottom:-3px;width:16px;height:16px;border-radius:50%;background:var(--panel);display:grid;place-items:center;box-shadow:0 0 0 1px var(--line)}
+.av-badge svg{width:11px;height:11px}
+.av-badge.pin{color:var(--warn)}
+.av.lg+.av-badge{width:19px;height:19px}
+.av.lg+.av-badge svg{width:13px;height:13px}
 .av.lg{width:44px;height:44px;font-size:15px}
 .empty{padding:36px 16px;text-align:center;color:var(--muted)}
 .empty .big{font-size:34px;margin-bottom:6px}
@@ -346,6 +352,12 @@ function home(d, total) {
     ${shown > inAccount.length ? `<div class="more">${t('home.more', { shown: inAccount.length, total: shown })}</div>` : ''}
     `;
 }
+// Besondere Zustände einer Mail als kleines Abzeichen am Absender-Symbol (rechts unten),
+// sichtbar ohne Überfahren. Weitere Zustände können hier dazukommen.
+function statusAvatar(m, cls = '') {
+  const badge = isPinned(m.id) ? `<span class="av-badge pin" title="${t('home.pinned')}">${ic('star', 'filled')}</span>` : '';
+  return `<span class="av-wrap">${avatar(m, cls)}${badge}</span>`;
+}
 const isPinned = id => ((S.data && S.data.pinned) || []).some(p => p.id === id || (p.message_id && S.data.mails.some(m => m.id === id && m.message_id === p.message_id)));
 const pinRow = m => `<button class="pin-row" data-act="open" data-id="${esc(m.id)}">${ic('star', 'sm filled star')}<span class="grow"><b>${esc(m.subject || t('mail.no_subject'))}</b><small>${esc(sender(m))} · ${esc(when(m.date))}</small></span></button>`;
 function tasksView() {
@@ -369,7 +381,7 @@ const fresh = id => { if (seenCards.has(id)) return ''; seenCards.add(id); retur
 function card(m) {
   const codes = (m.findings || []).filter(f => f.feature === 'otp');
   return `<div class="mcard has-acts ${m.bulk ? 'bulk' : ''} ${fresh(m.id)}" data-act="open" data-id="${esc(m.id)}" tabindex="0">
-    <div class="mc-head">${avatar(m)}<div class="mc-from"><b>${esc(sender(m))}</b><small>${esc(m.account)} · ${esc(when(m.date))}${m.has_attachments ? ' · 📎' : ''}</small></div></div>
+    <div class="mc-head">${statusAvatar(m)}<div class="mc-from"><b>${esc(sender(m))}</b><small>${esc(m.account)} · ${esc(when(m.date))}${m.has_attachments ? ' · 📎' : ''}</small></div></div>
     <div class="mc-subj">${esc(m.subject || t('mail.no_subject'))}</div>
     ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
     ${codes.length || m.bulk ? `<div class="mc-tags">${codes.map(f => `<span class="tag code">${f.kind === 'link' ? t('mail.login_link') : esc(f.value)}</span>`).join('')}${m.bulk ? `<span class="tag">${t('mail.newsletter')}</span>` : ''}</div>` : ''}
@@ -518,7 +530,7 @@ function renderReader() {
   r.innerHTML = `<div class="rd-top"><button class="ib" data-act="close" title="${t('app.back')}">${ic('back')}</button>
       <span class="muted" style="font-size:12.5px">${esc(m.account)}</span><span class="grow"></span></div>
     <div class="rd-scroll"><div class="rd-inner">
-      <div class="rd-head">${avatar(m, 'lg')}<div class="grow"><b>${esc(sender(m))}</b><br><small>${esc(m.from_addr || '')}${m.date ? ' · ' + esc(when(m.date, true)) : ''}</small></div></div>
+      <div class="rd-head">${m.task ? avatar(m, 'lg') : statusAvatar(m, 'lg')}<div class="grow"><b>${esc(sender(m))}</b><br><small>${esc(m.from_addr || '')}${m.date ? ' · ' + esc(when(m.date, true)) : ''}</small></div></div>
       <h2 class="rd-subj">${esc(m.subject || t('mail.no_subject'))}</h2>
       <div class="rd-actions">${m.task
         ? `<button class="ab main" data-act="taskDone" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('tasks.task_done')}</button>
