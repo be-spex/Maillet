@@ -14,8 +14,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use tauri::{AppHandle, Emitter, Manager};
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::config;
-use crate::rules::RuleKind;
+use crate::base::config;
+use crate::features::otp::rules::RuleKind;
 
 pub const TOKEN_HEADER: &str = "x-maillet-token";
 const MAX_BODY: usize = 16 * 1024;
@@ -84,7 +84,7 @@ pub async fn restart(app: AppHandle) {
         let _ = stop.send(());
     }
 
-    let cfg = config::get_api_config_async(&app.state::<crate::AppState>().config).await;
+    let cfg = config::get_api_config_async(&app.state::<crate::app::AppState>().config).await;
     if !cfg.enabled {
         set_status(&app, "off", "Disabled");
         return;
@@ -237,8 +237,7 @@ fn deliver(ctx: &Ctx, kind: RuleKind, value: &str, rule: &str) -> Reply {
     })
     .to_string();
     tracing::info!("API: received {kind:?} (rule: {rule})");
-    let _ = ctx.app.emit("auth-code", &payload);
-    crate::show_code_popup(&ctx.app, payload);
+    super::popup::show(&ctx.app, payload);
     let server = ctx.app.state::<ApiServer>();
     let status = {
         let mut st = server.status.lock().unwrap();
@@ -273,7 +272,7 @@ async fn post_link(State(ctx): State<Ctx>, headers: HeaderMap, body: Result<Json
         Err(e) => return fail(StatusCode::BAD_REQUEST, e.body_text()),
     };
     let link = req.link.trim();
-    let api_cfg = config::get_api_config_async(&ctx.app.state::<crate::AppState>().config).await;
+    let api_cfg = config::get_api_config_async(&ctx.app.state::<crate::app::AppState>().config).await;
     let prefixes = allowed_prefixes(&api_cfg);
     if let Err((status, e)) = validate_link(link, &prefixes) {
         return fail(status, e);

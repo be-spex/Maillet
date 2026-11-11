@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use crate::config;
-use crate::rules::DetectionRule;
+use crate::base::config;
+use crate::features::otp::rules::DetectionRule;
 
 /// The catalog is maintained on GitHub, independent of releases.
 const CATALOG_URL: &str = "https://raw.githubusercontent.com/Skrrytch/OTP-Scout/main/catalog/catalog.json";
@@ -93,11 +93,11 @@ pub async fn load() -> Result<LoadedCatalog> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rules::{test_rule, CompiledRule, RuleKind};
+    use crate::features::otp::rules::{test_rule, CompiledRule, RuleKind};
 
     /// Validates the catalog file in this repository before it is pushed.
     fn local() -> Catalog {
-        parse(include_str!("../../catalog/catalog.json")).unwrap()
+        parse(include_str!("../../../../catalog/catalog.json")).unwrap()
     }
 
     #[test]

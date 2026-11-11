@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::rules::{MatchTrace, RuleKind};
+use crate::features::otp::rules::{MatchTrace, RuleKind};
 
 /// Entries kept; the oldest are dropped first.
 const CAPACITY: usize = 500;

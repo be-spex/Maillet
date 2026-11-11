@@ -6,8 +6,8 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use crate::config::AccountConfig;
-use crate::rules::{CatalogRef, CompiledRule, DetectionRule, RuleKind};
+use crate::base::config::AccountConfig;
+use crate::features::otp::rules::{CatalogRef, CompiledRule, DetectionRule, RuleKind};
 
 /// Highest `rules.json` format version this build understands.
 const RULES_VERSION: u32 = 1;
@@ -425,7 +425,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("rules.json");
         let rules = vec![DetectionRule {
-            catalog: Some(crate::rules::CatalogRef { app: "spotify".into(), lang: "de".into() }),
+            catalog: Some(crate::features::otp::rules::CatalogRef { app: "spotify".into(), lang: "de".into() }),
             ..stored("id1", &["*"])
         }];
         save(&path, &rules).unwrap();

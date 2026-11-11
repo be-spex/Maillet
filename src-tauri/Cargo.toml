@@ -1,17 +1,17 @@
 [package]
 name = "maillet"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 rust-version = "1.90"
-description = "Linux tray app that watches IMAP mailboxes and pops up one-time passwords and magic login links the moment they arrive"
+description = "Lightweight tray mail client: watches IMAP mailboxes, shows new mails in the tray and in a compact window"
 authors = ["Bert Speckels <skrrytch@speckels.net>"]
 license = "MIT"
 repository = "https://github.com/Skrrytch/Maillet"
-keywords = ["otp", "2fa", "imap", "tauri", "tray"]
+keywords = ["mail", "imap", "tray", "tauri", "otp"]
 categories = ["email", "authentication", "gui"]
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri = { version = "2", features = ["image-png"] }
 tauri-plugin-notification = "2"
 tokio = { version = "1", features = ["full"] }
 async-imap = { version = "0.12", default-features = false, features = ["runtime-tokio"] }
@@ -33,6 +33,14 @@ reqwest = { version = "0.12", default-features = false, features = ["native-tls"
 axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "json"] }
 tower-http = { version = "0.6", features = ["cors"] }
 tauri-plugin-dialog = "2"
+ksni = "0.3"
+async-trait = "0.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Activating the popup window on X11 (focus-stealing prevention), see app/windows.rs
+gtk = "0.18"
+gdkx11 = "0.18"
+x11-dl = "2.21"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

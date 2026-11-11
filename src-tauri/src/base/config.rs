@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::rule_store;
-use crate::rules::{CompiledRule, DetectionRule};
+use crate::features::otp::rule_store;
+use crate::features::otp::rules::{CompiledRule, DetectionRule};
 
 const KEYRING_SERVICE: &str = "maillet";
 const CONFIG_DIR: &str = "maillet";

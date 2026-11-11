@@ -73,11 +73,7 @@ impl DetectionRule {
 
 /// Decoded mail body: the plain text (HTML converted if there is no text
 /// part) and the raw HTML, which still contains the `href` targets.
-#[derive(Debug, Default)]
-pub struct MailBody {
-    pub text: String,
-    pub html: String,
-}
+pub use crate::mail::model::MailBody;
 
 /// Accepts both the current and the legacy (search_field/context/capture) format.
 #[derive(Deserialize)]

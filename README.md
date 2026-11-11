@@ -1,6 +1,8 @@
 # Maillet
 
-> **Fork von [OTP Scout](https://github.com/Skrrytch/OTP-Scout).** Ziel ist ein leichtgewichtiges Mail-Programm im System-Tray: Benachrichtigungen, Tray und Mailbetrachter in einem. Stand und Plan: [MAILLET.md](MAILLET.md).
+> **Maillet** ist ein Fork von [OTP Scout](https://github.com/Skrrytch/OTP-Scout) auf dem Weg zu einem schlanken Mail-Programm im System-Tray.
+> **Stand 0.5 (MVP):** prüft Postfächer per IMAP IDLE, zeigt die Zahl neuer Mails im Tray, ein Klick öffnet die Liste der neuen Mails; lesen, als gelesen markieren, archivieren. Die unten beschriebene OTP-Erkennung bleibt als eine Funktion von vielen erhalten.
+> Plan und Entwürfe: [MVP1-Plan](docs/MVP1-Plan.md), [Design](docs/Design/README.md).
 
 *your one-time password helper* · a tray app for Linux
 

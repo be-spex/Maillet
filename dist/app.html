@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maillet</title>
+<style>
+:root{
+  --bg:#f4f4f7; --panel:#fff; --panel2:#f9f9fb; --hover:#f1f1f6; --text:#17171f; --muted:#6c6c7e; --faint:#a0a0b2;
+  --line:#e6e6ee; --accent:#6d5dfc; --accent-soft:#efedff; --accent-2:#22c3b5; --ok:#12b07f; --warn:#f2a20c; --danger:#e5484d;
+  --shadow:0 1px 2px rgba(20,20,40,.04),0 6px 20px rgba(20,20,40,.06); --shadow-lg:0 20px 60px rgba(20,20,40,.18);
+  --font:"Inter","Cantarell","Noto Sans","Segoe UI",system-ui,sans-serif; --mono:"JetBrains Mono","Fira Code",ui-monospace,monospace;
+  --railw:60px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#0e0f14; --panel:#171821; --panel2:#1c1e28; --hover:#22242f; --text:#ececf4; --muted:#9a9bb2; --faint:#62647a;
+  --line:#272938; --accent:#8b7dff; --accent-soft:#25223f; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.3); --shadow-lg:0 24px 70px rgba(0,0,0,.55);
+}}
+:root[data-theme=dark]{
+  --bg:#0e0f14; --panel:#171821; --panel2:#1c1e28; --hover:#22242f; --text:#ececf4; --muted:#9a9bb2; --faint:#62647a;
+  --line:#272938; --accent:#8b7dff; --accent-soft:#25223f; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.3); --shadow-lg:0 24px 70px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow:hidden;user-select:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.i.sm{width:15px;height:15px}
+.muted{color:var(--muted)} .faint{color:var(--faint)}
+#app{position:relative;display:grid;grid-template-columns:var(--railw) 1fr;height:100vh;container:win/inline-size}
+
+/* Navigation */
+.rail{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px}
+.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:grid;place-items:center;font-weight:800;font-size:16px;margin-bottom:12px;box-shadow:0 6px 18px rgba(109,93,252,.35)}
+.nav{position:relative;width:44px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--muted)}
+.nav:hover{background:var(--hover);color:var(--text)}
+.nav.on{background:var(--accent-soft);color:var(--accent)}
+.nav .badge{position:absolute;top:1px;right:0}
+.spacer{flex:1}
+.badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;display:inline-grid;place-items:center}
+
+/* Kopf */
+main{display:flex;flex-direction:column;min-width:0;height:100vh}
+.top{display:flex;align-items:center;gap:4px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.top .grow{flex:1;align-self:stretch}
+.ib{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--muted)}
+.ib:hover{background:var(--hover);color:var(--text)}
+.ib.sm{width:28px;height:28px;border-radius:8px}
+.spin svg{animation:spin .8s linear infinite}
+#view{flex:1;overflow:auto;padding:16px 14px 40px}
+
+/* Übersicht */
+h1{font-size:20px;margin:0;letter-spacing:-.02em}
+.hero{margin-bottom:14px}
+.hero p{margin:3px 0 0;color:var(--muted)}
+.hero b{color:var(--text)}
+.zone{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:16px 2px 8px;display:flex;align-items:center;gap:7px}
+.zone .grow{flex:1}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:var(--panel2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip:hover{color:var(--text)}
+.chip.on{background:var(--text);color:var(--panel);border-color:var(--text)}
+.codes{display:flex;flex-direction:column;gap:8px}
+.otp{display:flex;align-items:center;gap:12px;width:100%;padding:11px 14px;border-radius:14px;text-align:left;background:linear-gradient(135deg,var(--accent-soft),var(--panel));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);box-shadow:0 8px 26px color-mix(in srgb,var(--accent) 18%,transparent);animation:pop .3s ease}
+.otp small{display:block;color:var(--muted);font-size:11.5px;font-weight:600}
+.otp .code{font-family:var(--mono);font-size:20px;font-weight:700;letter-spacing:.12em;white-space:nowrap}
+.otp .link{font-weight:700;color:var(--accent)}
+.otp .grow{flex:1;min-width:0}
+.ring{--p:1;width:26px;height:26px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*360deg),var(--line) 0);display:grid;place-items:center;flex:none}
+.ring::after{content:"";width:19px;height:19px;border-radius:50%;background:var(--panel)}
+.cards{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.mcard{position:relative;display:flex;flex-direction:column;gap:5px;padding:11px 12px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--line);cursor:pointer;text-align:left;width:100%;transition:border-color .15s,box-shadow .15s,transform .15s;animation:pop .25s ease both}
+.mcard:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:var(--shadow);transform:translateY(-1px)}
+.mcard::before{content:"";position:absolute;left:-1px;top:12px;bottom:12px;width:3px;border-radius:3px;background:var(--accent)}
+.mcard.bulk{opacity:.72}
+.mcard.bulk::before{background:var(--faint)}
+.mc-head{display:flex;gap:10px;align-items:center}
+.mc-from{flex:1;min-width:0;line-height:1.25}
+.mc-from b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-from small{color:var(--muted);font-size:11.5px}
+.mc-subj{font-weight:650;font-size:13.5px;line-height:1.3;overflow-wrap:anywhere}
+.mc-prev{color:var(--muted);font-size:12.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.mc-tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+.tag.code{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-family:var(--mono)}
+.mc-acts{position:absolute;right:8px;top:8px;display:flex;gap:2px;opacity:0;background:var(--panel);border-radius:9px;transition:opacity .15s}
+.mcard:hover .mc-acts,.mcard:focus-within .mc-acts{opacity:1}
+.av{--h:250;width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;font-weight:700;font-size:12px;flex:none;background:hsl(var(--h) 70% 92%);color:hsl(var(--h) 45% 35%)}
+:root[data-theme=dark] .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}}
+.av.lg{width:44px;height:44px;font-size:15px}
+.empty{padding:36px 16px;text-align:center;color:var(--muted)}
+.empty .big{font-size:34px;margin-bottom:6px}
+.empty .btn{margin-top:14px}
+.more{font-size:12px;color:var(--faint);text-align:center;padding:10px}
+.status{display:flex;flex-direction:column;gap:4px;margin-top:18px;padding-top:12px;border-top:1px solid var(--line)}
+.st{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);text-align:left;width:100%;padding:3px 2px;border-radius:6px}
+.st b{color:var(--text);font-weight:600}
+.st span.msg{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st.error{color:var(--danger)}
+.st.error:hover{background:var(--hover)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent)}
+.dot.connecting{background:var(--warn)}
+.dot.error{background:var(--danger)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-weight:600;font-size:13px}
+.btn:hover{border-color:var(--faint)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 35%,transparent)}
+
+/* Mail-Ansicht: deckt das Fenster ab, nur die Navigation bleibt */
+#reader{position:absolute;top:0;left:var(--railw);right:0;bottom:0;background:var(--panel);transform:translateX(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;z-index:10}
+#reader.show{transform:none}
+.rd-top{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.rd-top .grow{flex:1}
+.rd-scroll{flex:1;overflow:auto;padding:16px 16px 40px;user-select:text}
+.rd-inner{max-width:780px;margin:0 auto}
+.rd-head{display:flex;gap:12px;align-items:center}
+.rd-head .grow{flex:1;min-width:0}
+.rd-head small{color:var(--muted);overflow-wrap:anywhere}
+.rd-subj{font-size:18px;letter-spacing:-.01em;margin:14px 0 10px;line-height:1.3;overflow-wrap:anywhere}
+.rd-actions{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 14px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.ab{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);background:var(--panel)}
+.ab:hover{color:var(--text);border-color:var(--faint)}
+.ab.main{background:var(--accent);border-color:var(--accent);color:#fff}
+.rd-body{white-space:pre-wrap;font-size:14.5px;line-height:1.65;overflow-wrap:anywhere}
+.att-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.att{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:10px;border:1px solid var(--line);font-size:12.5px;font-weight:600}
+.loading{color:var(--muted);padding:20px 0}
+.skel{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--hover),var(--panel2),var(--hover));background-size:200% 100%;animation:shimmer 1.2s infinite;margin:10px 0}
+
+/* Meldungen */
+#toasts{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;z-index:20;pointer-events:none;width:calc(100% - 24px)}
+.toast{pointer-events:auto;max-width:100%;padding:9px 14px;border-radius:12px;background:var(--text);color:var(--panel);box-shadow:var(--shadow-lg);font-weight:550;font-size:12.5px;animation:up .25s ease}
+.toast.err{background:var(--danger);color:#fff}
+
+/* Breitere Fenster (von Hand aufgezogen) */
+@container win (min-width:640px){
+  .cards{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+  #view{padding:20px 22px 40px}
+}
+@keyframes pop{from{opacity:0;transform:scale(.98) translateY(3px)}to{opacity:1;transform:none}}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{to{background-position:-200% 0}}
+</style>
+</head>
+<body>
+<div id="app">
+  <nav class="rail">
+    <div class="logo" title="Maillet">M</div>
+    <button class="nav on" data-act="home" title="Übersicht"><svg class="i"><use href="#i-home"/></svg><span class="badge" id="navBadge" hidden></span></button>
+    <div class="spacer"></div>
+    <button class="nav" data-act="settings" title="Einstellungen"><svg class="i"><use href="#i-gear"/></svg></button>
+  </nav>
+  <main>
+    <header class="top">
+      <div class="grow" data-tauri-drag-region></div>
+      <button class="ib" id="checkBtn" data-act="check" title="Jetzt prüfen"><svg class="i"><use href="#i-refresh"/></svg></button>
+      <button class="ib" data-act="theme" title="Hell / Dunkel"><svg class="i"><use href="#i-moon"/></svg></button>
+      <button class="ib" data-act="hide" title="Schließen (Esc)"><svg class="i"><use href="#i-x"/></svg></button>
+    </header>
+    <section id="view"></section>
+  </main>
+  <aside id="reader"></aside>
+  <div id="toasts"></div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.6-4.5L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.6 4.5L20 16"/><path d="M20 21v-5h-5"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+    <symbol id="i-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h4"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6z"/><path d="M14 2v5h5"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 7"/></symbol>
+  </defs>
+</svg>
+
+<script>
+'use strict';
+const { invoke } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
+
+const $ = s => document.querySelector(s);
+const ic = (n, cls = '') => `<svg class="i ${cls}"><use href="#i-${n}"/></svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const hue = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+const initials = n => n.replace(/@.*/, '').replace(/[^\p{L}\s.-]/gu, ' ').split(/[\s.-]+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+const sender = m => m.from_name || m.from_addr || 'Unbekannt';
+const avatar = (m, cls = '') => { const n = sender(m); return `<span class="av ${cls}" style="--h:${hue(n)}">${esc(initials(n))}</span>`; };
+const CODE_TTL = 120000;
+
+const S = { data: null, accounts: null, filter: 'all', open: null, content: null, codes: [], loading: true };
+
+function when(ts, long) {
+  if (!ts) return '';
+  const d = new Date(ts * 1000), now = new Date();
+  const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  if (long) return d.toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const days = Math.floor((new Date(now.toDateString()) - new Date(d.toDateString())) / 86400000);
+  if (days === 0) return time;
+  if (days === 1) return 'gestern';
+  if (days < 7) return d.toLocaleDateString('de-DE', { weekday: 'short' });
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+function greet() { const h = new Date().getHours(); return h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend'; }
+
+async function refresh() {
+  try {
+    const [data, accounts] = await Promise.all([invoke('list_mails'), invoke('get_accounts')]);
+    S.data = data; S.accounts = accounts; S.loading = false;
+  } catch (e) { toast(String(e), true); }
+  render();
+}
+
+function render() {
+  const d = S.data || { accounts: [], mails: [], status: [] };
+  const total = d.accounts.reduce((a, x) => a + x.unread_total, 0);
+  const badge = $('#navBadge');
+  badge.hidden = !total; badge.textContent = total > 99 ? '99+' : total;
+  $('#view').innerHTML = S.accounts && !S.accounts.length ? onboarding() : home(d, total);
+  tickCodes();
+}
+
+function onboarding() {
+  return `<div class="empty"><div class="big">📬</div><h1>Willkommen bei Maillet</h1>
+    <p class="muted">Verbinde ein Postfach. Neue Mails erscheinen dann hier und als Zahl im Tray.</p>
+    <button class="btn primary" data-act="settings">${ic('mail', 'sm')}Konto hinzufügen</button></div>`;
+}
+
+function home(d, total) {
+  const multi = d.accounts.length > 1;
+  const mails = d.mails.filter(m => S.filter === 'all' || m.account_id === S.filter);
+  const shown = d.accounts.reduce((a, x) => a + (S.filter === 'all' || x.account_id === S.filter ? x.unread_total : 0), 0);
+  const people = d.mails.filter(m => !m.bulk).length;
+  const summary = S.loading || (!d.accounts.length && d.status.some(s => s.state === 'connecting'))
+    ? 'Postfächer werden geprüft …'
+    : total ? `<b>${total} neue Mail${total > 1 ? 's' : ''}</b>${people < d.mails.length ? `, davon ${d.mails.length - people} Newsletter` : ''}.` : 'Keine neuen Mails.';
+  return `
+    <div class="hero"><h1>${greet()}.</h1><p>${summary}</p></div>
+    <div id="codes"></div>
+    <div class="zone">${ic('mail', 'sm')}Neu<span class="grow"></span>${total ? `<span class="faint">${total}</span>` : ''}</div>
+    ${multi ? `<div class="chips"><button class="chip ${S.filter === 'all' ? 'on' : ''}" data-act="filter" data-f="all">Alle</button>${d.accounts.map(a => `<button class="chip ${S.filter === a.account_id ? 'on' : ''}" data-act="filter" data-f="${esc(a.account_id)}">${esc(a.account)} <span class="faint">${a.unread_total}</span></button>`).join('')}</div>` : ''}
+    <div class="cards">${mails.map(card).join('') || (S.loading ? skeleton() : `<div class="empty"><div class="big">🌿</div>Nichts Neues. Genieß die Ruhe.</div>`)}</div>
+    ${shown > mails.length ? `<div class="more">Die neuesten ${mails.length} von ${shown} ungelesenen Mails</div>` : ''}
+    ${statusLines(d)}`;
+}
+
+const skeleton = () => [1, 2, 3].map(() => `<div class="mcard" style="cursor:default"><div class="skel" style="width:40%"></div><div class="skel" style="width:85%"></div><div class="skel" style="width:70%"></div></div>`).join('');
+
+function card(m) {
+  const codes = (m.findings || []).filter(f => f.feature === 'otp');
+  return `<div class="mcard ${m.bulk ? 'bulk' : ''}" data-act="open" data-id="${esc(m.id)}" tabindex="0">
+    <div class="mc-head">${avatar(m)}<div class="mc-from"><b>${esc(sender(m))}</b><small>${esc(m.account)} · ${esc(when(m.date))}${m.has_attachments ? ' · 📎' : ''}</small></div></div>
+    <div class="mc-subj">${esc(m.subject || '(kein Betreff)')}</div>
+    ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
+    ${codes.length || m.bulk ? `<div class="mc-tags">${codes.map(f => `<span class="tag code">${f.kind === 'link' ? 'Login-Link' : esc(f.value)}</span>`).join('')}${m.bulk ? '<span class="tag">Newsletter</span>' : ''}</div>` : ''}
+    <div class="mc-acts">
+      <button class="ib sm" data-act="read" data-id="${esc(m.id)}" title="Als gelesen markieren">${ic('dot', 'sm')}</button>
+      <button class="ib sm" data-act="archive" data-id="${esc(m.id)}" title="Erledigt (archivieren)">${ic('check', 'sm')}</button>
+    </div>
+  </div>`;
+}
+
+function statusLines(d) {
+  if (!d.status.length) return '';
+  const names = Object.fromEntries((S.accounts || []).map(a => [a.id, a.label]));
+  return `<div class="status">${d.status.sort((a, b) => (names[a.account_id] || '').localeCompare(names[b.account_id] || '')).map(s => `
+    <button class="st ${s.state === 'error' ? 'error' : ''}" ${s.state === 'error' ? 'data-act="settings" title="Kontoeinstellungen öffnen"' : ''}>
+      <span class="dot ${s.state}"></span><b>${esc(names[s.account_id] || 'Konto')}</b><span class="msg">${esc(statusText(s))}</span></button>`).join('')}</div>`;
+}
+function statusText(s) {
+  if (s.state === 'ok') return 'verbunden';
+  if (s.state === 'connecting') return 'verbindet …';
+  return s.message;
+}
+
+/* ---- Codes (OTP-Funktion) ---- */
+function addCode(payload) {
+  try {
+    const c = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    S.codes = S.codes.filter(x => x.code !== c.code);
+    S.codes.unshift({ ...c, exp: Date.now() + CODE_TTL });
+    render();
+  } catch (e) { /* kein gültiger Code */ }
+}
+function tickCodes() {
+  S.codes = S.codes.filter(c => c.exp > Date.now());
+  const box = $('#codes');
+  if (!box) return;
+  box.innerHTML = S.codes.length ? `<div class="zone" style="margin-top:4px">${ic('key', 'sm')}Frische Codes</div><div class="codes">${S.codes.map((c, i) => `
+    <button class="otp" data-act="code" data-i="${i}" title="${c.kind === 'link' ? 'Link öffnen' : 'Klick kopiert den Code'}">
+      <span class="ring" data-exp="${c.exp}"></span>
+      <span class="grow"><small>${esc(c.rule || '')} · ${esc(c.account || '')}</small>${c.kind === 'link' ? '<span class="link">Login-Link öffnen</span>' : `<span class="code">${esc(c.code)}</span>`}</span>
+      <span class="faint">${ic('copy')}</span></button>`).join('')}</div>` : '';
+}
+setInterval(() => {
+  let expired = false;
+  document.querySelectorAll('.ring[data-exp]').forEach(r => {
+    const left = +r.dataset.exp - Date.now();
+    if (left <= 0) expired = true;
+    r.style.setProperty('--p', Math.max(0, left / CODE_TTL));
+  });
+  if (expired) tickCodes();
+}, 500);
+
+/* ---- Mail-Ansicht ---- */
+async function openMail(id) {
+  const m = S.data.mails.find(x => x.id === id);
+  if (!m) return;
+  S.open = m; S.content = null;
+  renderReader();
+  try {
+    S.content = await invoke('get_mail', { id });
+    if (S.open && S.open.id === id) renderReader();
+    invoke('set_seen', { id, seen: true }).catch(e => toast(String(e), true));
+  } catch (e) {
+    S.content = { error: String(e) };
+    renderReader();
+  }
+}
+function renderReader() {
+  const r = $('#reader'), m = S.open;
+  r.classList.toggle('show', !!m);
+  if (!m) return;
+  const c = S.content;
+  r.innerHTML = `<div class="rd-top"><button class="ib" data-act="close" title="Zurück (Esc)">${ic('back')}</button>
+      <span class="muted" style="font-size:12.5px">${esc(m.account)}</span><span class="grow"></span></div>
+    <div class="rd-scroll"><div class="rd-inner">
+      <div class="rd-head">${avatar(m, 'lg')}<div class="grow"><b>${esc(sender(m))}</b><br><small>${esc(m.from_addr || '')}${m.date ? ' · ' + esc(when(m.date, true)) : ''}</small></div></div>
+      <h2 class="rd-subj">${esc(m.subject || '(kein Betreff)')}</h2>
+      <div class="rd-actions">
+        <button class="ab main" data-act="archive" data-id="${esc(m.id)}">${ic('check', 'sm')}Erledigt</button>
+        <button class="ab" data-act="unread" data-id="${esc(m.id)}">${ic('dot', 'sm')}Ungelesen</button>
+      </div>
+      ${!c ? `<div class="loading"><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`
+        : c.error ? `<div class="loading" style="color:var(--danger)">Mail konnte nicht geladen werden: ${esc(c.error)}</div>`
+        : `<div class="rd-body">${esc(c.text.trim() || '(kein Text)')}</div>
+           ${c.attachments.length ? `<div class="att-row">${c.attachments.map(a => `<span class="att">${ic('file', 'sm')}${esc(a)}</span>`).join('')}</div>` : ''}`}
+    </div></div>`;
+}
+function closeReader() { S.open = null; S.content = null; renderReader(); }
+
+/* ---- Aktionen ---- */
+async function archive(id) {
+  const card = document.querySelector(`.mcard[data-id="${CSS.escape(id)}"]`);
+  if (card) card.style.opacity = .4;
+  try {
+    const folder = await invoke('archive_mail', { id });
+    if (S.open && S.open.id === id) closeReader();
+    toast(`Erledigt – liegt in „${folder}“`);
+  } catch (e) {
+    if (card) card.style.opacity = 1;
+    toast(String(e), true);
+  }
+}
+async function setSeen(id, seen) {
+  try {
+    await invoke('set_seen', { id, seen });
+    if (!seen) { closeReader(); toast('Wieder ungelesen'); }
+  } catch (e) { toast(String(e), true); }
+}
+async function check() {
+  const b = $('#checkBtn');
+  b.classList.add('spin');
+  await invoke('check_now').catch(() => {});
+  setTimeout(() => b.classList.remove('spin'), 1200);
+}
+function toggleTheme() {
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const cur = document.documentElement.dataset.theme || (dark ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('theme', next);
+}
+function toast(text, error) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (error ? ' err' : '');
+  el.textContent = text;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), error ? 6000 : 3000);
+}
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  e.stopPropagation();
+  const id = el.dataset.id;
+  switch (el.dataset.act) {
+    case 'open': openMail(id); break;
+    case 'close': closeReader(); break;
+    case 'home': closeReader(); break;
+    case 'archive': archive(id); break;
+    case 'read': setSeen(id, true); break;
+    case 'unread': setSeen(id, false); break;
+    case 'filter': S.filter = el.dataset.f; render(); break;
+    case 'check': check(); break;
+    case 'theme': toggleTheme(); break;
+    case 'hide': invoke('hide_main'); break;
+    case 'settings': invoke('open_window', { label: 'settings' }); break;
+    case 'code': {
+      const c = S.codes[+el.dataset.i];
+      if (!c) break;
+      if (c.kind === 'link') invoke('open_link', { url: c.code }).catch(err => toast(String(err), true));
+      else invoke('copy_code', { code: c.code }).then(() => toast('Code kopiert')).catch(err => toast(String(err), true));
+      break;
+    }
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (S.open) closeReader(); else invoke('hide_main'); }
+  if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('mcard')) openMail(e.target.dataset.id);
+  if (S.open && (e.key === 'e' || e.key === 'E')) archive(S.open.id);
+});
+
+const saved = localStorage.getItem('theme');
+if (saved) document.documentElement.dataset.theme = saved;
+listen('mails-changed', refresh);
+listen('account-status', refresh);
+listen('auth-code', ev => addCode(ev.payload));
+invoke('get_last_code').then(p => { if (p) { const c = JSON.parse(p); if (Date.now() / 1000 - c.timestamp < CODE_TTL / 1000) addCode(c); } }).catch(() => {});
+render();
+refresh();
+</script>
+</body>
+</html>
