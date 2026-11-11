@@ -367,6 +367,19 @@ impl Commands {
         Ok(found)
     }
 
+    /// The subfolder `child` of `parent` (full name), created on request.
+    pub async fn resolve_child(&self, account: &AccountConfig, parent: &str, child: &str, create: bool) -> Result<Option<String>> {
+        let key = (account.id.clone(), format!("{parent}\u{0}{child}"));
+        if let Some(found) = self.folders.lock().await.get(&key) {
+            return Ok(Some(found.clone()));
+        }
+        let found = self.run(account, ResolveChild { parent: parent.to_string(), child: child.to_string(), create }).await?;
+        if let Some(f) = &found {
+            self.folders.lock().await.insert(key, f.clone());
+        }
+        Ok(found)
+    }
+
     /// Moves a mail of the watched mailbox to `folder`, creating the folder if needed.
     pub async fn move_to_folder(&self, account: &AccountConfig, uid: u32, folder: &str) -> Result<()> {
         self.run(account, MoveUid { uid, folder: folder.to_string() }).await
@@ -467,13 +480,15 @@ impl AsyncOp<String> for Archive {
 
 /// Creates a folder; "already exists" is fine.
 async fn ensure_folder(s: &mut Session, folder: &str) -> Result<()> {
-    if let Err(e) = with_timeout(s.create(folder)).await {
-        let exists = with_timeout(s.list(Some(""), Some(folder))).await?.try_collect::<Vec<_>>().await?.iter().any(|n| n.name() == folder);
-        if !exists {
-            return Err(e).with_context(|| format!("Failed to create folder '{folder}'"));
+    match with_timeout(s.create(folder)).await {
+        Ok(()) => Ok(()),
+        Err(e) if already_exists(&e) => Ok(()),
+        // Some servers refuse CREATE for existing special folders (e.g. INBOX) without ALREADYEXISTS.
+        Err(e) => {
+            let list: Vec<_> = with_timeout(s.list(Some(""), Some("*"))).await?.try_collect().await?;
+            if list.iter().any(|n| n.name() == folder) { Ok(()) } else { Err(e).with_context(|| format!("Failed to create folder '{folder}'")) }
         }
     }
-    Ok(())
 }
 
 struct MoveUid {
@@ -484,6 +499,36 @@ impl AsyncOp<()> for MoveUid {
     async fn call(&self, s: &mut Session) -> Result<()> {
         move_to(s, self.uid, &self.folder).await
     }
+}
+
+struct ResolveChild {
+    parent: String,
+    child: String,
+    create: bool,
+}
+impl AsyncOp<Option<String>> for ResolveChild {
+    async fn call(&self, s: &mut Session) -> Result<Option<String>> {
+        let list: Vec<_> = with_timeout(s.list(Some(""), Some("*"))).await?.try_collect().await?;
+        let delim = list.iter().find(|n| n.name() == self.parent).and_then(|n| n.delimiter()).unwrap_or("/").to_string();
+        let full = format!("{}{delim}{}", self.parent, self.child);
+        if list.iter().any(|n| n.name() == full) {
+            return Ok(Some(full));
+        }
+        if !self.create {
+            return Ok(None);
+        }
+        match with_timeout(s.create(&full)).await {
+            Ok(()) => Ok(Some(full)),
+            // Already there (e.g. created meanwhile by another client) – just as good.
+            Err(e) if already_exists(&e) => Ok(Some(full)),
+            Err(e) => Err(e).with_context(|| format!("Failed to create folder '{full}'")),
+        }
+    }
+}
+
+fn already_exists(e: &anyhow::Error) -> bool {
+    let msg = format!("{e:#}").to_lowercase();
+    msg.contains("alreadyexists") || msg.contains("already exists")
 }
 
 struct ResolveFolder {
@@ -505,7 +550,7 @@ impl AsyncOp<Option<String>> for ResolveFolder {
             return Ok(None);
         }
         let top_level = with_timeout(s.create(&self.name)).await;
-        if top_level.is_ok() {
+        if top_level.is_ok() || top_level.as_ref().is_err_and(already_exists) {
             return Ok(Some(self.name.clone()));
         }
         // Proton Mail Bridge: own folders only below "Folders/".
@@ -773,6 +818,14 @@ mod tests {
         let tasks = cmds.folder_mails(&account, "Aufgaben", 100).await.unwrap();
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].message_id.as_deref(), Some(mid.as_str()));
+        // States as subfolders: open → in progress → back to open.
+        assert_eq!(cmds.resolve_child(&account, &folder, "In Arbeit", false).await.unwrap(), None);
+        let progress = cmds.resolve_child(&account, &folder, "In Arbeit", true).await.unwrap().unwrap();
+        assert_eq!(progress, "Aufgaben/In Arbeit");
+        cmds.move_by_message_id(&account, &folder, &mid, Some(&progress)).await.unwrap();
+        assert!(cmds.folder_mails(&account, &folder, 100).await.unwrap().is_empty(), "subfolder mails are not listed with the parent");
+        assert_eq!(cmds.folder_mails(&account, &progress, 100).await.unwrap().len(), 1);
+        cmds.move_by_message_id(&account, &progress, &mid, Some(&folder)).await.unwrap();
         let text = cmds.content_by_message_id(&account, vec!["Aufgaben".into(), "INBOX".into()], &mid).await.unwrap().text;
         assert!(text.contains("drei Rückfragen"));
 

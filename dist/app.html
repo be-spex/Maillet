@@ -45,7 +45,22 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .pin-row b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pin-row small{color:var(--muted);font-size:11.5px}
 .pin-row .star{color:var(--warn)}
-.task-acts{display:flex;gap:6px;margin-top:4px}
+.task-acts{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+.board{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@container win (min-width:760px){.board{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}}
+.tcol{--sc:var(--accent)}
+.tcol.st-progress,.st-progress{--sc:var(--warn)}
+.tcol.st-done,.st-done{--sc:var(--ok)}
+.st-open{--sc:var(--accent)}
+.tcol-head{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 2px 8px}
+.tcol-head .link{text-transform:none;letter-spacing:0}
+.tcol-head .grow{flex:1}
+.sdot{width:9px;height:9px;border-radius:50%;background:var(--sc);flex:none}
+.tcard::before{background:var(--sc)!important}
+.tcard.st-done .mc-subj{text-decoration:line-through;color:var(--muted)}
+.tcard.st-done{opacity:.8}
+.col-empty{padding:14px;text-align:center;font-size:12px;color:var(--faint);border:1px dashed var(--line);border-radius:12px}
+.st-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:20px;font-size:12px;font-weight:700;color:var(--sc);background:color-mix(in srgb,var(--sc) 12%,transparent)}
 .ab.sm{padding:5px 9px;font-size:12px}
 .spacer{flex:1}
 .badge[hidden]{display:none}
@@ -248,6 +263,9 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
     <symbol id="i-task" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></symbol>
     <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5 5h14l2 8v6H3v-6z"/></symbol>
     <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-8 8"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v12h16V8M10 12h4"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
@@ -311,8 +329,8 @@ function render() {
   const total = d.accounts.reduce((a, x) => a + x.unread_total, 0);
   const badge = $('#navBadge');
   badge.hidden = !total; badge.textContent = total > 99 ? '99+' : total;
-  const tb = $('#taskBadge'), nTasks = S.tasks ? S.tasks.length : 0;
-  $('#navTasks').hidden = !nTasks && S.view !== 'tasks';
+  const tb = $('#taskBadge'), nTasks = S.tasks ? S.tasks.filter(it => it.status !== 'done').length : 0;
+  $('#navTasks').hidden = !(S.tasks && S.tasks.length) && S.view !== 'tasks';
   tb.hidden = !nTasks; tb.textContent = nTasks;
   $('#navHome').classList.toggle('on', S.view === 'home');
   $('#navTasks').classList.toggle('on', S.view === 'tasks');
@@ -360,17 +378,33 @@ function statusAvatar(m, cls = '') {
 }
 const isPinned = id => ((S.data && S.data.pinned) || []).some(p => p.id === id || (p.message_id && S.data.mails.some(m => m.id === id && m.message_id === p.message_id)));
 const pinRow = m => `<button class="pin-row" data-act="open" data-id="${esc(m.id)}">${ic('star', 'sm filled star')}<span class="grow"><b>${esc(m.subject || t('mail.no_subject'))}</b><small>${esc(sender(m))} · ${esc(when(m.date))}</small></span></button>`;
+/* ---- Aufgaben als Board: Open · In progress · Done (Ordner auf dem Server) ---- */
+const TASK_COLS = [['open', 'tasks.col_open'], ['progress', 'tasks.col_progress'], ['done', 'tasks.col_done']];
+const taskKey = it => `${it.status}|${it.mail.id}`;
 function tasksView() {
   if (!S.tasks) return `<div class="hero"><h1>${t('app.tasks')}</h1><p>${t('tasks.loading')}</p></div>${skeleton()}`;
-  return `<div class="hero"><h1>${t('app.tasks')}</h1><p>${S.tasks.length ? t('tasks.open', { n: S.tasks.length }) : ''}${t('tasks.folder')}</p></div>
-    <div class="cards">${S.tasks.map(taskCard).join('') || empty(t('tasks.empty'))}</div>`;
+  const by = st => S.tasks.filter(it => it.status === st);
+  return `<div class="hero"><h1>${t('app.tasks')}</h1><p>${t('tasks.summary', { o: by('open').length, p: by('progress').length })}<br><small class="faint">${t('tasks.folder')}</small></p></div>
+    <div class="board">${TASK_COLS.map(([k, label]) => {
+      const items = by(k);
+      return `<section class="tcol st-${k}"><div class="tcol-head"><span class="sdot"></span>${t(label)}<span class="faint">${items.length}</span><span class="grow"></span>${k === 'done' && items.length ? `<button class="link" data-act="archiveDone">${t('tasks.archive_all')}</button>` : ''}</div>
+        <div class="cards">${items.map(taskCard).join('') || `<div class="col-empty">${t('tasks.col_empty')}</div>`}</div></section>`;
+    }).join('')}</div>`;
 }
-const taskCard = m => `<div class="mcard ${fresh(m.id)}" data-act="openTask" data-id="${esc(m.id)}" tabindex="0">
+// Aktionen je Status: [Ziel, Beschriftung, Symbol, Hauptaktion?]
+const TASK_ACTIONS = {
+  open: [['progress', 'tasks.start', 'play', true], ['done', 'tasks.done', 'check']],
+  progress: [['done', 'tasks.done', 'check', true], ['open', 'tasks.to_open', 'back']],
+  done: [['open', 'tasks.reopen', 'undo'], ['archive', 'tasks.archive', 'box', true]],
+};
+const taskButtons = (it, small) => TASK_ACTIONS[it.status].map(([to, label, icon, main]) =>
+  `<button class="ab ${main ? 'main' : ''} ${small ? 'sm' : ''}" data-act="taskMove" data-key="${esc(taskKey(it))}" data-to="${to}">${ic(icon, 'sm')}${t(label)}</button>`).join('');
+const taskCard = it => { const m = it.mail; return `<div class="mcard tcard st-${it.status} ${fresh(taskKey(it))}" data-act="openTask" data-key="${esc(taskKey(it))}" tabindex="0">
     <div class="mc-head">${avatar(m)}<div class="mc-from"><b>${esc(sender(m))}</b><small>${esc(m.account)} · ${esc(when(m.date))}</small></div></div>
     <div class="mc-subj">${esc(m.subject || t('mail.no_subject'))}</div>
-    ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
-    <div class="task-acts"><button class="ab main sm" data-act="taskDone" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('tasks.done')}</button><button class="ab sm" data-act="taskBack" data-id="${esc(m.id)}" title="${t('tasks.back_tip')}">${ic('inbox', 'sm')}${t('tasks.back')}</button></div>
-  </div>`;
+    ${m.preview && it.status !== 'done' ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
+    <div class="task-acts">${taskButtons(it, true)}</div>
+  </div>`; };
 const empty = text => `<div class="empty"><div class="big">🌿</div>${esc(text)}</div>`;
 
 const skeleton = () => [1, 2, 3].map(() => `<div class="mcard" style="cursor:default"><div class="skel" style="width:40%"></div><div class="skel" style="width:85%"></div><div class="skel" style="width:70%"></div></div>`).join('');
@@ -512,15 +546,15 @@ async function openMail(id) {
     renderReader();
   }
 }
-async function openTask(id) {
-  const m = (S.tasks || []).find(x => x.id === id);
-  if (!m) return;
-  S.open = { ...m, task: true }; S.content = null; S.htmlMode = true; S.loadImages = false;
+async function openTask(key) {
+  const it = (S.tasks || []).find(x => taskKey(x) === key);
+  if (!it) return;
+  S.open = { ...it.mail, task: true, status: it.status, key }; S.content = null; S.htmlMode = true; S.loadImages = false;
   renderReader();
   try {
-    S.content = await invoke('get_task_mail', { accountId: m.account_id, messageId: m.message_id || '' });
+    S.content = await invoke('get_task_mail', { accountId: it.mail.account_id, messageId: it.mail.message_id || '' });
   } catch (e) { S.content = { error: String(e) }; }
-  if (S.open && S.open.id === id) renderReader();
+  if (S.open && S.open.key === key) renderReader();
 }
 function renderReader() {
   const r = $('#reader'), m = S.open;
@@ -533,8 +567,8 @@ function renderReader() {
       <div class="rd-head">${m.task ? avatar(m, 'lg') : statusAvatar(m, 'lg')}<div class="grow"><b>${esc(sender(m))}</b><br><small>${esc(m.from_addr || '')}${m.date ? ' · ' + esc(when(m.date, true)) : ''}</small></div></div>
       <h2 class="rd-subj">${esc(m.subject || t('mail.no_subject'))}</h2>
       <div class="rd-actions">${m.task
-        ? `<button class="ab main" data-act="taskDone" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('tasks.task_done')}</button>
-           <button class="ab" data-act="taskBack" data-id="${esc(m.id)}">${ic('inbox', 'sm')}${t('tasks.back')}</button>`
+        ? `<span class="st-pill st-${m.status}"><span class="sdot"></span>${t('tasks.col_' + m.status)}</span>${taskButtons({ status: m.status, mail: m }, false)}
+           <button class="ab" data-act="taskMove" data-key="${esc(m.key)}" data-to="inbox" title="${t('tasks.back_tip')}">${ic('inbox', 'sm')}${t('tasks.back')}</button>`
         : `<button class="ab main" data-act="archive" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('reader.done')}</button>
            <button class="ab" data-act="task" data-id="${esc(m.id)}">${ic('task', 'sm')}${t('reader.task')}</button>
            <button class="ab ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}${isPinned(m.id) ? t('reader.pinned') : t('reader.pin')}</button>
@@ -651,24 +685,38 @@ async function makeTask(id) {
     const ref = await invoke('make_task', { id });
     if (S.open && S.open.id === id) closeReader();
     toast(t('toast.task'), false, ref.message_id ? {
-      label: t('toast.undo'), run: () => invoke('task_back', { accountId: ref.account_id, messageId: ref.message_id }).then(() => toast(t('toast.back_inbox'))).catch(e => toast(String(e), true)),
+      label: t('toast.undo'), run: () => invoke('move_task', { accountId: ref.account_id, messageId: ref.message_id, from: 'open', to: 'inbox', fromFolder: null }).then(() => toast(t('toast.back_inbox'))).catch(e => toast(String(e), true)),
     } : undefined);
   } catch (e) { toast(String(e), true); }
 }
-async function taskAction(id, act) {
-  const m = (S.tasks || []).find(x => x.id === id);
-  if (!m || !m.message_id) { toast(t('toast.no_mid'), true); return; }
-  const args = { accountId: m.account_id, messageId: m.message_id };
+async function taskMove(key, to) {
+  const it = (S.tasks || []).find(x => taskKey(x) === key);
+  if (!it || !it.mail.message_id) { toast(t('toast.no_mid'), true); return; }
+  const from = it.status, args = { accountId: it.mail.account_id, messageId: it.mail.message_id };
+  // Sofort umsortieren; die Liste vom Server bestätigt es danach.
+  const before = S.tasks;
+  S.tasks = ['archive', 'inbox'].includes(to) ? S.tasks.filter(x => x !== it) : S.tasks.map(x => x === it ? { ...x, status: to } : x);
+  if (S.open && S.open.key === key) closeReader();
+  render();
   try {
-    if (act === 'done') {
-      const folder = await invoke('task_done', args);
-      toast(t('toast.task_done'), false, { label: t('toast.undo'), run: () => invoke('task_reopen', { ...args, folder }).catch(e => toast(String(e), true)) });
-    } else {
-      await invoke('task_back', args);
-      toast(t('toast.back_inbox'));
-    }
-    if (S.open && S.open.id === id) closeReader();
-  } catch (e) { toast(String(e), true); }
+    const folder = await invoke('move_task', { ...args, from, to, fromFolder: null });
+    const label = to === 'archive' ? t('toast.task_archived') : to === 'inbox' ? t('toast.back_inbox') : t('toast.task_moved', { s: t('tasks.col_' + to) });
+    toast(label, false, { label: t('toast.undo'), run: () => invoke('move_task', { ...args, from: to === 'archive' || to === 'inbox' ? 'open' : to, to: from, fromFolder: to === 'archive' || to === 'inbox' ? folder : null }).then(refreshTasks).catch(e => toast(String(e), true)) });
+  } catch (e) {
+    S.tasks = before; render();
+    toast(String(e), true);
+  }
+}
+async function archiveDone() {
+  const done = (S.tasks || []).filter(it => it.status === 'done' && it.mail.message_id);
+  if (!done.length) return;
+  S.tasks = S.tasks.filter(it => it.status !== 'done'); render();
+  let n = 0;
+  for (const it of done) {
+    try { await invoke('move_task', { accountId: it.mail.account_id, messageId: it.mail.message_id, from: 'done', to: 'archive', fromFolder: null }); n++; } catch (e) { toast(String(e), true); }
+  }
+  toast(t('toast.done_archived', { n }));
+  refreshTasks();
 }
 async function archiveNoise() {
   const ids = S.data.mails.filter(m => m.bulk && (S.filter === 'all' || m.account_id === S.filter)).map(m => m.id);
@@ -706,9 +754,9 @@ document.addEventListener('click', e => {
     case 'tasks': closeReader(); S.view = 'tasks'; render(); refreshTasks(); break;
     case 'pin': togglePin(id); break;
     case 'task': makeTask(id); break;
-    case 'openTask': openTask(id); break;
-    case 'taskDone': taskAction(id, 'done'); break;
-    case 'taskBack': taskAction(id, 'back'); break;
+    case 'openTask': openTask(el.dataset.key); break;
+    case 'taskMove': taskMove(el.dataset.key, el.dataset.to); break;
+    case 'archiveDone': archiveDone(); break;
     case 'archive': archive(id); break;
     case 'read': setSeen(id, true); break;
     case 'unread': setSeen(id, false); break;

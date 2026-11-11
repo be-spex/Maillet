@@ -111,13 +111,27 @@ async fn archive_mail(state: State<'_, AppState>, id: String) -> Result<String, 
 /// depends on the server, e.g. "Folders/Aufgaben" on Proton.
 const TASK_FOLDER: &str = "Aufgaben";
 
+fn account_by_id(id: &str) -> Result<AccountConfig, String> {
+    config::load_accounts_with_passwords().map_err(err)?.into_iter().find(|a| a.id == id).ok_or_else(|| "Account not found".into())
+}
+
 /// The account's task folder; `create` makes it on first use.
 async fn task_folder(state: &AppState, account: &AccountConfig, create: bool) -> Result<String, String> {
     state.commands.resolve_folder(account, TASK_FOLDER, create).await.map_err(err)?.ok_or_else(|| "No task folder on this account".into())
 }
 
-fn account_by_id(id: &str) -> Result<AccountConfig, String> {
-    config::load_accounts_with_passwords().map_err(err)?.into_iter().find(|a| a.id == id).ok_or_else(|| "Account not found".into())
+/// Task states and their folders: open = the task folder itself, the others
+/// are subfolders (custom IMAP keywords are not supported by every server).
+const STATES: [(&str, Option<&str>, usize); 3] = [("open", None, 200), ("progress", Some("In Arbeit"), 200), ("done", Some("Erledigt"), 30)];
+
+/// Folder of a task state; `None` if it does not exist and `create` is off.
+async fn state_folder(state: &AppState, account: &AccountConfig, status: &str, create: bool) -> Result<Option<String>, String> {
+    let (_, child, _) = STATES.iter().find(|(s, _, _)| *s == status).ok_or("Unknown task state")?;
+    let Some(base) = state.commands.resolve_folder(account, TASK_FOLDER, create).await.map_err(err)? else { return Ok(None) };
+    match child {
+        None => Ok(Some(base)),
+        Some(c) => state.commands.resolve_child(account, &base, c, create).await.map_err(err),
+    }
 }
 
 /// Pins (star on the server) or unpins a mail.
@@ -136,7 +150,7 @@ struct TaskRef {
     message_id: Option<String>,
 }
 
-/// Moves a mail from the inbox into the task folder.
+/// Moves a mail from the inbox into the task folder (state "open").
 #[tauri::command]
 async fn make_task(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<TaskRef, String> {
     let message_id = state.store.find(&id).and_then(|m| m.message_id);
@@ -148,68 +162,74 @@ async fn make_task(app: AppHandle, state: State<'_, AppState>, id: String) -> Re
     Ok(TaskRef { account_id: account.id, message_id })
 }
 
-/// All mails in the task folders of all accounts, newest first.
+#[derive(serde::Serialize)]
+struct TaskItem {
+    status: &'static str,
+    mail: MailSummary,
+}
+
+/// All tasks of all accounts with their state, newest first.
 #[tauri::command]
-async fn list_tasks(state: State<'_, AppState>) -> Result<Vec<MailSummary>, String> {
+async fn list_tasks(state: State<'_, AppState>) -> Result<Vec<TaskItem>, String> {
     let mut all = vec![];
     for account in config::load_accounts_with_passwords().map_err(err)? {
         if account.server.is_empty() || account.pass.is_empty() {
             continue;
         }
-        let folder = match state.commands.resolve_folder(&account, TASK_FOLDER, false).await {
-            Ok(Some(f)) => f,
-            Ok(None) => continue,
-            Err(e) => {
-                tracing::warn!("[{}] task folder: {e:#}", account.label);
-                continue;
+        for (status, _, limit) in STATES {
+            let folder = match state_folder(&state, &account, status, false).await {
+                Ok(Some(f)) => f,
+                Ok(None) => continue,
+                Err(e) => {
+                    tracing::warn!("[{}] task folder: {e}", account.label);
+                    continue;
+                }
+            };
+            match state.commands.folder_mails(&account, &folder, limit).await {
+                Ok(mails) => all.extend(mails.into_iter().map(|mail| TaskItem { status, mail })),
+                Err(e) => tracing::warn!("[{}] task folder {folder}: {e:#}", account.label),
             }
-        };
-        match state.commands.folder_mails(&account, &folder, 100).await {
-            Ok(mails) => all.extend(mails),
-            Err(e) => tracing::warn!("[{}] task folder: {e:#}", account.label),
         }
     }
-    all.sort_by_key(|m| std::cmp::Reverse(m.date.unwrap_or(0)));
+    all.sort_by_key(|t| std::cmp::Reverse(t.mail.date.unwrap_or(0)));
     Ok(all)
 }
 
-/// Task done: the mail moves on to the archive. Returns the archive folder (for undo).
+/// Moves a task between states. `from`/`to`: `open`, `progress`, `done`, plus
+/// `to` = `archive` (out of the tasks) or `inbox` (no longer a task).
+/// `from_folder` overrides the source folder (undo after archiving).
+/// Returns the target folder, so the move can be undone.
 #[tauri::command]
-async fn task_done(app: AppHandle, state: State<'_, AppState>, account_id: String, message_id: String) -> Result<String, String> {
+async fn move_task(app: AppHandle, state: State<'_, AppState>, account_id: String, message_id: String, from: String, to: String, from_folder: Option<String>) -> Result<String, String> {
     let account = account_by_id(&account_id)?;
-    let tasks = task_folder(&state, &account, false).await?;
-    let folder = state.commands.move_by_message_id(&account, &tasks, &message_id, None).await.map_err(err)?;
+    let source = match from_folder {
+        Some(f) => f,
+        None => state_folder(&state, &account, &from, false).await?.ok_or("Task folder not found")?,
+    };
+    let target = match to.as_str() {
+        "archive" => None,
+        "inbox" => Some(account.mailbox.clone()),
+        status => Some(state_folder(&state, &account, status, true).await?.ok_or("Task folder not found")?),
+    };
+    let moved = state.commands.move_by_message_id(&account, &source, &message_id, target.as_deref()).await.map_err(err)?;
+    if to == "inbox" {
+        state.check_now.notify_waiters();
+    }
     let _ = app.emit("tasks-changed", ());
-    Ok(folder)
+    Ok(moved)
 }
 
-/// No longer a task: the mail goes back to the inbox.
-#[tauri::command]
-async fn task_back(app: AppHandle, state: State<'_, AppState>, account_id: String, message_id: String) -> Result<(), String> {
-    let account = account_by_id(&account_id)?;
-    let inbox = account.mailbox.clone();
-    let tasks = task_folder(&state, &account, false).await?;
-    state.commands.move_by_message_id(&account, &tasks, &message_id, Some(&inbox)).await.map_err(err)?;
-    state.check_now.notify_waiters();
-    let _ = app.emit("tasks-changed", ());
-    Ok(())
-}
-
-/// Undo of "done": the mail comes back from `folder` into the task folder.
-#[tauri::command]
-async fn task_reopen(app: AppHandle, state: State<'_, AppState>, account_id: String, message_id: String, folder: String) -> Result<(), String> {
-    let account = account_by_id(&account_id)?;
-    let tasks = task_folder(&state, &account, true).await?;
-    state.commands.move_by_message_id(&account, &folder, &message_id, Some(&tasks)).await.map_err(err)?;
-    let _ = app.emit("tasks-changed", ());
-    Ok(())
-}
-
-/// Text of a task mail (it lives in the task folder, not in the watched inbox).
+/// Text of a task mail (it lives in one of the task folders).
 #[tauri::command]
 async fn get_task_mail(state: State<'_, AppState>, account_id: String, message_id: String) -> Result<MailContent, String> {
     let account = account_by_id(&account_id)?;
-    let folders = vec![task_folder(&state, &account, false).await?, account.mailbox.clone()];
+    let mut folders = vec![];
+    for (status, _, _) in STATES {
+        if let Some(f) = state_folder(&state, &account, status, false).await? {
+            folders.push(f);
+        }
+    }
+    folders.push(account.mailbox.clone());
     state.commands.content_by_message_id(&account, folders, &message_id).await.map_err(err)
 }
 
@@ -741,7 +761,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, task_done, task_back, task_reopen, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, move_task, get_task_mail,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,
