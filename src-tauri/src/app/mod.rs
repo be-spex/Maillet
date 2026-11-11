@@ -253,6 +253,16 @@ fn open_window(app: AppHandle, label: String) {
     windows::show(&app, &label);
 }
 
+/// Sets the global shortcut; it takes effect at once. Returns the new status.
+#[tauri::command]
+async fn set_shortcut(app: AppHandle, keys: String) -> Result<shortcut::Status, String> {
+    let status = shortcut::change(&app, &keys)?;
+    let shared = app.state::<AppState>().config.clone();
+    async_runtime::spawn_blocking(move || config::set_shortcut(&shared, &keys)).await.map_err(|e| e.to_string())?.map_err(err)?;
+    let _ = app.emit("settings-changed", ());
+    Ok(status)
+}
+
 #[tauri::command]
 async fn set_tray_people_only(app: AppHandle, enabled: bool) -> Result<(), String> {
     let state = app.state::<AppState>();
@@ -687,7 +697,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_pinned, make_task, list_tasks, task_done, task_back, task_reopen, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, set_pinned, make_task, list_tasks, task_done, task_back, task_reopen, get_task_mail,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,

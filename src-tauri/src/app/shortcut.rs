@@ -37,6 +37,17 @@ pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
         .build()
 }
 
+/// Replaces the current shortcut (settings: "General"). Empty switches it off.
+pub fn change(app: &AppHandle, keys: &str) -> Result<Status, String> {
+    let keys = keys.trim();
+    if !keys.is_empty() {
+        keys.parse::<Shortcut>().map_err(|e| format!("Invalid shortcut: {e}"))?;
+    }
+    let _ = app.global_shortcut().unregister_all();
+    register(app, Some(keys.to_string()));
+    Ok(app.state::<ShortcutStatus>().get())
+}
+
 /// Registers the configured shortcut (or the default) and records the outcome.
 pub fn register(app: &AppHandle, configured: Option<String>) {
     let keys = configured.unwrap_or_else(|| DEFAULT.to_string()).trim().to_string();

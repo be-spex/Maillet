@@ -340,6 +340,13 @@ pub fn set_api_config(config: &SharedConfig, api: ApiConfig) -> Result<()> {
     save_config(&cfg)
 }
 
+/// `""` switches the shortcut off; the default is stored explicitly too.
+pub fn set_shortcut(config: &SharedConfig, keys: &str) -> Result<()> {
+    let mut cfg = config.blocking_lock();
+    cfg.shortcut = Some(keys.trim().to_string());
+    save_config(&cfg)
+}
+
 pub fn set_tray_people_only(config: &SharedConfig, on: bool) -> Result<()> {
     let mut cfg = config.blocking_lock();
     cfg.tray_people_only = Some(on);

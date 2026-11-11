@@ -24,7 +24,7 @@ body { font-family:"Inter","Segoe UI",Roboto,"Noto Sans",sans-serif; background:
 h1 { font-size:18px; font-weight:650; }
 
 /* Layout: fixed sidebar, scrolling content */
-.app { display:grid; grid-template-columns:180px 1fr; height:100%; }
+.app { display:grid; grid-template-columns:212px 1fr; height:100%; }
 .sidebar { background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:16px 10px; gap:2px; }
 .brand { font-size:17px; font-weight:650; padding:0 10px 14px; }
 .brand small { display:block; font-size:11.5px; font-weight:400; color:var(--muted); }
@@ -41,6 +41,11 @@ h1 { font-size:18px; font-weight:650; }
 .page-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
 .page-head .btn-bar { display:flex; gap:8px; flex-wrap:wrap; }
 .otp-title { margin:0 0 12px; }
+.card-title { margin:0 0 4px; font-size:14px; }
+.shortcut-row { display:flex; gap:8px; margin:12px 0 6px; flex-wrap:wrap; }
+#sc-input { flex:1; min-width:180px; max-width:260px; font-weight:600; text-align:center; cursor:pointer; }
+#sc-input.recording { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.sc-ok { color:var(--ok); } .sc-err { color:var(--danger); }
 .tabs { display:inline-flex; gap:3px; padding:3px; border-radius:9px; background:var(--surface-2); }
 .tab { border:none; background:none; padding:6px 16px; border-radius:7px; font-weight:600; color:var(--muted); }
 .tab:hover { color:var(--text); }
@@ -221,6 +226,8 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
   <div class="brand">Maillet<small>Settings</small></div>
   <button class="nav-btn" data-sec="accounts" onclick="go('accounts')">Accounts <span class="badge dot" id="dot-accounts"></span></button>
   <button class="nav-btn" data-sec="otp" onclick="go(otpTab)">One-Time Passwords <span class="badge" id="badge-rules"></span><span class="badge dot" id="api-dot" title="Local API"></span></button>
+  <button class="nav-btn" data-sec="general" onclick="go('general')">General</button>
+  <button class="nav-btn" data-sec="notifications" onclick="go('notifications')">Notifications</button>
   <button class="nav-btn" data-sec="log" onclick="go('log')">Log</button>
   <div class="sidebar-foot">
     <button class="btn-sm" onclick="invoke('check_now').then(() => showToast('Checking…', 'success'))">Check now</button>
@@ -421,6 +428,34 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
   </div>
 </section>
 
+<!-- ======== General ======== -->
+<section class="section" data-sec="general">
+  <div class="page-head"><h1>General</h1></div>
+  <div class="card">
+    <h3 class="card-title">Global shortcut</h3>
+    <div class="hint">Opens Maillet as a sidebar from anywhere and closes it again. Click the field and press the keys you want; Backspace clears, Esc cancels.</div>
+    <div class="shortcut-row">
+      <input id="sc-input" readonly placeholder="Click, then press keys …" onfocus="startRecording()" onblur="stopRecording()">
+      <button class="btn-primary" onclick="saveShortcut()">Save</button>
+      <button onclick="saveShortcut('Ctrl+Alt+M')">Default (Ctrl+Alt+M)</button>
+      <button onclick="saveShortcut('')">Off</button>
+    </div>
+    <div id="sc-status" class="hint"></div>
+    <div class="hint" style="margin-top:8px">Works on X11 desktops (Cinnamon, KDE, XFCE). On Wayland most desktops do not allow global shortcuts.</div>
+  </div>
+</section>
+
+<!-- ======== Notifications ======== -->
+<section class="section" data-sec="notifications">
+  <div class="page-head"><h1>Notifications</h1></div>
+  <div class="card">
+    <label class="check"><input type="checkbox" id="nt-enabled" onchange="setNotifications(this.checked)"> Desktop notification for new mails from people</label>
+    <div class="hint" style="margin-left:24px">Newsletters, bulk mail and login codes never notify. A click on the notification opens the mail; a burst of mails is collapsed into one notification.</div>
+    <label class="check" style="margin-top:10px"><input type="checkbox" id="nt-people" onchange="setTrayPeople(this.checked)"> Tray icon counts only mails from people</label>
+    <div class="hint" style="margin-left:24px">Otherwise all unread mails count, including newsletters.</div>
+  </div>
+</section>
+
 <!-- ======== Log ======== -->
 <section class="section" data-sec="log">
   <div class="page-head"><h1>Log</h1></div>
@@ -507,6 +542,7 @@ function go(sec) {
   if (sec === 'catalog') loadCatalog()
   if (sec === 'api') loadApi()
   if (sec === 'log') loadLog()
+  if (sec === 'general' || sec === 'notifications') loadPreferences()
 }
 
 const currentSection = () => document.querySelector('.section.on')?.dataset.sec
@@ -1513,6 +1549,71 @@ document.addEventListener('keyup', ev => {
 go('accounts')
 setupListeners()
 invoke('get_api_settings').then(st => renderApiStatus(st.status)).catch(() => {})
+
+// ---- General & Notifications ----
+let pendingShortcut = null
+async function loadPreferences() {
+  const st = await invoke('get_app_status')
+  document.getElementById('nt-enabled').checked = st.notifications
+  document.getElementById('nt-people').checked = st.tray_people_only
+  showShortcut(st.shortcut)
+}
+function showShortcut(sc) {
+  pendingShortcut = null
+  const input = document.getElementById('sc-input')
+  input.value = sc.keys || ''
+  input.placeholder = sc.keys ? 'Click, then press keys …' : 'Off – click to record a shortcut'
+  document.getElementById('sc-status').innerHTML = !sc.keys ? 'No global shortcut.'
+    : sc.error ? `<span class="sc-err">Not available: ${esc(sc.error)}</span> – another program may use it, try a different one.`
+    : `<span class="sc-ok">Active.</span>`
+}
+function comboFrom(e) {
+  const mods = []
+  if (e.ctrlKey) mods.push('Ctrl')
+  if (e.altKey) mods.push('Alt')
+  if (e.shiftKey) mods.push('Shift')
+  if (e.metaKey) mods.push('Super')
+  const code = e.code
+  if (/^(Control|Alt|Shift|Meta|OS)/.test(code) || !code) return { partial: mods.join('+') }
+  const key = /^Key[A-Z]$/.test(code) ? code.slice(3) : /^Digit\d$/.test(code) ? code.slice(5) : code
+  return { mods, key }
+}
+function onShortcutKey(e) {
+  e.preventDefault()
+  const input = document.getElementById('sc-input')
+  if (e.key === 'Escape') { input.blur(); loadPreferences(); return }
+  if (e.key === 'Backspace' && !e.ctrlKey && !e.altKey && !e.metaKey) { input.value = ''; pendingShortcut = ''; return }
+  const c = comboFrom(e)
+  if (c.partial !== undefined) { input.value = c.partial ? c.partial + '+ …' : ''; return }
+  if (!c.mods.length && !/^F\d+$/.test(c.key)) { input.value = 'Use Ctrl, Alt or Super with the key'; return }
+  pendingShortcut = [...c.mods, c.key].join('+')
+  input.value = pendingShortcut
+}
+function startRecording() {
+  const input = document.getElementById('sc-input')
+  input.classList.add('recording')
+  input.addEventListener('keydown', onShortcutKey)
+}
+function stopRecording() {
+  const input = document.getElementById('sc-input')
+  input.classList.remove('recording')
+  input.removeEventListener('keydown', onShortcutKey)
+}
+async function saveShortcut(keys) {
+  const value = keys !== undefined ? keys : pendingShortcut
+  if (value === null || value === undefined) { showToast('Press the keys first', 'error'); return }
+  try {
+    const st = await invoke('set_shortcut', { keys: value })
+    showShortcut(st)
+    showToast(value ? (st.error ? 'Saved, but not available' : `Shortcut ${value} active`) : 'Shortcut switched off', st.error ? 'error' : 'success')
+  } catch (e) { showToast(String(e), 'error') }
+}
+async function setNotifications(on) {
+  try { await invoke('set_notifications', { enabled: on }); showToast(on ? 'Notifications on' : 'Notifications off', 'success') } catch (e) { showToast(String(e), 'error') }
+}
+async function setTrayPeople(on) {
+  try { await invoke('set_tray_people_only', { enabled: on }); showToast(on ? 'Tray counts only people' : 'Tray counts all unread mails', 'success') } catch (e) { showToast(String(e), 'error') }
+}
 </script>
 </body>
 </html>
