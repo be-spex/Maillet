@@ -110,6 +110,8 @@ async fn archive_mail(state: State<'_, AppState>, id: String) -> Result<String, 
 /// Server folder holding mails that still need something done. The full name
 /// depends on the server, e.g. "Folders/Aufgaben" on Proton.
 const TASK_FOLDER: &str = "Aufgaben";
+/// Mails kept as a source of information.
+const KNOWLEDGE_FOLDER: &str = "Wissen";
 
 fn account_by_id(id: &str) -> Result<AccountConfig, String> {
     config::load_accounts_with_passwords().map_err(err)?.into_iter().find(|a| a.id == id).ok_or_else(|| "Account not found".into())
@@ -160,6 +162,44 @@ async fn make_task(app: AppHandle, state: State<'_, AppState>, id: String) -> Re
     state.store.remove(&account.id, uid);
     let _ = app.emit("tasks-changed", ());
     Ok(TaskRef { account_id: account.id, message_id })
+}
+
+/// Files a mail in the knowledge folder (created on first use).
+#[tauri::command]
+async fn file_knowledge(state: State<'_, AppState>, id: String) -> Result<TaskRef, String> {
+    let message_id = state.store.find(&id).and_then(|m| m.message_id);
+    let (account, uid) = locate(&state, &id)?;
+    let folder = state.commands.resolve_folder(&account, KNOWLEDGE_FOLDER, true).await.map_err(err)?.ok_or("No knowledge folder on this account")?;
+    state.commands.move_to_folder(&account, uid, &folder).await.map_err(err)?;
+    state.store.remove(&account.id, uid);
+    Ok(TaskRef { account_id: account.id, message_id })
+}
+
+/// Undo of [`file_knowledge`]: back to the inbox.
+#[tauri::command]
+async fn unfile_knowledge(state: State<'_, AppState>, account_id: String, message_id: String) -> Result<(), String> {
+    let account = account_by_id(&account_id)?;
+    let folder = state.commands.resolve_folder(&account, KNOWLEDGE_FOLDER, false).await.map_err(err)?.ok_or("Knowledge folder not found")?;
+    state.commands.move_found(&account, &[folder], &message_id, Some(&account.mailbox)).await.map_err(err)?;
+    state.check_now.notify_waiters();
+    Ok(())
+}
+
+/// Moves a mail to the trash (by its window id).
+#[tauri::command]
+async fn trash_mail(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    let (account, uid) = locate(&state, &id)?;
+    state.commands.delete(&account, uid).await.map_err(err)?;
+    state.store.remove(&account.id, uid);
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_actions(app: AppHandle, actions: Vec<String>) -> Result<(), String> {
+    let shared = app.state::<AppState>().config.clone();
+    async_runtime::spawn_blocking(move || config::set_actions(&shared, actions)).await.map_err(|e| e.to_string())?.map_err(err)?;
+    let _ = app.emit("settings-changed", ());
+    Ok(())
 }
 
 #[derive(serde::Serialize)]
@@ -339,6 +379,8 @@ fn get_app_status(app: AppHandle, state: State<AppState>, statuses: State<status
         "notifications": state.notifications.load(std::sync::atomic::Ordering::Relaxed),
         "tray_people_only": state.tray_people_only.load(std::sync::atomic::Ordering::Relaxed),
         "inbox_days": state.config.try_lock().ok().and_then(|c| c.inbox_days).unwrap_or(INBOX_DAYS),
+        "actions": state.config.try_lock().ok().and_then(|c| c.actions.clone()).unwrap_or_else(|| config::DEFAULT_ACTIONS.map(String::from).to_vec()),
+        "all_actions": config::ALL_ACTIONS,
     })
 }
 
@@ -834,7 +876,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_knowledge, unfile_knowledge, trash_mail, set_actions, get_task_mail,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,

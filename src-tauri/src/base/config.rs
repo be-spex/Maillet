@@ -86,6 +86,10 @@ pub struct AppConfig {
     /// The inbox view shows mails of the last N days; missing means 7.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inbox_days: Option<u32>,
+    /// Actions offered on mails (`read`, `archive`, `task`, `knowledge`, `noise`,
+    /// `pin`, `delete`); missing means the default set, see [`DEFAULT_ACTIONS`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actions: Option<Vec<String>>,
     /// Tray counts only mails from people (no bulk mail); missing means all.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tray_people_only: Option<bool>,
@@ -356,6 +360,17 @@ pub fn set_shortcut(config: &SharedConfig, keys: &str) -> Result<()> {
 pub fn set_inbox_days(config: &SharedConfig, days: u32) -> Result<()> {
     let mut cfg = config.blocking_lock();
     cfg.inbox_days = Some(days);
+    save_config(&cfg)
+}
+
+/// Every action a mail can offer, in display order.
+pub const ALL_ACTIONS: [&str; 7] = ["pin", "archive", "read", "noise", "task", "knowledge", "delete"];
+/// Offered when nothing is configured: all but delete.
+pub const DEFAULT_ACTIONS: [&str; 6] = ["pin", "archive", "read", "noise", "task", "knowledge"];
+
+pub fn set_actions(config: &SharedConfig, actions: Vec<String>) -> Result<()> {
+    let mut cfg = config.blocking_lock();
+    cfg.actions = Some(ALL_ACTIONS.iter().filter(|a| actions.iter().any(|x| x == *a)).map(|a| a.to_string()).collect());
     save_config(&cfg)
 }
 

@@ -273,6 +273,8 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
     <symbol id="i-box" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v12h16V8M10 12h4"/></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
     <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
@@ -298,6 +300,9 @@ const initials = n => n.replace(/@.*/, '').replace(/[^\p{L}\s.-]/gu, ' ').split(
 const sender = m => m.from_name || m.from_addr || t('mail.unknown');
 const avatar = (m, cls = '') => { const n = sender(m); return `<span class="av ${cls}" style="--h:${hue(n)}">${esc(initials(n))}</span>`; };
 const CODE_TTL = 120000;
+// Welche Aktionen der Nutzer an Mails sehen will (Einstellungen → Allgemein).
+const DEFAULT_ACTIONS = ['pin', 'archive', 'read', 'noise', 'task', 'knowledge'];
+const can = a => ((S.status && S.status.actions) || DEFAULT_ACTIONS).includes(a);
 
 /* ---- Übersetzungen (dist/i18n/*.json, vom Backend geliefert) ---- */
 let T = {};
@@ -452,6 +457,23 @@ const skeleton = () => [1, 2, 3].map(() => `<div class="mcard" style="cursor:def
 // Karten nur beim ersten Erscheinen animieren, nicht bei jedem Neuzeichnen.
 const seenCards = new Set();
 const fresh = id => { if (seenCards.has(id)) return ''; seenCards.add(id); return 'fresh'; };
+function cardActs(m) {
+  const b = (act, icon, title, extra = '') => `<button class="ib sm" data-act="${act}" data-id="${esc(m.id)}" ${extra} title="${title}">${ic(icon, 'sm')}</button>`;
+  const v = [
+    can('pin') ? `<button class="ib sm ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}" title="${isPinned(m.id) ? t('card.unpin') : t('card.pin')}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}</button>` : '',
+    can('archive') ? b('archive', 'check', t('card.archive')) : '',
+    can('read') ? (m.seen ? b('unread', 'eye-off', t('card.unread')) : b('read', 'eye', t('card.read'))) : '',
+    can('noise') && m.from_addr ? (m.bulk
+      ? `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="0" title="${t('card.is_person')}">${ic('user', 'sm')}</button>`
+      : `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="1" title="${t('card.is_noise')}">${ic('mute', 'sm')}</button>`) : '',
+  ].join('');
+  const h = [
+    can('task') ? b('task', 'task', t('card.task')) : '',
+    can('knowledge') ? b('knowledge', 'book', t('card.knowledge')) : '',
+    can('delete') ? b('trash', 'trash', t('card.delete')) : '',
+  ].join('');
+  return `${v ? `<div class="acts-v">${v}</div>` : ''}${h ? `<div class="acts-h"${v ? '' : ' style="right:0;border-top-right-radius:11px"'}>${h}</div>` : ''}`;
+}
 function card(m) {
   const codes = (m.findings || []).filter(f => f.feature === 'otp');
   return `<div class="mcard has-acts ${m.bulk ? 'bulk' : ''} ${m.seen ? 'read' : ''} ${fresh(m.id)}" data-act="open" data-id="${esc(m.id)}" tabindex="0">
@@ -460,19 +482,7 @@ function card(m) {
     ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
     ${codes.length || m.bulk ? `<div class="mc-tags">${codes.map(f => `<span class="tag code">${f.kind === 'link' ? t('mail.login_link') : esc(f.value)}</span>`).join('')}${m.bulk ? `<span class="tag">${t('mail.newsletter')}</span>` : ''}</div>` : ''}
     <div class="mc-acts">
-      <div class="acts-v">
-        <button class="ib sm ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}" title="${isPinned(m.id) ? t('card.unpin') : t('card.pin')}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}</button>
-        <button class="ib sm" data-act="archive" data-id="${esc(m.id)}" title="${t('card.archive')}">${ic('check', 'sm')}</button>
-        ${m.seen
-          ? `<button class="ib sm" data-act="unread" data-id="${esc(m.id)}" title="${t('card.unread')}">${ic('eye-off', 'sm')}</button>`
-          : `<button class="ib sm" data-act="read" data-id="${esc(m.id)}" title="${t('card.read')}">${ic('eye', 'sm')}</button>`}
-        ${m.from_addr ? (m.bulk
-          ? `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="0" title="${t('card.is_person')}">${ic('user', 'sm')}</button>`
-          : `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="1" title="${t('card.is_noise')}">${ic('mute', 'sm')}</button>`) : ''}
-      </div>
-      <div class="acts-h">
-        <button class="ib sm" data-act="task" data-id="${esc(m.id)}" title="${t('card.task')}">${ic('task', 'sm')}</button>
-      </div>
+${cardActs(m)}
     </div>
   </div>`;
 }
@@ -480,7 +490,9 @@ function card(m) {
 
 /* ---- Status (Kopfzeile) ---- */
 async function refreshStatus() {
+  const before = JSON.stringify(S.status && S.status.actions);
   try { S.status = await invoke('get_app_status'); } catch (e) { return; }
+  if (JSON.stringify(S.status.actions) !== before) { render(); renderReader(); }
   renderStatusBtn();
   if ($('#statusPop').classList.contains('show')) renderStatusPop();
 }
@@ -598,10 +610,12 @@ function renderReader() {
       <div class="rd-actions">${m.task
         ? `<span class="st-pill st-${m.status}"><span class="sdot"></span>${t('tasks.col_' + m.status)}</span>${taskButtons({ status: m.status, mail: m }, false)}
            <button class="ab" data-act="taskMove" data-key="${esc(m.key)}" data-to="inbox" title="${t('tasks.back_tip')}">${ic('inbox', 'sm')}${t('tasks.back')}</button>`
-        : `<button class="ab main" data-act="archive" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('reader.done')}</button>
-           <button class="ab" data-act="task" data-id="${esc(m.id)}">${ic('task', 'sm')}${t('reader.task')}</button>
-           <button class="ab ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}${isPinned(m.id) ? t('reader.pinned') : t('reader.pin')}</button>
-           <button class="ab" data-act="unread" data-id="${esc(m.id)}">${ic('eye-off', 'sm')}${t('reader.unread')}</button>`}
+        : [can('archive') ? `<button class="ab main" data-act="archive" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('reader.done')}</button>` : '',
+           can('task') ? `<button class="ab" data-act="task" data-id="${esc(m.id)}">${ic('task', 'sm')}${t('reader.task')}</button>` : '',
+           can('knowledge') ? `<button class="ab" data-act="knowledge" data-id="${esc(m.id)}">${ic('book', 'sm')}${t('reader.knowledge')}</button>` : '',
+           can('pin') ? `<button class="ab ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}${isPinned(m.id) ? t('reader.pinned') : t('reader.pin')}</button>` : '',
+           can('read') ? `<button class="ab" data-act="unread" data-id="${esc(m.id)}">${ic('eye-off', 'sm')}${t('reader.unread')}</button>` : '',
+           can('delete') ? `<button class="ab" data-act="trash" data-id="${esc(m.id)}">${ic('trash', 'sm')}${t('reader.delete')}</button>` : ''].join('')}
       </div>
       ${!c ? `<div class="loading"><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`
         : c.error ? `<div class="loading" style="color:var(--danger)">${t('reader.load_error', { e: esc(c.error) })}</div>`
@@ -730,9 +744,32 @@ async function refreshTasks() {
   });
   render();
 }
+const mailById = id => (S.data && S.data.mails.find(m => m.id === id)) || (S.data && (S.data.pinned || []).find(m => m.id === id)) || (S.inbox || []).find(m => m.id === id);
+async function fileKnowledge(id) {
+  const mid = (mailById(id) || {}).message_id;
+  try {
+    const ref = await invoke('file_knowledge', { id });
+    const messageId = ref.message_id || mid;
+    inboxDrop(id);
+    if (S.open && S.open.id === id) closeReader();
+    toast(t('toast.knowledge'), false, messageId ? {
+      label: t('toast.undo'), run: () => invoke('unfile_knowledge', { accountId: ref.account_id, messageId }).then(() => toast(t('toast.back_inbox'))).catch(e => toast(String(e), true)),
+    } : undefined);
+  } catch (e) { toast(String(e), true); }
+}
+async function trashMail(id) {
+  try {
+    await invoke('trash_mail', { id });
+    inboxDrop(id);
+    if (S.open && S.open.id === id) closeReader();
+    toast(t('toast.trashed'));
+  } catch (e) { toast(String(e), true); }
+}
 async function makeTask(id) {
   try {
+    const mid = (mailById(id) || {}).message_id;
     const ref = await invoke('make_task', { id });
+    if (!ref.message_id) ref.message_id = mid;
     inboxDrop(id);
     if (S.open && S.open.id === id) closeReader();
     toast(t('toast.task'), false, ref.message_id ? {
@@ -816,6 +853,8 @@ document.addEventListener('click', e => {
     case 'inboxMore': S.inboxDays += S.inboxBase; refreshInbox(); break;
     case 'pin': togglePin(id); break;
     case 'task': makeTask(id); break;
+    case 'knowledge': fileKnowledge(id); break;
+    case 'trash': trashMail(id); break;
     case 'openTask': openTask(el.dataset.key); break;
     case 'taskMove': taskMove(el.dataset.key, el.dataset.to); break;
     case 'archiveDone': archiveDone(); break;
