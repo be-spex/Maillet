@@ -129,13 +129,15 @@ pub fn toggle_main(app: &AppHandle, at: Option<(i32, i32)>) {
     }
 }
 
-/// Global shortcut: sidebar; closes it if it is in front, brings it forward if covered.
+/// Global shortcut: opens the sidebar, or closes the window if it is open.
 pub fn toggle_sidebar(app: &AppHandle) {
     let Some(w) = app.get_webview_window(MAIN) else { return };
-    let visible = w.is_visible().unwrap_or(false);
-    if visible && current_form(app) == Form::Sidebar && w.is_focused().unwrap_or(false) {
+    // The key grab of the shortcut takes the focus away, which may already
+    // have hidden the popup a moment ago – then the window counts as open.
+    let just_hidden = app.state::<MainWindowState>().hidden_on_blur.lock().unwrap().is_some_and(|t| t.elapsed() < Duration::from_millis(400));
+    if w.is_visible().unwrap_or(false) {
         let _ = w.hide();
-    } else {
+    } else if !just_hidden {
         show_form(app, Form::Sidebar, None);
     }
 }
@@ -152,8 +154,15 @@ fn show_form(app: &AppHandle, form: Form, at: Option<(i32, i32)>) {
         *state.last_click.lock().unwrap() = Some(p);
     }
     *state.shown_at.lock().unwrap() = Some(Instant::now());
+    // Switching the form of an open window: hide it first, so it never shows
+    // up with the size of the other form.
+    if w.is_visible().unwrap_or(false) {
+        let _ = w.hide();
+    }
+    // Size while hidden, then show; GTK ignores moves of hidden windows, so
+    // the position is set (again) after showing.
+    layout(app, &w);
     let _ = w.show();
-    // Size and position after show(): GTK ignores moves of hidden windows.
     layout(app, &w);
     let _ = w.set_focus();
     activate_x11(&w);
