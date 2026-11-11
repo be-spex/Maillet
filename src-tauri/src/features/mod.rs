@@ -1,6 +1,7 @@
 //! Features look at new mails and enrich them with findings. OTP detection is
 //! one of them; topics, status cards or AI will plug in the same way.
 
+pub mod notify;
 pub mod otp;
 
 use async_trait::async_trait;

@@ -63,6 +63,10 @@ main{display:flex;flex-direction:column;min-width:0;height:100vh}
 .sp-row b{font-size:13px}
 .sp-row small{display:block;color:var(--muted);font-size:11.5px;overflow-wrap:anywhere}
 .sp-row .msg.error{color:var(--danger)}
+.sw{width:36px;height:20px;border-radius:20px;background:var(--line);position:relative;flex:none;margin-top:2px;transition:background .15s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+.sw.on{background:var(--accent)}
+.sw.on::after{left:18px}
 .sp-foot{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 .sp-foot .btn{flex:1;justify-content:center;padding:7px 10px}
 #view{flex:1;overflow:auto;padding:16px 14px 40px}
@@ -348,6 +352,8 @@ function renderStatusPop() {
     ${st.accounts.map(a => `<div class="sp-row"><span class="dot ${a.state}"></span><div class="grow"><b>${esc(a.label)}</b> <small style="display:inline">${esc(a.server)} · ${esc(a.mailbox)}</small>${accountLine(a)}</div></div>`).join('') || '<div class="sp-row"><small>Noch kein Konto eingerichtet.</small></div>'}
     ${api.state !== 'off' ? `<div class="sp-title">Lokale API (Codes)</div>
       <div class="sp-row"><span class="dot ${api.state}"></span><div class="grow"><b>${api.state === 'listening' ? 'Läuft' : 'Fehler'}</b><small class="msg ${api.state === 'error' ? 'error' : ''}">${esc(api.message)}</small>${api.last_request ? `<small>letzte Anfrage ${hhmm(api.last_request)}</small>` : ''}</div></div>` : ''}
+    <div class="sp-title">Benachrichtigungen</div>
+    <div class="sp-row"><div class="grow"><b>${st.notifications ? 'An' : 'Aus'}</b><small>bei neuen Mails von Menschen – nicht bei Newslettern und Codes</small></div><button class="sw ${st.notifications ? 'on' : ''}" data-act="notifications" title="Benachrichtigungen an/aus"></button></div>
     ${shortcutRow(st.shortcut)}
     <div class="sp-foot"><button class="btn" data-act="check">${ic('refresh', 'sm')}Jetzt prüfen</button><button class="btn" data-act="settings">${ic('gear', 'sm')}Einstellungen</button></div>`;
 }
@@ -486,6 +492,11 @@ document.addEventListener('click', e => {
     case 'filter': S.filter = el.dataset.f; render(); break;
     case 'check': check(); break;
     case 'status': toggleStatus(); break;
+    case 'notifications': {
+      const on = !(S.status && S.status.notifications);
+      invoke('set_notifications', { enabled: on }).then(() => { toast(on ? 'Benachrichtigungen an' : 'Benachrichtigungen aus'); refreshStatus(); }).catch(err => toast(String(err), true));
+      break;
+    }
     case 'theme': toggleTheme(); break;
     case 'hide': invoke('hide_main'); break;
     case 'settings': invoke('open_window', { label: 'settings' }); break;
@@ -509,6 +520,8 @@ if (saved) document.documentElement.dataset.theme = saved;
 listen('mails-changed', () => { refresh(); refreshStatus(); });
 listen('account-status', () => { refresh(); refreshStatus(); });
 listen('api-status', refreshStatus);
+// Klick auf eine Desktop-Benachrichtigung: diese Mail öffnen.
+listen('open-mail', async ev => { await refresh(); toggleStatus(false); openMail(ev.payload); });
 listen('auth-code', ev => addCode(ev.payload));
 invoke('get_last_code').then(p => { if (p) { const c = JSON.parse(p); if (Date.now() / 1000 - c.timestamp < CODE_TTL / 1000) addCode(c); } }).catch(() => {});
 render();

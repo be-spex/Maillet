@@ -13,3 +13,31 @@ pub fn show(title: impl Into<String>, body: impl Into<String>) {
         }
     });
 }
+
+/// Notification that runs `on_click` when it is clicked.
+pub fn show_clickable(title: impl Into<String>, body: impl Into<String>, on_click: impl FnOnce() + Send + 'static) {
+    let (title, body) = (title.into(), body.into());
+    std::thread::spawn(move || {
+        let shown = notify_rust::Notification::new()
+            .appname("Maillet")
+            .summary(&title)
+            .body(&escape(&body))
+            .icon("mail-unread")
+            .action("default", "Öffnen")
+            .show();
+        match shown {
+            // Blocks this thread until the notification is clicked or closed.
+            Ok(handle) => handle.wait_for_action(|action| {
+                if action == "default" {
+                    on_click();
+                }
+            }),
+            Err(e) => tracing::warn!("Notification failed: {e}"),
+        }
+    });
+}
+
+/// Notification servers interpret a little HTML in the body.
+fn escape(text: &str) -> String {
+    text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}

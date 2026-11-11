@@ -1,4 +1,4 @@
-"""Creates test mails on the local Dovecot test server (see DEVELOPMENT.md). Usage: seed.py [initial|otp|seen-first]"""
+"""Creates test mails on the local Dovecot test server (see DEVELOPMENT.md). Usage: seed.py [initial|otp|person|newsletter|seen-first]"""
 import imaplib, ssl, sys, time, email.utils
 ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
 M = imaplib.IMAP4_SSL('127.0.0.1', 31993, ssl_context=ctx)
@@ -88,6 +88,25 @@ Date: {now}
 Content-Type: text/plain
 
 Your GitHub verification code is 482913.
+""")
+elif mode == 'person':
+    put(f"""From: Sara Yilmaz <sara@firma.example>
+To: test@maillet.example
+Subject: Kurze Frage zur Demo morgen
+Date: {now}
+Content-Type: text/plain; charset=utf-8
+
+Hi, können wir die Demo morgen um 10:00 machen statt um 14:00?
+""")
+elif mode == 'newsletter':
+    put(f"""From: Produktnews <news@saas.example>
+To: test@maillet.example
+Subject: 12 neue Funktionen
+Date: {now}
+List-Unsubscribe: <mailto:off@saas.example>
+Content-Type: text/plain
+
+Entdecken Sie unsere neuesten Funktionen.
 """)
 elif mode == 'seen-first':
     M.select('INBOX')

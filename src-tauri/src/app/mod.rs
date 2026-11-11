@@ -33,6 +33,8 @@ pub struct AppState {
     commands: Arc<Commands>,
     /// Set in `setup`, as features need the app handle.
     pipeline: OnceLock<Arc<Pipeline>>,
+    /// Desktop notifications for new mails on/off.
+    notifications: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl AppState {
@@ -138,6 +140,7 @@ fn get_app_status(app: AppHandle, state: State<AppState>, statuses: State<status
         "accounts": accounts,
         "api": api.status(),
         "shortcut": app.state::<shortcut::ShortcutStatus>().get(),
+        "notifications": state.notifications.load(std::sync::atomic::Ordering::Relaxed),
     })
 }
 
@@ -153,6 +156,14 @@ pub(crate) fn check_now_sync(app: &AppHandle) {
 #[tauri::command]
 fn open_window(app: AppHandle, label: String) {
     windows::show(&app, &label);
+}
+
+#[tauri::command]
+async fn set_notifications(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    state.notifications.store(enabled, std::sync::atomic::Ordering::Relaxed);
+    let shared = state.config.clone();
+    async_runtime::spawn_blocking(move || config::set_notifications(&shared, enabled)).await.map_err(|e| e.to_string())?.map_err(err)
 }
 
 /// The window reports the height its content needs; the popup adapts to it.
@@ -474,6 +485,7 @@ pub fn run() {
     let accounts = config::load_accounts_with_passwords().unwrap_or_default();
     let config = config::load_config().unwrap_or_default();
     let (rules, _) = watch::channel(config.rules.clone());
+    let notifications = Arc::new(std::sync::atomic::AtomicBool::new(config.notifications.unwrap_or(true)));
     let state = AppState {
         config: Arc::new(Mutex::new(config)),
         tasks: Mutex::new(Vec::new()),
@@ -482,6 +494,7 @@ pub fn run() {
         store: Arc::new(MailStore::default()),
         commands: Arc::new(Commands::default()),
         pipeline: OnceLock::new(),
+        notifications,
     };
 
     tauri::Builder::default()
@@ -497,7 +510,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,
@@ -513,8 +526,10 @@ pub fn run() {
 
             // Features: OTP is one of them.
             let state = handle.state::<AppState>();
+            // Features in order; notifications last, so they see what OTP found.
             let otp = otp::OtpFeature::new(handle.clone(), state.rules.subscribe());
-            let _ = state.pipeline.set(Arc::new(Pipeline::new(vec![Arc::new(otp)])));
+            let notify = crate::features::notify::NotifyFeature::new(handle.clone(), state.notifications.clone());
+            let _ = state.pipeline.set(Arc::new(Pipeline::new(vec![Arc::new(otp), Arc::new(notify)])));
 
             async_runtime::spawn(api::restart(handle.clone()));
             async_runtime::spawn(async move {

@@ -77,6 +77,9 @@ pub struct AppConfig {
     /// Missing: the default; empty: no shortcut.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shortcut: Option<String>,
+    /// Desktop notifications for new mails; missing means on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notifications: Option<bool>,
     /// Contents of `rules.json`.
     #[serde(skip)]
     pub rules: Vec<DetectionRule>,
@@ -328,6 +331,12 @@ pub fn set_api_config(config: &SharedConfig, api: ApiConfig) -> Result<()> {
     }
     let mut cfg = config.blocking_lock();
     cfg.api = api;
+    save_config(&cfg)
+}
+
+pub fn set_notifications(config: &SharedConfig, on: bool) -> Result<()> {
+    let mut cfg = config.blocking_lock();
+    cfg.notifications = Some(on);
     save_config(&cfg)
 }
 
