@@ -39,6 +39,11 @@ h1 { font-size:18px; font-weight:650; }
 .section.on { display:block; }
 .page-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
 .page-head .btn-bar { display:flex; gap:8px; flex-wrap:wrap; }
+.otp-title { margin:0 0 12px; }
+.tabs { display:inline-flex; gap:3px; padding:3px; border-radius:9px; background:var(--surface-2); }
+.tab { border:none; background:none; padding:6px 16px; border-radius:7px; font-weight:600; color:var(--muted); }
+.tab:hover { color:var(--text); }
+.tab.on { background:var(--surface); color:var(--text); box-shadow:var(--shadow); }
 .back { background:none; border:none; padding:0; color:var(--accent); font-weight:550; margin-bottom:8px; }
 .back:hover { text-decoration:underline; border-color:transparent; }
 
@@ -214,8 +219,7 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 <aside class="sidebar">
   <div class="brand">Maillet<small>Settings</small></div>
   <button class="nav-btn" data-sec="accounts" onclick="go('accounts')">Accounts <span class="badge dot" id="dot-accounts"></span></button>
-  <button class="nav-btn" data-sec="rules" onclick="go('rules')">Rules <span class="badge" id="badge-rules"></span></button>
-  <button class="nav-btn" data-sec="catalog" onclick="go('catalog')">Catalog</button>
+  <button class="nav-btn" data-sec="otp" onclick="go(otpTab)">One-Time Passwords <span class="badge" id="badge-rules"></span></button>
   <button class="nav-btn" data-sec="api" onclick="go('api')">API <span class="badge dot" id="api-dot"></span></button>
   <button class="nav-btn" data-sec="log" onclick="go('log')">Log</button>
   <div class="sidebar-foot">
@@ -313,8 +317,9 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 <!-- ======== Rules ======== -->
 <section class="section" data-sec="rules">
   <div id="rules-list-view">
+    <h1 class="otp-title">One-Time Passwords</h1>
     <div class="page-head">
-      <h1>Rules</h1>
+      <div class="tabs"><button class="tab" data-tab="rules" onclick="go('rules')">Rules</button><button class="tab" data-tab="catalog" onclick="go('catalog')">Catalog</button></div>
       <div class="btn-bar">
         <button onclick="openImport()">Import…</button>
         <details class="menu" id="export-menu">
@@ -357,7 +362,8 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 
 <!-- ======== Catalog ======== -->
 <section class="section" data-sec="catalog">
-  <div class="page-head"><h1>Catalog</h1></div>
+  <h1 class="otp-title">One-Time Passwords</h1>
+  <div class="page-head"><div class="tabs"><button class="tab" data-tab="rules" onclick="go('rules')">Rules</button><button class="tab" data-tab="catalog" onclick="go('catalog')">Catalog</button></div></div>
   <div class="hint" style="margin:-6px 0 12px">Preconfigured rules for common services, loaded from the <a href="#" onclick="invoke('open_link',{url:CATALOG_PAGE});return false">Maillet catalog on GitHub</a>. <b>+</b> adds the rules of the selected language for all accounts, <b>▾</b> lets you pick accounts. They then appear under Rules.</div>
   <div class="catalog-bar">
     <input id="cat-filter" placeholder="Filter by name, e.g. Spotify" oninput="renderCatalog()">
@@ -485,8 +491,15 @@ function renderBadges() {
 }
 
 // ---- Navigation ----
+// Rules and Catalog are two tabs of "One-Time Passwords"; the nav entry reopens the last one.
+let otpTab = 'rules'
+const OTP_TABS = ['rules', 'catalog']
+
 function go(sec) {
-  document.querySelectorAll('.nav-btn, .section').forEach(el => el.classList.toggle('on', el.dataset.sec === sec))
+  if (OTP_TABS.includes(sec)) otpTab = sec
+  document.querySelectorAll('.section').forEach(el => el.classList.toggle('on', el.dataset.sec === sec))
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('on', el.dataset.sec === sec || (el.dataset.sec === 'otp' && OTP_TABS.includes(sec))))
+  document.querySelectorAll('.tab').forEach(el => el.classList.toggle('on', el.dataset.tab === sec))
   document.querySelector('.content').scrollTop = 0
   if (sec === 'accounts') closeAccount()
   if (sec === 'rules') closeRule()
