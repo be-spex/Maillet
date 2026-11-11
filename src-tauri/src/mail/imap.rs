@@ -392,8 +392,16 @@ impl Commands {
 
     /// Moves a mail found by Message-ID from `from` to `to` (`None` = the archive
     /// folder, then marked as read). Returns the target folder.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub async fn move_by_message_id(&self, account: &AccountConfig, from: &str, message_id: &str, to: Option<&str>) -> Result<String> {
-        self.run(account, MoveById { from: from.to_string(), message_id: message_id.to_string(), to: to.map(str::to_string), mailbox: account.mailbox.clone() }).await
+        self.move_found(account, &[from.to_string()], message_id, to).await
+    }
+
+    /// Like [`Self::move_by_message_id`], but looks for the mail in several
+    /// folders in order – a server may report a move with delay, so the mail
+    /// may not be where the window last saw it. Already in the target: done.
+    pub async fn move_found(&self, account: &AccountConfig, from: &[String], message_id: &str, to: Option<&str>) -> Result<String> {
+        self.run(account, MoveById { from: from.to_vec(), message_id: message_id.to_string(), to: to.map(str::to_string), mailbox: account.mailbox.clone() }).await
     }
 
     /// Moves archived mails (found by Message-ID) back to the watched mailbox
@@ -593,7 +601,7 @@ impl AsyncOp<Vec<MailSummary>> for FolderMails {
 }
 
 struct MoveById {
-    from: String,
+    from: Vec<String>,
     message_id: String,
     to: Option<String>,
     mailbox: String,
@@ -605,18 +613,30 @@ impl AsyncOp<String> for MoveById {
                 ensure_folder(s, f).await?;
                 f.clone()
             }
-            None => find_folder(s, &[NameAttribute::Archive, NameAttribute::All], &["archive", "archiv", "archives"], &self.from)
+            None => find_folder(s, &[NameAttribute::Archive, NameAttribute::All], &["archive", "archiv", "archives"], &self.from[0])
                 .await?
                 .context("No archive folder found on the server – create a folder named \"Archive\"")?,
         };
-        with_timeout(s.select(&self.from)).await.with_context(|| format!("Failed to open '{}'", self.from))?;
+        let id = self.message_id.trim_matches(['<', '>']).replace('"', "");
         let result = async {
-            let id = self.message_id.trim_matches(['<', '>']).replace('"', "");
-            let uid = with_timeout(s.uid_search(format!("HEADER Message-ID \"{id}\""))).await?.into_iter().max().context("Mail not found in this folder")?;
-            if self.to.is_none() {
-                SetSeen(uid, true).call(s).await?;
+            for folder in &self.from {
+                if with_timeout(s.select(folder)).await.is_err() {
+                    continue;
+                }
+                let Some(uid) = with_timeout(s.uid_search(format!("HEADER Message-ID \"{id}\""))).await?.into_iter().max() else { continue };
+                if *folder == target {
+                    return Ok(());
+                }
+                if self.to.is_none() {
+                    SetSeen(uid, true).call(s).await?;
+                }
+                return move_to(s, uid, &target).await;
             }
-            move_to(s, uid, &target).await
+            // Not in any source: maybe it already reached the target.
+            if with_timeout(s.select(&target)).await.is_ok() && !with_timeout(s.uid_search(format!("HEADER Message-ID \"{id}\""))).await?.is_empty() {
+                return Ok(());
+            }
+            bail!("Mail not found – it may have been moved or deleted elsewhere")
         }
         .await;
         with_timeout(s.select(&self.mailbox)).await?;
@@ -825,7 +845,11 @@ mod tests {
         cmds.move_by_message_id(&account, &folder, &mid, Some(&progress)).await.unwrap();
         assert!(cmds.folder_mails(&account, &folder, 100).await.unwrap().is_empty(), "subfolder mails are not listed with the parent");
         assert_eq!(cmds.folder_mails(&account, &progress, 100).await.unwrap().len(), 1);
-        cmds.move_by_message_id(&account, &progress, &mid, Some(&folder)).await.unwrap();
+        // Stale view: the window thinks the mail is still open (base folder) – found anyway.
+        cmds.move_found(&account, &[folder.clone(), progress.clone()], &mid, Some(&folder)).await.unwrap();
+        assert_eq!(cmds.folder_mails(&account, &folder, 100).await.unwrap().len(), 1);
+        // Already in the target: success without moving.
+        cmds.move_found(&account, &[progress.clone()], &mid, Some(&folder)).await.unwrap();
         let text = cmds.content_by_message_id(&account, vec!["Aufgaben".into(), "INBOX".into()], &mid).await.unwrap().text;
         assert!(text.contains("drei Rückfragen"));
 

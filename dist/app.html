@@ -676,8 +676,25 @@ async function togglePin(id) {
     toast(String(e), true);
   }
 }
+// Eigene Statuswechsel der letzten Sekunden: Server wie die Proton Bridge melden
+// Verschiebungen verzögert, eine frühe Liste darf die Anzeige nicht zurückwerfen.
+const pendingMoves = new Map(); // message_id → { status, until }
+const PENDING_MS = 8000;
 async function refreshTasks() {
-  try { S.tasks = await invoke('list_tasks'); } catch (e) { toast(String(e), true); }
+  let list;
+  try { list = await invoke('list_tasks'); } catch (e) { toast(String(e), true); return; }
+  const now = Date.now();
+  for (const [mid, p] of pendingMoves) if (p.until < now) pendingMoves.delete(mid);
+  const seen = new Set();
+  S.tasks = list.filter(it => {
+    const p = pendingMoves.get(it.mail.message_id);
+    if (!p) return true;
+    if (seen.has(it.mail.message_id)) return false; // in alter und neuer Liste zugleich
+    seen.add(it.mail.message_id);
+    if (p.status === 'gone') return false;
+    it.status = p.status;
+    return true;
+  });
   render();
 }
 async function makeTask(id) {
@@ -696,15 +713,24 @@ async function taskMove(key, to) {
   // Sofort umsortieren; die Liste vom Server bestätigt es danach.
   const before = S.tasks;
   S.tasks = ['archive', 'inbox'].includes(to) ? S.tasks.filter(x => x !== it) : S.tasks.map(x => x === it ? { ...x, status: to } : x);
+  pendingMoves.set(it.mail.message_id, { status: ['archive', 'inbox'].includes(to) ? 'gone' : to, until: Date.now() + PENDING_MS });
   if (S.open && S.open.key === key) closeReader();
   render();
   try {
     const folder = await invoke('move_task', { ...args, from, to, fromFolder: null });
     const label = to === 'archive' ? t('toast.task_archived') : to === 'inbox' ? t('toast.back_inbox') : t('toast.task_moved', { s: t('tasks.col_' + to) });
-    toast(label, false, { label: t('toast.undo'), run: () => invoke('move_task', { ...args, from: to === 'archive' || to === 'inbox' ? 'open' : to, to: from, fromFolder: to === 'archive' || to === 'inbox' ? folder : null }).then(refreshTasks).catch(e => toast(String(e), true)) });
+    const away = to === 'archive' || to === 'inbox';
+    const undo = () => {
+      pendingMoves.set(it.mail.message_id, { status: from, until: Date.now() + PENDING_MS });
+      S.tasks = [...S.tasks.filter(x => x.mail.message_id !== it.mail.message_id), { ...it, status: from }]; render();
+      return invoke('move_task', { ...args, from: away ? 'open' : to, to: from, fromFolder: away ? folder : null }).then(refreshTasks).catch(e => toast(String(e), true));
+    };
+    toast(label, false, { label: t('toast.undo'), run: undo });
   } catch (e) {
+    pendingMoves.delete(it.mail.message_id);
     S.tasks = before; render();
     toast(String(e), true);
+    refreshTasks();
   }
 }
 async function archiveDone() {

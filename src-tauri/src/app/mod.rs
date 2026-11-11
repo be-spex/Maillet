@@ -211,7 +211,19 @@ async fn move_task(app: AppHandle, state: State<'_, AppState>, account_id: Strin
         "inbox" => Some(account.mailbox.clone()),
         status => Some(state_folder(&state, &account, status, true).await?.ok_or("Task folder not found")?),
     };
-    let moved = state.commands.move_by_message_id(&account, &source, &message_id, target.as_deref()).await.map_err(err)?;
+    // Where the window saw the mail first, then the other task folders and the inbox.
+    let mut sources = vec![source];
+    for (status, _, _) in STATES {
+        if let Some(f) = state_folder(&state, &account, status, false).await? {
+            if !sources.contains(&f) {
+                sources.push(f);
+            }
+        }
+    }
+    if !sources.contains(&account.mailbox) {
+        sources.push(account.mailbox.clone());
+    }
+    let moved = state.commands.move_found(&account, &sources, &message_id, target.as_deref()).await.map_err(err)?;
     if to == "inbox" {
         state.check_now.notify_waiters();
     }
