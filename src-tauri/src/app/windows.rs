@@ -33,6 +33,8 @@ pub struct MainWindowState {
     last_click: Mutex<Option<(i32, i32)>>,
     /// Height the content asked for (logical px), used for the popup.
     content_height: Mutex<Option<f64>>,
+    /// Last geometry sent to the window (x, y, physical height).
+    applied: Mutex<Option<(i32, i32, i32)>>,
     hidden_on_blur: Mutex<Option<Instant>>,
     shown_at: Mutex<Option<Instant>>,
 }
@@ -210,8 +212,21 @@ fn layout(app: &AppHandle, w: &WebviewWindow) {
             (height, x, y)
         }
     };
+    // Only send what changed: every resize or move is visible as a flicker.
+    // A hidden window is always set in full (it may have been moved meanwhile).
+    let visible = w.is_visible().unwrap_or(false);
+    let before = state.applied.lock().unwrap().replace((x, y, height));
+    let (resize, moved) = match before {
+        Some((bx, by, bh)) if visible => (bh != height, (bx, by) != (x, y)),
+        _ => (true, true),
+    };
     // (Wayland compositors may ignore positions.)
-    let _ = w.set_size(LogicalSize::new(WIDTH, height as f64 / scale));
+    if resize {
+        let _ = w.set_size(LogicalSize::new(WIDTH, height as f64 / scale));
+    }
+    if !moved {
+        return;
+    }
     let _ = w.set_position(PhysicalPosition::new(x, y));
     // The window manager keeps a window on screen: a move that arrives while
     // the window still has its old (larger) size gets clamped. Move again once

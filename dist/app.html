@@ -487,8 +487,9 @@ function scheduleFit() {
     fitQueued = false;
     let h;
     if (S.open) {
-      const top = document.querySelector('.rd-top'), inner = document.querySelector('.rd-inner');
-      h = (top ? top.offsetHeight : 0) + (inner ? inner.offsetHeight : 0) + 60;
+      // Lesen: einmal auf volle Popup-Höhe (das Backend begrenzt sie), statt
+      // bei Skelett, Text, Rahmen und Bildern jeweils nachzuwachsen.
+      h = 10000;
     } else {
       const kids = [...$('#view').children];
       h = kids.length ? Math.max(...kids.map(k => k.offsetTop + k.offsetHeight)) + 24 : 300;
@@ -605,6 +606,11 @@ function renderReader() {
   r.classList.toggle('show', !!m);
   if (!m) return;
   const c = S.content;
+  // Den angezeigten HTML-Rahmen behalten, wenn sich nur Knöpfe ändern (z. B. Anpinnen):
+  // neu aufgebaut würde er kurz weiß und leer.
+  const frameKey = c && c.html && S.htmlMode ? `${m.id || m.key}|${S.loadImages}` : '';
+  const oldWrap = frameKey && r.dataset.frameKey === frameKey ? r.querySelector('.html-wrap') : null;
+  r.dataset.frameKey = frameKey;
   r.innerHTML = `<div class="rd-top"><button class="ib" data-act="close" title="${t('app.back')}">${ic('back')}</button>
       <span class="muted" style="font-size:12.5px">${esc(m.account)}</span><span class="grow"></span></div>
     <div class="rd-scroll"><div class="rd-inner">
@@ -625,7 +631,8 @@ function renderReader() {
            ${c.html && S.htmlMode ? '<div class="html-wrap"><iframe id="mailframe" sandbox="allow-same-origin" referrerpolicy="no-referrer" title="Mail"></iframe></div>' : `<div class="rd-body">${esc(c.text.trim() || t('mail.no_text'))}</div>`}
            ${c.attachments.length ? `<div class="att-row">${c.attachments.map(a => `<span class="att">${ic('file', 'sm')}${esc(a)}</span>`).join('')}</div>` : ''}`}
     </div></div>`;
-  if (c && c.html && S.htmlMode) showHtml(c.html);
+  if (oldWrap) r.querySelector('.html-wrap').replaceWith(oldWrap);
+  else if (c && c.html && S.htmlMode) showHtml(c.html);
   scheduleFit();
 }
 /* ---- HTML-Mail: bereinigt (Backend) und zusätzlich in einem Rahmen ohne
@@ -658,7 +665,7 @@ function showHtml(html) {
   }, { once: true });
   frame.srcdoc = mailDoc(html, S.loadImages);
 }
-function closeReader() { S.open = null; S.content = null; renderReader(); scheduleFit(); }
+function closeReader() { S.open = null; S.content = null; $('#reader').dataset.frameKey = ''; renderReader(); scheduleFit(); }
 
 /* ---- Aktionen ---- */
 function inboxDrop(id) { if (S.inbox) { S.inbox = S.inbox.filter(m => m.id !== id); if (S.view === 'inbox') render(); } }
