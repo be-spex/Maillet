@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Maillet – Aktionen an Mails (Entwurf)</title>
+<style>
+:root{--bg:#f3f3f7;--panel:#fff;--panel2:#f8f8fb;--line:#e4e4ec;--text:#16161d;--muted:#6b6b7b;--accent:#6c5ce7;--accent-soft:#ece9fd;--shadow:0 1px 2px rgba(20,20,40,.05),0 4px 14px rgba(20,20,40,.06);--shadow-lg:0 12px 40px rgba(20,20,40,.16)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 "Inter","Cantarell","Noto Sans",system-ui,sans-serif;padding:28px 34px}
+h1{font-size:20px;margin:0 0 4px}
+.lead{color:var(--muted);margin:0 0 26px}
+h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:30px 0 12px}
+.row{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.note{color:var(--muted);font-size:12.5px;max-width:300px;margin-top:10px}
+svg.i{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.card{position:relative;width:330px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px 14px;box-shadow:var(--shadow);box-shadow:inset 3px 0 0 var(--accent),var(--shadow)}
+.head{display:flex;gap:10px;align-items:center}
+.av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:#dff3e4;color:#2f7a45}
+.from b{display:block;font-size:14px}.from small{color:var(--muted);font-size:11.5px}
+.subj{font-weight:650;margin:8px 0 3px;padding-right:40px}
+.prev{color:var(--muted);font-size:13px;padding-right:40px}
+.v{position:absolute;top:0;right:0;bottom:0;width:36px;display:flex;flex-direction:column;align-items:center;padding:4px 0;background:var(--panel2);border-left:1px solid var(--line);border-radius:0 11px 11px 0}
+.h{position:absolute;top:0;right:35px;height:34px;display:flex;align-items:center;gap:2px;padding:0 4px 0 6px;background:var(--panel2);border-left:1px solid var(--line);border-bottom:1px solid var(--line);border-bottom-left-radius:11px}
+.ib{width:28px;height:27px;border:0;background:none;border-radius:7px;display:grid;place-items:center;color:var(--muted);cursor:pointer}
+.ib:hover,.ib.hot{background:var(--accent-soft);color:var(--accent)}
+.ib.main{color:var(--accent)}
+.chip{height:24px;display:inline-flex;align-items:center;gap:5px;padding:0 8px;border-radius:7px;border:0;background:none;font:inherit;font-size:12px;color:var(--text);cursor:pointer}
+.chip:hover,.chip.hot{background:var(--accent-soft)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--c,#3b82f6);flex:none}
+.sep{width:1px;height:16px;background:var(--line);margin:0 2px}
+.caret{font-size:10px;color:var(--muted)}
+.pop{position:absolute;top:36px;right:60px;width:228px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;z-index:5}
+.pop input{width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit;font-size:13px;margin-bottom:4px;outline:none}
+.pop input:focus{border-color:var(--accent)}
+.opt{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;font-size:13px;cursor:pointer}
+.opt:hover,.opt.sel{background:var(--accent-soft)}
+.opt kbd{width:16px;font:11px ui-monospace,monospace;color:var(--muted);text-align:center}
+.opt small{margin-left:auto;color:var(--muted);font-size:11px}
+.opt.new{color:var(--accent);border-top:1px solid var(--line);border-radius:0 0 8px 8px;margin-top:4px}
+.reader{width:620px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+.reader h3{margin:0 0 12px;font-size:18px}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ab{height:34px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel);font:inherit;font-size:13px;font-weight:600;color:var(--text);cursor:pointer}
+.ab.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.split{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.split .ab{border:0;border-radius:0}
+.split .ab+.ab{border-left:1px solid var(--line);padding:0 9px}
+.grow{flex:1}
+.legend{display:flex;gap:18px;font-size:12px;color:var(--muted);margin-top:12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;border:1px solid var(--line);background:var(--panel2)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+  <symbol id="task" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="mute" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></symbol>
+  <symbol id="trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></symbol>
+  <symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+  <symbol id="folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+</svg>
+
+<h1>Aktionen an Mails – Entwurf</h1>
+<p class="lead">Waagerecht oben: <b>Ausgänge</b> (wohin geht die Mail). Senkrecht rechts: <b>Markierungen</b> (wie steht es um sie). Konzept: <a href="Aktionen.md">Aktionen.md</a></p>
+
+<h2>1 · Karte beim Überfahren</h2>
+<div class="row">
+  <div>
+    <div class="card">
+      <div class="head"><span class="av">JW</span><div class="from"><b>Jana Wolff</b><small>Work · 14:40</small></div></div>
+      <div class="subj">Atlas: Review der Spezifikation</div>
+      <div class="prev">Könntest du sie bis Freitag durchsehen?</div>
+      <div class="h">
+        <button class="chip" title="In Info ablegen (zuletzt benutzt) · 1"><span class="dot"></span>Info</button>
+        <button class="ib" title="Ablegen … (F)"><svg class="i"><use href="#folder"/></svg></button>
+        <span class="sep"></span>
+        <button class="ib" title="Task (T)"><svg class="i"><use href="#task"/></svg></button>
+        <button class="ib main" title="Done (E)"><svg class="i"><use href="#check"/></svg></button>
+      </div>
+      <div class="v">
+        <button class="ib" title="Pin (P)"><svg class="i"><use href="#star"/></svg></button>
+        <button class="ib" title="Read (U)"><svg class="i"><use href="#eye"/></svg></button>
+        <button class="ib" title="Noise (N)"><svg class="i"><use href="#mute"/></svg></button>
+      </div>
+    </div>
+    <div class="note">Erledigt fest in der Ecke. Die zuletzt benutzte Kategorie steht als Direktknopf mit Farbpunkt davor, der Ordner öffnet den Wähler.</div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="head"><span class="av" style="background:#fdeccf;color:#93611a">DB</span><div class="from"><b>Deutsche Bahn</b><small>Work · 09:12</small></div></div>
+      <div class="subj">Ihre Buchungsbestätigung</div>
+      <div class="prev">Hamburg → Essen, 18.11., 7:46 Uhr</div>
+      <div class="h">
+        <button class="chip" title="In Travel ablegen"><span class="dot" style="--c:#10b981"></span>Travel</button>
+        <button class="ib" title="Ablegen … (F)"><svg class="i"><use href="#folder"/></svg></button>
+        <span class="sep"></span>
+        <button class="ib main" title="Done (E)"><svg class="i"><use href="#check"/></svg></button>
+        <button class="ib" title="Mehr …"><svg class="i"><use href="#more"/></svg></button>
+      </div>
+      <div class="v">
+        <button class="ib" title="Pin (P)"><svg class="i"><use href="#star"/></svg></button>
+        <button class="ib" title="Delete"><svg class="i"><use href="#trash"/></svg></button>
+      </div>
+    </div>
+    <div class="note">„Durchgangsstation“: kein Gelesen, dafür Löschen. Task ist ausgeschaltet. Was nicht mehr passt, liegt hinter ⋯.</div>
+  </div>
+</div>
+
+<h2>2 · Ablage-Wähler (Klick auf den Ordner oder Taste F)</h2>
+<div class="row">
+  <div class="card" style="margin-bottom:190px">
+    <div class="head"><span class="av" style="background:#e3ecff;color:#2f5bb7">AM</span><div class="from"><b>Amazon</b><small>Private · gestern</small></div></div>
+    <div class="subj">Ihre Rechnung zur Bestellung 302-…</div>
+    <div class="prev">Vielen Dank für Ihren Einkauf.</div>
+    <div class="h">
+      <button class="chip"><span class="dot"></span>Info</button>
+      <button class="ib hot"><svg class="i"><use href="#folder"/></svg></button>
+      <span class="sep"></span>
+      <button class="ib"><svg class="i"><use href="#task"/></svg></button>
+      <button class="ib main"><svg class="i"><use href="#check"/></svg></button>
+    </div>
+    <div class="v">
+      <button class="ib"><svg class="i"><use href="#star"/></svg></button>
+      <button class="ib"><svg class="i"><use href="#eye"/></svg></button>
+      <button class="ib"><svg class="i"><use href="#mute"/></svg></button>
+    </div>
+    <div class="pop">
+      <input placeholder="Kategorie suchen …" aria-label="Kategorie">
+      <div class="opt sel"><kbd>1</kbd><span class="dot"></span>Info<small>Enter</small></div>
+      <div class="opt"><kbd>2</kbd><span class="dot" style="--c:#f59e0b"></span>Receipts</div>
+      <div class="opt"><kbd>3</kbd><span class="dot" style="--c:#10b981"></span>Travel</div>
+      <div class="opt"><kbd>4</kbd><span class="dot" style="--c:#ec4899"></span>Projekt Atlas</div>
+      <div class="opt new"><kbd>+</kbd>Neue Kategorie …</div>
+    </div>
+  </div>
+  <div class="note" style="margin-top:0">Tippen filtert die Liste (aus „re“ bleibt nur Receipts übrig), Enter nimmt den markierten Treffer, Ziffern wählen direkt. Die Ziffern folgen der festen Reihenfolge aus den Einstellungen und ändern sich beim Filtern nicht.</div>
+</div>
+
+<h2>3 · Mail-Ansicht</h2>
+<div class="reader">
+  <h3>Ihre Rechnung zur Bestellung 302-…</h3>
+  <div class="bar">
+    <button class="ab primary"><svg class="i"><use href="#check"/></svg>Done</button>
+    <button class="ab"><svg class="i"><use href="#task"/></svg>Task</button>
+    <span class="split"><button class="ab"><span class="dot" style="--c:#f59e0b"></span>Receipts</button><button class="ab" title="Andere Kategorie …"><span class="caret">▾</span></button></span>
+    <span class="grow"></span>
+    <button class="ib" title="Pin"><svg class="i"><use href="#star"/></svg></button>
+    <button class="ib" title="Unread"><svg class="i"><use href="#eye"/></svg></button>
+    <button class="ib" title="Delete"><svg class="i"><use href="#trash"/></svg></button>
+    <button class="ib" title="Mehr …"><svg class="i"><use href="#more"/></svg></button>
+  </div>
+  <div class="legend"><span><span class="sw" style="background:var(--accent)"></span>Hauptausgang</span><span><span class="sw"></span>weitere Ausgänge, beschriftet</span><span>Symbole rechts: Markierungen und Seltenes</span></div>
+</div>
+</body>
+</html>
