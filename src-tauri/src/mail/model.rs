@@ -48,5 +48,9 @@ pub struct MailSummary {
 #[derive(Debug, Clone, Serialize)]
 pub struct MailContent {
     pub text: String,
+    /// Sanitized HTML, if the mail has an HTML part.
+    pub html: Option<String>,
+    /// Remote images in `html`, blocked until loaded on request.
+    pub remote_images: usize,
     pub attachments: Vec<String>,
 }

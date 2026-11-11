@@ -19,11 +19,11 @@ pub fn copy_code(app: AppHandle, code: String) -> Result<(), String> {
     app.clipboard().write_text(code).map_err(|e| e.to_string())
 }
 
-/// Opens a detected login link in the default browser.
+/// Opens a link in the default browser (or a `mailto:` link in the mail program).
 #[tauri::command]
 pub fn open_link(url: String) -> Result<(), String> {
-    if !(url.starts_with("https://") || url.starts_with("http://")) {
-        return Err("Only http(s) links can be opened".into());
+    if !(url.starts_with("https://") || url.starts_with("http://") || url.starts_with("mailto:")) {
+        return Err("Only http(s) and mailto links can be opened".into());
     }
     std::process::Command::new("xdg-open")
         .arg(&url)

@@ -157,6 +157,15 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .ab{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);background:var(--panel)}
 .ab:hover{color:var(--text);border-color:var(--faint)}
 .ab.main{background:var(--accent);border-color:var(--accent);color:#fff}
+.view-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.seg2{display:inline-flex;padding:2px;border-radius:8px;background:var(--panel2);border:1px solid var(--line)}
+.seg2 button{padding:3px 10px;border-radius:6px;font-size:12px;font-weight:600;color:var(--muted)}
+.seg2 button.on{background:var(--panel);color:var(--text);box-shadow:var(--shadow)}
+.img-note{font-size:12px;color:var(--muted);line-height:1.6}
+.img-note svg{vertical-align:-3px;margin-right:4px}
+.img-note .link{font-size:12px}
+.html-wrap{border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#fff}
+#mailframe{display:block;width:100%;height:160px;border:0;background:#fff}
 .rd-body{white-space:pre-wrap;font-size:14.5px;line-height:1.65;overflow-wrap:anywhere}
 .att-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
 .att{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:10px;border:1px solid var(--line);font-size:12.5px;font-weight:600}
@@ -223,6 +232,7 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
     <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></symbol>
     <symbol id="i-task" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></symbol>
     <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5 5h14l2 8v6H3v-6z"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-8 8"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
@@ -463,7 +473,7 @@ setInterval(() => {
 async function openMail(id) {
   const m = S.data.mails.find(x => x.id === id) || (S.data.pinned || []).find(x => x.id === id);
   if (!m) return;
-  S.open = m; S.content = null;
+  S.open = m; S.content = null; S.htmlMode = true; S.loadImages = false;
   renderReader();
   try {
     S.content = await invoke('get_mail', { id });
@@ -477,7 +487,7 @@ async function openMail(id) {
 async function openTask(id) {
   const m = (S.tasks || []).find(x => x.id === id);
   if (!m) return;
-  S.open = { ...m, task: true }; S.content = null;
+  S.open = { ...m, task: true }; S.content = null; S.htmlMode = true; S.loadImages = false;
   renderReader();
   try {
     S.content = await invoke('get_task_mail', { accountId: m.account_id, messageId: m.message_id || '' });
@@ -504,10 +514,43 @@ function renderReader() {
       </div>
       ${!c ? `<div class="loading"><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`
         : c.error ? `<div class="loading" style="color:var(--danger)">${t('reader.load_error', { e: esc(c.error) })}</div>`
-        : `<div class="rd-body">${esc(c.text.trim() || t('mail.no_text'))}</div>
+        : `${c.html ? `<div class="view-bar"><div class="seg2"><button class="${S.htmlMode ? 'on' : ''}" data-act="htmlMode" data-v="1">${t('reader.html')}</button><button class="${S.htmlMode ? '' : 'on'}" data-act="htmlMode" data-v="0">${t('reader.text')}</button></div>
+              ${S.htmlMode && c.remote_images && !S.loadImages ? `<span class="img-note">${ic('image', 'sm')}${c.remote_images > 1 ? t('reader.images_blocked', { n: c.remote_images }) : t('reader.images_blocked_one')} · <button class="link" data-act="loadImages">${t('reader.load_images')}</button></span>` : ''}</div>` : ''}
+           ${c.html && S.htmlMode ? '<div class="html-wrap"><iframe id="mailframe" sandbox="allow-same-origin" referrerpolicy="no-referrer" title="Mail"></iframe></div>' : `<div class="rd-body">${esc(c.text.trim() || t('mail.no_text'))}</div>`}
            ${c.attachments.length ? `<div class="att-row">${c.attachments.map(a => `<span class="att">${ic('file', 'sm')}${esc(a)}</span>`).join('')}</div>` : ''}`}
     </div></div>`;
+  if (c && c.html && S.htmlMode) showHtml(c.html);
   scheduleFit();
+}
+/* ---- HTML-Mail: bereinigt (Backend) und zusätzlich in einem Rahmen ohne
+   Skripte, mit strenger Content-Security-Policy. Bilder aus dem Netz nur auf Wunsch. ---- */
+function mailDoc(html, images) {
+  const csp = `default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data:${images ? ' https: http:' : ''}`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}">
+<style>html,body{margin:0;background:#fff;color:#1a1a1a;font:14px/1.55 "Inter","Cantarell","Noto Sans",system-ui,sans-serif;overflow-wrap:anywhere}
+body{padding:14px}img{max-width:100%;height:auto}table{max-width:100%!important}a{color:#2563eb}pre{white-space:pre-wrap}</style></head><body>${html}</body></html>`;
+}
+function showHtml(html) {
+  const frame = document.getElementById('mailframe');
+  if (!frame) return;
+  frame.addEventListener('load', () => {
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    if (S.loadImages) doc.querySelectorAll('img[data-remote-src]').forEach(img => { img.src = img.dataset.remoteSrc; });
+    // Links nie im Rahmen öffnen, sondern im Browser.
+    doc.addEventListener('click', e => {
+      const a = e.target.closest && e.target.closest('a[href]');
+      if (!a) return;
+      e.preventDefault();
+      const url = a.getAttribute('href');
+      if (/^(https?:|mailto:)/i.test(url)) invoke('open_link', { url }).catch(err => toast(String(err), true));
+    });
+    const fit = () => { frame.style.height = Math.max(120, doc.documentElement.scrollHeight) + 'px'; scheduleFit(); };
+    fit();
+    doc.querySelectorAll('img').forEach(img => img.addEventListener('load', fit));
+    new ResizeObserver(fit).observe(doc.body);
+  }, { once: true });
+  frame.srcdoc = mailDoc(html, S.loadImages);
 }
 function closeReader() { S.open = null; S.content = null; renderReader(); scheduleFit(); }
 
@@ -622,6 +665,8 @@ document.addEventListener('click', e => {
   switch (el.dataset.act) {
     case 'open': openMail(id); break;
     case 'close': closeReader(); break;
+    case 'htmlMode': S.htmlMode = el.dataset.v === '1'; renderReader(); break;
+    case 'loadImages': S.loadImages = true; renderReader(); break;
     case 'home': closeReader(); S.view = 'home'; render(); break;
     case 'tasks': closeReader(); S.view = 'tasks'; render(); refreshTasks(); break;
     case 'pin': togglePin(id); break;

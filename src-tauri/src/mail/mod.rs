@@ -4,4 +4,5 @@ pub mod classify;
 pub mod imap;
 pub mod model;
 pub mod parse;
+pub mod sanitize;
 pub mod store;

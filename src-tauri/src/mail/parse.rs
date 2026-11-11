@@ -122,11 +122,18 @@ pub fn parse_body(raw: &[u8]) -> MailBody {
 /// Text and attachment names for the reader.
 pub fn parse_content(raw: &[u8]) -> MailContent {
     let body = parse_body(raw);
-    let attachments = MessageParser::default()
-        .parse(raw)
-        .map(|m| m.attachments().map(|a| a.attachment_name().unwrap_or("Anhang").to_string()).collect())
+    let parsed = MessageParser::default().parse(raw);
+    let attachments = parsed
+        .as_ref()
+        .map(|m| m.attachments().filter(|a| a.content_id().is_none() || a.attachment_name().is_some()).map(|a| a.attachment_name().unwrap_or("Attachment").to_string()).collect())
         .unwrap_or_default();
-    MailContent { text: body.text, attachments }
+    let safe = parsed.as_ref().filter(|_| !body.html.trim().is_empty()).map(|m| super::sanitize::sanitize(&body.html, &super::sanitize::inline_images(m)));
+    MailContent {
+        text: body.text,
+        remote_images: safe.as_ref().map_or(0, |s| s.remote_images),
+        html: safe.map(|s| s.html),
+        attachments,
+    }
 }
 
 #[cfg(test)]
@@ -195,6 +202,23 @@ Content-Type: multipart/mixed; boundary=\"x\"\r\n\r\n";
         let text = b"--outer\r\nContent-Type: multipart/alternative; boundary=\"inner\"\r\n\r\n--inner\r\n\
 Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nGr=C3=BC=C3=9Fe aus Ham";
         assert_eq!(summarize(&ORIGIN, header, text).preview, "Grüße aus Ham");
+    }
+
+    #[test]
+    fn test_content_html_is_sanitized_with_inline_image() {
+        let raw = "From: a@b.example\r\nSubject: Newsletter\r\nMIME-Version: 1.0\r\n\
+Content-Type: multipart/related; boundary=\"r\"\r\n\r\n\
+--r\r\nContent-Type: text/html; charset=utf-8\r\n\r\n\
+<h1 onclick=\"x()\">Hallo</h1><img src=\"cid:logo\"><img src=\"https://t.example/p.gif\"><script>evil()</script>\r\n\
+--r\r\nContent-Type: image/png\r\nContent-ID: <logo>\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--r--\r\n";
+        let c = parse_content(raw.as_bytes());
+        let html = c.html.expect("html part");
+        assert!(html.contains("<h1>Hallo</h1>"), "{html}");
+        assert!(html.contains("src=\"data:image/png;base64,"), "{html}");
+        assert!(!html.contains("evil") && !html.contains("onclick"));
+        assert_eq!(c.remote_images, 1);
+        assert!(c.attachments.is_empty(), "inline image is no attachment: {:?}", c.attachments);
+        assert!(c.text.contains("Hallo"));
     }
 
     #[test]
