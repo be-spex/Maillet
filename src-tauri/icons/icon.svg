@@ -1,8 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <rect x="4" y="8" width="56" height="48" rx="8" fill="#1f3336" stroke="#2bb3a3" stroke-width="4"/>
-  <path d="M35.5 38.5 L46 49" fill="none" stroke="#f5a623" stroke-width="6" stroke-linecap="round"/>
-  <circle cx="28" cy="30" r="12" fill="#f0e6dc" stroke="#f5a623" stroke-width="4"/>
-  <circle cx="22" cy="30" r="2.6" fill="#1f3336"/>
-  <circle cx="28" cy="30" r="2.6" fill="#1f3336"/>
-  <circle cx="34" cy="30" r="2.6" fill="#1f3336"/>
+  <!-- Maillet: Briefumschlag, dessen Klappe ein M bildet. Stil wie OTP Scout und HatRack. -->
+  <rect x="4" y="8" width="56" height="48" rx="8" fill="#25233a" stroke="#8b7dff" stroke-width="4"/>
+  <rect x="14" y="19" width="36" height="26" rx="4" fill="#f0e6dc"/>
+  <path d="M20 39 L20 25 L32 34 L44 25 L44 39" fill="none" stroke="#8b7dff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

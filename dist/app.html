@@ -31,7 +31,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 
 /* Navigation */
 .rail{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px}
-.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:grid;place-items:center;font-weight:800;font-size:16px;margin-bottom:12px;box-shadow:0 6px 18px rgba(109,93,252,.35)}
+.logo{width:38px;height:38px;margin-bottom:10px}
 .nav{position:relative;width:44px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--muted)}
 .nav:hover{background:var(--hover);color:var(--text)}
 .nav.on{background:var(--accent-soft);color:var(--accent)}
@@ -147,7 +147,7 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 <body>
 <div id="app">
   <nav class="rail">
-    <div class="logo" title="Maillet">M</div>
+    <img class="logo" src="icon.png" alt="Maillet" title="Maillet">
     <button class="nav on" data-act="home" title="Übersicht"><svg class="i"><use href="#i-home"/></svg><span class="badge" id="navBadge" hidden></span></button>
     <div class="spacer"></div>
     <button class="nav" data-act="settings" title="Einstellungen"><svg class="i"><use href="#i-gear"/></svg></button>
