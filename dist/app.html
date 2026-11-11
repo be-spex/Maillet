@@ -207,6 +207,14 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .rd-actions{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 14px;border-bottom:1px solid var(--line);margin-bottom:14px}
 .ab{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);background:var(--panel)}
 .ab:hover{color:var(--text);border-color:var(--faint)}
+/* Aktionen färben sich beim Überfahren dezent nach ihrer Bedeutung. */
+[data-act="trash"]{--hc:var(--danger)}
+[data-act="archive"]{--hc:var(--ok)}
+[data-act="filePick"]{--hc:#d29b00}
+[data-act="task"]{--hc:#3b82f6}
+[data-act="pin"]{--hc:var(--warn)}
+.ib:is([data-act="trash"],[data-act="archive"],[data-act="filePick"],[data-act="task"],[data-act="pin"]):hover{color:var(--hc);background:color-mix(in srgb,var(--hc) 14%,transparent)}
+.ab:not(.main):is([data-act="trash"],[data-act="filePick"],[data-act="task"],[data-act="pin"]):hover{color:var(--hc);border-color:color-mix(in srgb,var(--hc) 45%,var(--line));background:color-mix(in srgb,var(--hc) 8%,var(--panel))}
 .ab.main{background:var(--accent);border-color:var(--accent);color:#fff}
 .view-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .seg2{display:inline-flex;padding:2px;border-radius:8px;background:var(--panel2);border:1px solid var(--line)}
