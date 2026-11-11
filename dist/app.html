@@ -380,7 +380,9 @@ const isPinned = id => ((S.data && S.data.pinned) || []).some(p => p.id === id |
 const pinRow = m => `<button class="pin-row" data-act="open" data-id="${esc(m.id)}">${ic('star', 'sm filled star')}<span class="grow"><b>${esc(m.subject || t('mail.no_subject'))}</b><small>${esc(sender(m))} · ${esc(when(m.date))}</small></span></button>`;
 /* ---- Aufgaben als Board: Open · In progress · Done (Ordner auf dem Server) ---- */
 const TASK_COLS = [['open', 'tasks.col_open'], ['progress', 'tasks.col_progress'], ['done', 'tasks.col_done']];
-const taskKey = it => `${it.status}|${it.mail.id}`;
+// Message-ID bleibt beim Verschieben gleich (die UID nicht): stabiler Schlüssel,
+// damit eine Karte nach dem Neuladen nicht als neu gilt und erneut einblendet.
+const taskKey = it => `${it.status}|${it.mail.message_id || it.mail.id}`;
 function tasksView() {
   if (!S.tasks) return `<div class="hero"><h1>${t('app.tasks')}</h1><p>${t('tasks.loading')}</p></div>${skeleton()}`;
   const by = st => S.tasks.filter(it => it.status === st);
