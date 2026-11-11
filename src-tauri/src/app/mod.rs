@@ -155,6 +155,12 @@ fn open_window(app: AppHandle, label: String) {
     windows::show(&app, &label);
 }
 
+/// The window reports the height its content needs; the popup adapts to it.
+#[tauri::command]
+fn fit_main(app: AppHandle, height: f64) {
+    windows::fit_content(&app, height);
+}
+
 #[tauri::command]
 fn hide_main(app: AppHandle) {
     if let Some(w) = app.get_webview_window(windows::MAIN) {
@@ -491,7 +497,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,

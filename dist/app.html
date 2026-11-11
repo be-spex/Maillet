@@ -252,6 +252,7 @@ function render() {
   badge.hidden = !total; badge.textContent = total > 99 ? '99+' : total;
   $('#view').innerHTML = S.accounts && !S.accounts.length ? onboarding() : home(d, total);
   tickCodes();
+  scheduleFit();
 }
 
 function onboarding() {
@@ -292,6 +293,26 @@ function card(m) {
       <button class="ib sm" data-act="archive" data-id="${esc(m.id)}" title="Erledigt (archivieren)">${ic('check', 'sm')}</button>
     </div>
   </div>`;
+}
+
+/* ---- Fensterhöhe: das Popup ist nur so hoch wie sein Inhalt ---- */
+let fitQueued = false, lastFit = 0;
+function scheduleFit() {
+  if (fitQueued) return;
+  fitQueued = true;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fitQueued = false;
+    let h;
+    if (S.open) {
+      const top = document.querySelector('.rd-top'), inner = document.querySelector('.rd-inner');
+      h = (top ? top.offsetHeight : 0) + (inner ? inner.offsetHeight : 0) + 60;
+    } else {
+      const kids = [...$('#view').children];
+      h = kids.length ? Math.max(...kids.map(k => k.offsetTop + k.offsetHeight)) + 24 : 300;
+    }
+    h = Math.ceil(h);
+    if (Math.abs(h - lastFit) > 4) { lastFit = h; invoke('fit_main', { height: h }).catch(() => {}); }
+  }));
 }
 
 /* ---- Status (Kopfzeile) ---- */
@@ -368,7 +389,7 @@ setInterval(() => {
     if (left <= 0) expired = true;
     r.style.setProperty('--p', Math.max(0, left / CODE_TTL));
   });
-  if (expired) tickCodes();
+  if (expired) { tickCodes(); scheduleFit(); }
 }, 500);
 
 /* ---- Mail-Ansicht ---- */
@@ -405,8 +426,9 @@ function renderReader() {
         : `<div class="rd-body">${esc(c.text.trim() || '(kein Text)')}</div>
            ${c.attachments.length ? `<div class="att-row">${c.attachments.map(a => `<span class="att">${ic('file', 'sm')}${esc(a)}</span>`).join('')}</div>` : ''}`}
     </div></div>`;
+  scheduleFit();
 }
-function closeReader() { S.open = null; S.content = null; renderReader(); }
+function closeReader() { S.open = null; S.content = null; renderReader(); scheduleFit(); }
 
 /* ---- Aktionen ---- */
 async function archive(id) {

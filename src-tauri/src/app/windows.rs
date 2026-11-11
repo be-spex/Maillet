@@ -1,19 +1,38 @@
-//! Windows: the Maillet window (popup at the tray icon), settings, about and
-//! the OTP code popup.
+//! Windows: the Maillet window, settings, about and the OTP code popup.
+//!
+//! The Maillet window has two forms:
+//! - **Popup** (tray click): next to the tray icon, only as tall as its
+//!   content, hides when clicking elsewhere.
+//! - **Sidebar** (global shortcut): docked to the right edge, full height,
+//!   stays open until closed.
 
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
 pub const MAIN: &str = "main";
-const MAIN_SIZE: (f64, f64) = (420.0, 720.0);
+const WIDTH: f64 = 420.0;
+/// Popup height before the content has reported its size.
+const POPUP_DEFAULT_HEIGHT: f64 = 600.0;
+const POPUP_MIN_HEIGHT: f64 = 260.0;
+/// The popup never takes more than this share of the screen height.
+const POPUP_MAX_SHARE: f64 = 0.8;
 /// Gap between window and tray icon / screen edge.
 const MARGIN: i32 = 8;
 
-/// Where the tray icon was last clicked and when the window was last hidden by losing focus.
+#[derive(Clone, Copy, PartialEq, Default, Debug)]
+pub enum Form {
+    #[default]
+    Popup,
+    Sidebar,
+}
+
 #[derive(Default)]
 pub struct MainWindowState {
+    form: Mutex<Form>,
     last_click: Mutex<Option<(i32, i32)>>,
+    /// Height the content asked for (logical px), used for the popup.
+    content_height: Mutex<Option<f64>>,
     hidden_on_blur: Mutex<Option<Instant>>,
     shown_at: Mutex<Option<Instant>>,
 }
@@ -21,19 +40,19 @@ pub struct MainWindowState {
 pub fn create(app: &tauri::App) -> tauri::Result<()> {
     let main = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("app.html".into()))
         .title("Maillet")
-        .inner_size(MAIN_SIZE.0, MAIN_SIZE.1)
-        .min_inner_size(320.0, 400.0)
+        .inner_size(WIDTH, POPUP_DEFAULT_HEIGHT)
+        .min_inner_size(320.0, POPUP_MIN_HEIGHT)
         .decorations(false)
         .skip_taskbar(true)
         .visible(false)
         .build()?;
     let handle = app.handle().clone();
     main.on_window_event(move |event| match event {
-        // Popup behaviour: clicking elsewhere hides the window.
+        // Popup behaviour: clicking elsewhere hides the window. The sidebar stays.
         WindowEvent::Focused(false) => {
             let state = handle.state::<MainWindowState>();
             let just_shown = state.shown_at.lock().unwrap().is_some_and(|t| t.elapsed() < Duration::from_millis(400));
-            if !just_shown {
+            if *state.form.lock().unwrap() == Form::Popup && !just_shown {
                 *state.hidden_on_blur.lock().unwrap() = Some(Instant::now());
                 if let Some(w) = handle.get_webview_window(MAIN) {
                     let _ = w.hide();
@@ -93,32 +112,106 @@ pub fn show(app: &AppHandle, label: &str) {
     }
 }
 
-/// Tray click: show the window at the icon, or hide it if it is open.
+fn current_form(app: &AppHandle) -> Form {
+    *app.state::<MainWindowState>().form.lock().unwrap()
+}
+
+/// Tray click: popup at the icon; closes an open popup, turns the sidebar into the popup.
 pub fn toggle_main(app: &AppHandle, at: Option<(i32, i32)>) {
     let Some(w) = app.get_webview_window(MAIN) else { return };
     let state = app.state::<MainWindowState>();
-    // Clicking the icon first takes the focus away, which already hid the window.
+    // Clicking the icon first takes the focus away, which already hid the popup.
     let just_hidden = state.hidden_on_blur.lock().unwrap().is_some_and(|t| t.elapsed() < Duration::from_millis(400));
-    if w.is_visible().unwrap_or(false) {
+    if w.is_visible().unwrap_or(false) && current_form(app) == Form::Popup {
         let _ = w.hide();
     } else if !just_hidden {
         show_main(app, at);
     }
 }
 
+/// Global shortcut: sidebar; closes it if it is in front, brings it forward if covered.
+pub fn toggle_sidebar(app: &AppHandle) {
+    let Some(w) = app.get_webview_window(MAIN) else { return };
+    let visible = w.is_visible().unwrap_or(false);
+    if visible && current_form(app) == Form::Sidebar && w.is_focused().unwrap_or(false) {
+        let _ = w.hide();
+    } else {
+        show_form(app, Form::Sidebar, None);
+    }
+}
+
 pub fn show_main(app: &AppHandle, at: Option<(i32, i32)>) {
+    show_form(app, Form::Popup, at);
+}
+
+fn show_form(app: &AppHandle, form: Form, at: Option<(i32, i32)>) {
     let Some(w) = app.get_webview_window(MAIN) else { return };
     let state = app.state::<MainWindowState>();
+    *state.form.lock().unwrap() = form;
     if let Some(p) = at {
         *state.last_click.lock().unwrap() = Some(p);
     }
-    let anchor = *state.last_click.lock().unwrap();
     *state.shown_at.lock().unwrap() = Some(Instant::now());
     let _ = w.show();
-    // Position after show(): GTK ignores moves of hidden windows.
-    place(&w, anchor);
+    // Size and position after show(): GTK ignores moves of hidden windows.
+    layout(app, &w);
     let _ = w.set_focus();
     activate_x11(&w);
+}
+
+/// The content reports how tall it wants to be; only the popup follows.
+pub fn fit_content(app: &AppHandle, height: f64) {
+    let state = app.state::<MainWindowState>();
+    *state.content_height.lock().unwrap() = Some(height);
+    let Some(w) = app.get_webview_window(MAIN) else { return };
+    if current_form(app) == Form::Popup && w.is_visible().unwrap_or(false) {
+        layout(app, &w);
+    }
+}
+
+/// Sets size and position for the current form.
+fn layout(app: &AppHandle, w: &WebviewWindow) {
+    let state = app.state::<MainWindowState>();
+    let form = *state.form.lock().unwrap();
+    let anchor = *state.last_click.lock().unwrap();
+    // The monitor of the tray icon, else the one under the mouse, else the primary.
+    let point = anchor.or_else(|| app.cursor_position().ok().map(|p| (p.x as i32, p.y as i32)));
+    let monitor = point
+        .and_then(|(x, y)| w.monitor_from_point(x as f64, y as f64).ok().flatten())
+        .or_else(|| w.primary_monitor().ok().flatten());
+    let Some(monitor) = monitor else { return };
+    let scale = monitor.scale_factor();
+    let area = monitor.work_area();
+    let (ax, ay, aw, ah) = (area.position.x, area.position.y, area.size.width as i32, area.size.height as i32);
+    let width = (WIDTH * scale).round() as i32;
+
+    let (height, x, y) = match form {
+        Form::Sidebar => (ah, ax + aw - width, ay),
+        Form::Popup => {
+            let max = (ah as f64 * POPUP_MAX_SHARE).round() as i32;
+            let wanted = state.content_height.lock().unwrap().unwrap_or(POPUP_DEFAULT_HEIGHT).max(POPUP_MIN_HEIGHT);
+            let height = ((wanted * scale).round() as i32).min(max);
+            let (x, y) = match anchor {
+                // Above the icon if the panel is at the bottom, else below it.
+                Some((cx, cy)) => (cx - width / 2, if cy > ay + ah / 2 { cy - height - MARGIN } else { cy + MARGIN }),
+                None => (ax + aw - width - MARGIN, ay + MARGIN),
+            };
+            let x = x.clamp(ax + MARGIN, (ax + aw - width - MARGIN).max(ax));
+            let y = y.clamp(ay + MARGIN, (ay + ah - height - MARGIN).max(ay));
+            (height, x, y)
+        }
+    };
+    // (Wayland compositors may ignore positions.)
+    let _ = w.set_size(LogicalSize::new(WIDTH, height as f64 / scale));
+    let _ = w.set_position(PhysicalPosition::new(x, y));
+    // The window manager keeps a window on screen: a move that arrives while
+    // the window still has its old (larger) size gets clamped. Move again once
+    // the resize has gone through.
+    let w = w.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(80));
+        let _ = w.set_position(PhysicalPosition::new(x, y));
+    });
 }
 
 /// Window managers refuse focus to windows of background programs, and a
@@ -184,30 +277,4 @@ fn send_active_window(xid: u64) {
         (x.XFlush)(display);
         (x.XCloseDisplay)(display);
     }
-}
-
-/// Next to the tray icon, inside the work area; above the icon if the panel is at the bottom.
-/// Without a known icon position: top right corner. (Wayland compositors may ignore this.)
-fn place(w: &WebviewWindow, anchor: Option<(i32, i32)>) {
-    let Ok(size) = w.outer_size() else { return };
-    let (ww, wh) = (size.width as i32, size.height as i32);
-    let monitor = match anchor {
-        Some((x, y)) => w.monitor_from_point(x as f64, y as f64).ok().flatten(),
-        None => None,
-    }
-    .or_else(|| w.primary_monitor().ok().flatten());
-    let Some(monitor) = monitor else { return };
-    let area = monitor.work_area();
-    let (ax, ay, aw, ah) = (area.position.x, area.position.y, area.size.width as i32, area.size.height as i32);
-    let (x, y) = match anchor {
-        Some((cx, cy)) => {
-            let x = cx - ww / 2;
-            let y = if cy > ay + ah / 2 { cy - wh - MARGIN } else { cy + MARGIN };
-            (x, y)
-        }
-        None => (ax + aw - ww - MARGIN, ay + MARGIN),
-    };
-    let x = x.clamp(ax + MARGIN, (ax + aw - ww - MARGIN).max(ax));
-    let y = y.clamp(ay + MARGIN, (ay + ah - wh - MARGIN).max(ay));
-    let _ = w.set_position(PhysicalPosition::new(x, y));
 }

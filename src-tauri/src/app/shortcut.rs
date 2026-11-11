@@ -1,4 +1,4 @@
-//! Global shortcut that opens and closes the window (X11; Wayland compositors
+//! Global shortcut that opens and closes the window as a sidebar (X11; Wayland compositors
 //! do not allow global key grabs – there a desktop shortcut can start Maillet).
 
 use serde::Serialize;
@@ -31,7 +31,7 @@ pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     tauri_plugin_global_shortcut::Builder::new()
         .with_handler(|app, _shortcut, event| {
             if event.state() == ShortcutState::Pressed {
-                windows::toggle_main(app.app_handle(), None);
+                windows::toggle_sidebar(app.app_handle());
             }
         })
         .build()
