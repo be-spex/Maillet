@@ -130,6 +130,8 @@ pub struct Watch {
     pub last_uid: Arc<AtomicU32>,
     pub store: Arc<MailStore>,
     pub hook: Arc<dyn MailHook>,
+    /// The user's person/bulk corrections; they override the header detection.
+    pub kinds: Arc<super::classify::SenderKinds>,
 }
 
 /// Connects, loads the unread mails and then waits for changes (IDLE).
@@ -216,6 +218,11 @@ async fn sync(session: &mut Session, w: &Watch, uid_validity: u32) -> Result<()>
     let mut known = w.store.known(&account.id);
     let to_fetch: Vec<u32> = shown.iter().chain(fresh.iter()).copied().filter(|uid| !known.contains_key(uid)).collect::<HashSet<_>>().into_iter().collect();
     let mut fetched = fetch_summaries(session, &to_fetch, &origin).await?;
+    for mail in fetched.values_mut() {
+        if let Some(bulk) = mail.from_addr.as_deref().and_then(|a| w.kinds.get(a)) {
+            mail.bulk = bulk;
+        }
+    }
 
     for uid in &fresh {
         let Some(mail) = fetched.get_mut(uid) else { continue };
@@ -326,6 +333,12 @@ impl Commands {
         self.run(account, Archive(uid, account.mailbox.clone())).await
     }
 
+    /// Moves archived mails (found by Message-ID) back to the watched mailbox
+    /// as unread. Returns how many were found and moved.
+    pub async fn unarchive(&self, account: &AccountConfig, folder: &str, message_ids: &[String]) -> Result<usize> {
+        self.run(account, Unarchive { folder: folder.to_string(), message_ids: message_ids.to_vec(), mailbox: account.mailbox.clone() }).await
+    }
+
     /// Moves the mail to the trash, or flags and expunges it if there is none.
     pub async fn delete(&self, account: &AccountConfig, uid: u32) -> Result<()> {
         self.run(account, Delete(uid, account.mailbox.clone())).await
@@ -402,6 +415,34 @@ impl AsyncOp<String> for Archive {
     }
 }
 
+struct Unarchive {
+    folder: String,
+    message_ids: Vec<String>,
+    mailbox: String,
+}
+impl AsyncOp<usize> for Unarchive {
+    async fn call(&self, s: &mut Session) -> Result<usize> {
+        with_timeout(s.select(&self.folder)).await.with_context(|| format!("Failed to open '{}'", self.folder))?;
+        let mut moved = 0;
+        let result = async {
+            for id in &self.message_ids {
+                let id = id.trim_matches(['<', '>']).replace('"', "");
+                let uids = with_timeout(s.uid_search(format!("HEADER Message-ID \"{id}\""))).await?;
+                for uid in uids {
+                    SetSeen(uid, false).call(s).await?;
+                    move_to(s, uid, &self.mailbox).await?;
+                    moved += 1;
+                }
+            }
+            Ok::<_, anyhow::Error>(())
+        }
+        .await;
+        // The command connection is expected to have the watched mailbox selected.
+        with_timeout(s.select(&self.mailbox)).await?;
+        result.map(|_| moved)
+    }
+}
+
 struct Delete(u32, String);
 impl AsyncOp<()> for Delete {
     async fn call(&self, s: &mut Session) -> Result<()> {
@@ -467,6 +508,17 @@ mod tests {
         assert_eq!(folder, "Archive");
         s.noop().await.unwrap();
         assert!(!s.uid_search("ALL").await.unwrap().contains(&jana.uid));
+
+        // Undo: found again by Message-ID, back in the inbox and unread.
+        let mid = jana.message_id.clone().expect("seed mail has a Message-ID");
+        assert_eq!(cmds.unarchive(&account, "Archive", &[mid]).await.unwrap(), 1);
+        s.noop().await.unwrap();
+        let unseen_now = s.uid_search("UNSEEN").await.unwrap();
+        let jana_back = s.uid_search("FROM \"jana.wolff@firma.example\"").await.unwrap();
+        assert_eq!(jana_back.len(), 1);
+        assert!(unseen_now.contains(jana_back.iter().next().unwrap()));
+        // The command connection still works on the inbox afterwards.
+        cmds.set_seen(&account, *jana_back.iter().next().unwrap(), true).await.unwrap();
 
         let tom = summaries.values().find(|m| m.subject == "Mittag heute?").unwrap();
         cmds.delete(&account, tom.uid).await.unwrap();

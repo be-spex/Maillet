@@ -83,6 +83,32 @@ impl MailStore {
         }
     }
 
+    /// A sender was marked as person or bulk: re-flag the mails already shown.
+    pub fn reclassify(&self, addr: &str, bulk: bool) {
+        let mut accounts = self.accounts.lock().unwrap();
+        let mut changed = false;
+        for m in accounts.values_mut().flat_map(|a| a.mails.iter_mut()) {
+            if m.from_addr.as_deref().is_some_and(|a| a.eq_ignore_ascii_case(addr)) && m.bulk != bulk {
+                m.bulk = bulk;
+                changed = true;
+            }
+        }
+        drop(accounts);
+        if changed {
+            self.changed();
+        }
+    }
+
+    /// Notify listeners without a data change (e.g. the tray counting mode changed).
+    pub fn touch(&self) {
+        self.changed();
+    }
+
+    /// Unread mails from people among the listed ones (bulk mail excluded).
+    pub fn unread_people(&self) -> usize {
+        self.accounts.lock().unwrap().values().flat_map(|a| a.mails.iter()).filter(|m| !m.bulk).count()
+    }
+
     pub fn clear(&self) {
         self.accounts.lock().unwrap().clear();
         self.changed();
@@ -125,6 +151,7 @@ mod tests {
             date: Some(date),
             preview: String::new(),
             has_attachments: false,
+            message_id: None,
             bulk: false,
             findings: vec![],
         }

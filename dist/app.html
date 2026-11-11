@@ -156,6 +156,12 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 #toasts{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;z-index:20;pointer-events:none;width:calc(100% - 24px)}
 .toast{pointer-events:auto;max-width:100%;padding:9px 14px;border-radius:12px;background:var(--text);color:var(--panel);box-shadow:var(--shadow-lg);font-weight:550;font-size:12.5px;animation:up .25s ease}
 .toast.err{background:var(--danger);color:#fff}
+.toast{display:flex;align-items:center;gap:10px}
+.toast button{padding:4px 9px;border-radius:7px;font-weight:700;color:var(--accent-2)}
+.toast button:hover{background:rgba(127,127,127,.25)}
+.noise-head{margin-top:18px}
+.link{color:var(--accent);font-weight:700;font-size:12px;text-transform:none;letter-spacing:0}
+.link:hover{text-decoration:underline}
 
 /* Breitere Fenster (von Hand aufgezogen) */
 @container win (min-width:640px){
@@ -200,6 +206,8 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
     <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
@@ -226,7 +234,7 @@ const sender = m => m.from_name || m.from_addr || 'Unbekannt';
 const avatar = (m, cls = '') => { const n = sender(m); return `<span class="av ${cls}" style="--h:${hue(n)}">${esc(initials(n))}</span>`; };
 const CODE_TTL = 120000;
 
-const S = { data: null, accounts: null, filter: 'all', open: null, content: null, codes: [], loading: true };
+const S = { data: null, accounts: null, filter: 'all', group: 'all', open: null, content: null, codes: [], loading: true };
 
 function when(ts, long) {
   if (!ts) return '';
@@ -267,21 +275,29 @@ function onboarding() {
 
 function home(d, total) {
   const multi = d.accounts.length > 1;
-  const mails = d.mails.filter(m => S.filter === 'all' || m.account_id === S.filter);
+  const inAccount = d.mails.filter(m => S.filter === 'all' || m.account_id === S.filter);
+  const people = inAccount.filter(m => !m.bulk), noise = inAccount.filter(m => m.bulk);
   const shown = d.accounts.reduce((a, x) => a + (S.filter === 'all' || x.account_id === S.filter ? x.unread_total : 0), 0);
-  const people = d.mails.filter(m => !m.bulk).length;
   const summary = S.loading || (!d.accounts.length && d.status.some(s => s.state === 'connecting'))
     ? 'Postfächer werden geprüft …'
-    : total ? `<b>${total} neue Mail${total > 1 ? 's' : ''}</b>${people < d.mails.length ? `, davon ${d.mails.length - people} Newsletter` : ''}.` : 'Keine neuen Mails.';
+    : total ? `<b>${total} neue Mail${total > 1 ? 's' : ''}</b>${noise.length ? `, davon ${noise.length} Rauschen` : ''}.` : 'Keine neuen Mails.';
+  const gchip = (k, label, n) => `<button class="chip ${S.group === k ? 'on' : ''}" data-act="group" data-g="${k}">${label}${n === undefined ? '' : ` <span class="faint">${n}</span>`}</button>`;
+  const noiseHead = noise.length ? `<div class="zone noise-head">${ic('mute', 'sm')}Rauschen<span class="faint">${noise.length}</span><span class="grow"></span><button class="link" data-act="archiveNoise" title="Alle Newsletter und Massenmails archivieren">Alles erledigen</button></div>` : '';
+  let list;
+  if (S.group === 'people') list = `<div class="cards">${people.map(card).join('') || empty('Keine neuen Mails von Menschen.')}</div>`;
+  else if (S.group === 'noise') list = noise.length ? `${noiseHead}<div class="cards">${noise.map(card).join('')}</div>` : `<div class="cards">${empty('Kein Rauschen. 🌿')}</div>`;
+  else list = `<div class="cards">${people.map(card).join('') || (noise.length ? '' : (S.loading ? skeleton() : empty('Nichts Neues. Genieß die Ruhe.')))}</div>${noiseHead}${noise.length ? `<div class="cards">${noise.map(card).join('')}</div>` : ''}`;
   return `
     <div class="hero"><h1>${greet()}.</h1><p>${summary}</p></div>
     <div id="codes"></div>
     <div class="zone">${ic('mail', 'sm')}Neu<span class="grow"></span>${total ? `<span class="faint">${total}</span>` : ''}</div>
-    ${multi ? `<div class="chips"><button class="chip ${S.filter === 'all' ? 'on' : ''}" data-act="filter" data-f="all">Alle</button>${d.accounts.map(a => `<button class="chip ${S.filter === a.account_id ? 'on' : ''}" data-act="filter" data-f="${esc(a.account_id)}">${esc(a.account)} <span class="faint">${a.unread_total}</span></button>`).join('')}</div>` : ''}
-    <div class="cards">${mails.map(card).join('') || (S.loading ? skeleton() : `<div class="empty"><div class="big">🌿</div>Nichts Neues. Genieß die Ruhe.</div>`)}</div>
-    ${shown > mails.length ? `<div class="more">Die neuesten ${mails.length} von ${shown} ungelesenen Mails</div>` : ''}
+    <div class="chips">${gchip('all', 'Alle')}${gchip('people', 'Menschen', people.length)}${gchip('noise', 'Rauschen', noise.length)}</div>
+    ${multi ? `<div class="chips"><button class="chip ${S.filter === 'all' ? 'on' : ''}" data-act="filter" data-f="all">Alle Konten</button>${d.accounts.map(a => `<button class="chip ${S.filter === a.account_id ? 'on' : ''}" data-act="filter" data-f="${esc(a.account_id)}">${esc(a.account)} <span class="faint">${a.unread_total}</span></button>`).join('')}</div>` : ''}
+    ${list}
+    ${shown > inAccount.length ? `<div class="more">Die neuesten ${inAccount.length} von ${shown} ungelesenen Mails</div>` : ''}
     `;
 }
+const empty = text => `<div class="empty"><div class="big">🌿</div>${esc(text)}</div>`;
 
 const skeleton = () => [1, 2, 3].map(() => `<div class="mcard" style="cursor:default"><div class="skel" style="width:40%"></div><div class="skel" style="width:85%"></div><div class="skel" style="width:70%"></div></div>`).join('');
 
@@ -293,6 +309,9 @@ function card(m) {
     ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
     ${codes.length || m.bulk ? `<div class="mc-tags">${codes.map(f => `<span class="tag code">${f.kind === 'link' ? 'Login-Link' : esc(f.value)}</span>`).join('')}${m.bulk ? '<span class="tag">Newsletter</span>' : ''}</div>` : ''}
     <div class="mc-acts">
+      ${m.from_addr ? (m.bulk
+        ? `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="0" title="Ist ein Mensch – Absender künftig nicht mehr als Rauschen">${ic('user', 'sm')}</button>`
+        : `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="1" title="Ist Rauschen – Absender künftig gedämpft">${ic('mute', 'sm')}</button>`) : ''}
       <button class="ib sm" data-act="read" data-id="${esc(m.id)}" title="Als gelesen markieren">${ic('dot', 'sm')}</button>
       <button class="ib sm" data-act="archive" data-id="${esc(m.id)}" title="Erledigt (archivieren)">${ic('check', 'sm')}</button>
     </div>
@@ -354,6 +373,7 @@ function renderStatusPop() {
       <div class="sp-row"><span class="dot ${api.state}"></span><div class="grow"><b>${api.state === 'listening' ? 'Läuft' : 'Fehler'}</b><small class="msg ${api.state === 'error' ? 'error' : ''}">${esc(api.message)}</small>${api.last_request ? `<small>letzte Anfrage ${hhmm(api.last_request)}</small>` : ''}</div></div>` : ''}
     <div class="sp-title">Benachrichtigungen</div>
     <div class="sp-row"><div class="grow"><b>${st.notifications ? 'An' : 'Aus'}</b><small>bei neuen Mails von Menschen – nicht bei Newslettern und Codes</small></div><button class="sw ${st.notifications ? 'on' : ''}" data-act="notifications" title="Benachrichtigungen an/aus"></button></div>
+    <div class="sp-row"><div class="grow"><b>Tray zählt nur Menschen</b><small>${st.tray_people_only ? 'Newsletter und Massenmails zählen nicht mit' : 'aus: alle ungelesenen Mails zählen'}</small></div><button class="sw ${st.tray_people_only ? 'on' : ''}" data-act="trayPeople" title="Tray-Zähler: nur Menschen / alle"></button></div>
     ${shortcutRow(st.shortcut)}
     <div class="sp-foot"><button class="btn" data-act="check">${ic('refresh', 'sm')}Jetzt prüfen</button><button class="btn" data-act="settings">${ic('gear', 'sm')}Einstellungen</button></div>`;
 }
@@ -468,12 +488,38 @@ function toggleTheme() {
   document.documentElement.dataset.theme = next;
   localStorage.setItem('theme', next);
 }
-function toast(text, error) {
+function toast(text, error, action) {
   const el = document.createElement('div');
   el.className = 'toast' + (error ? ' err' : '');
   el.textContent = text;
+  if (action) {
+    const b = document.createElement('button');
+    b.textContent = action.label;
+    b.onclick = () => { el.remove(); action.run(); };
+    el.appendChild(b);
+  }
   $('#toasts').appendChild(el);
-  setTimeout(() => el.remove(), error ? 6000 : 3000);
+  setTimeout(() => el.remove(), error ? 6000 : action ? 8000 : 3000);
+}
+async function archiveNoise() {
+  const ids = S.data.mails.filter(m => m.bulk && (S.filter === 'all' || m.account_id === S.filter)).map(m => m.id);
+  if (!ids.length) return;
+  toast(`${ids.length} Mails werden archiviert …`);
+  try {
+    const done = await invoke('archive_mails', { ids });
+    toast(`${done.length} Mails aus dem Rauschen erledigt`, false, {
+      label: 'Rückgängig',
+      run: () => invoke('unarchive_mails', { items: done }).then(n => toast(`${n} Mails zurückgeholt`)).catch(e => toast(String(e), true)),
+    });
+  } catch (e) { toast(String(e), true); }
+}
+async function setKind(addr, bulk) {
+  try {
+    await invoke('set_sender_kind', { addr, bulk });
+    toast(bulk ? `${addr} gilt jetzt als Rauschen` : `${addr} gilt jetzt als Mensch`, false, {
+      label: 'Rückgängig', run: () => invoke('set_sender_kind', { addr, bulk: null }).then(() => toast('Wieder automatisch erkannt')),
+    });
+  } catch (e) { toast(String(e), true); }
 }
 
 document.addEventListener('click', e => {
@@ -490,6 +536,14 @@ document.addEventListener('click', e => {
     case 'read': setSeen(id, true); break;
     case 'unread': setSeen(id, false); break;
     case 'filter': S.filter = el.dataset.f; render(); break;
+    case 'group': S.group = el.dataset.g; render(); break;
+    case 'archiveNoise': archiveNoise(); break;
+    case 'kind': setKind(el.dataset.addr, el.dataset.bulk === '1'); break;
+    case 'trayPeople': {
+      const on = !(S.status && S.status.tray_people_only);
+      invoke('set_tray_people_only', { enabled: on }).then(() => { toast(on ? 'Tray zählt nur Mails von Menschen' : 'Tray zählt alle neuen Mails'); refreshStatus(); }).catch(err => toast(String(err), true));
+      break;
+    }
     case 'check': check(); break;
     case 'status': toggleStatus(); break;
     case 'notifications': {

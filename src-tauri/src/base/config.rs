@@ -80,6 +80,12 @@ pub struct AppConfig {
     /// Desktop notifications for new mails; missing means on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notifications: Option<bool>,
+    /// Tray counts only mails from people (no bulk mail); missing means all.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tray_people_only: Option<bool>,
+    /// The user's corrections of the person/bulk detection: address → `person` or `bulk`.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub senders: std::collections::BTreeMap<String, String>,
     /// Contents of `rules.json`.
     #[serde(skip)]
     pub rules: Vec<DetectionRule>,
@@ -332,6 +338,27 @@ pub fn set_api_config(config: &SharedConfig, api: ApiConfig) -> Result<()> {
     let mut cfg = config.blocking_lock();
     cfg.api = api;
     save_config(&cfg)
+}
+
+pub fn set_tray_people_only(config: &SharedConfig, on: bool) -> Result<()> {
+    let mut cfg = config.blocking_lock();
+    cfg.tray_people_only = Some(on);
+    save_config(&cfg)
+}
+
+/// `None` removes the correction for this sender.
+pub fn set_sender_kind(config: &SharedConfig, addr: &str, bulk: Option<bool>) -> Result<()> {
+    let mut cfg = config.blocking_lock();
+    match bulk {
+        Some(b) => cfg.senders.insert(addr.to_lowercase(), if b { "bulk" } else { "person" }.into()),
+        None => cfg.senders.remove(&addr.to_lowercase()),
+    };
+    save_config(&cfg)
+}
+
+/// The corrections as `address → is bulk`.
+pub fn sender_kinds(config: &AppConfig) -> std::collections::HashMap<String, bool> {
+    config.senders.iter().map(|(a, k)| (a.clone(), k == "bulk")).collect()
 }
 
 pub fn set_notifications(config: &SharedConfig, on: bool) -> Result<()> {

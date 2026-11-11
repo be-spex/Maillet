@@ -4,6 +4,8 @@ ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode 
 M = imaplib.IMAP4_SSL('127.0.0.1', 31993, ssl_context=ctx)
 M.login('test@maillet.example', 'testpass')
 def put(raw, flags=''):
+    # Real mails carry a Message-ID (Maillet uses it to undo archiving).
+    raw = f"Message-ID: {email.utils.make_msgid(domain='maillet.example')}\n" + raw
     M.append('INBOX', flags, imaplib.Time2Internaldate(time.time()), raw.replace('\n', '\r\n').encode())
 now = email.utils.formatdate(localtime=True)
 mode = sys.argv[1] if len(sys.argv) > 1 else 'initial'

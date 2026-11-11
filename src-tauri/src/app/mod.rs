@@ -35,6 +35,10 @@ pub struct AppState {
     pipeline: OnceLock<Arc<Pipeline>>,
     /// Desktop notifications for new mails on/off.
     notifications: Arc<std::sync::atomic::AtomicBool>,
+    /// Tray counts only mails from people.
+    tray_people_only: Arc<std::sync::atomic::AtomicBool>,
+    /// The user's person/bulk corrections per sender.
+    kinds: Arc<crate::mail::classify::SenderKinds>,
 }
 
 impl AppState {
@@ -141,6 +145,7 @@ fn get_app_status(app: AppHandle, state: State<AppState>, statuses: State<status
         "api": api.status(),
         "shortcut": app.state::<shortcut::ShortcutStatus>().get(),
         "notifications": state.notifications.load(std::sync::atomic::Ordering::Relaxed),
+        "tray_people_only": state.tray_people_only.load(std::sync::atomic::Ordering::Relaxed),
     })
 }
 
@@ -156,6 +161,78 @@ pub(crate) fn check_now_sync(app: &AppHandle) {
 #[tauri::command]
 fn open_window(app: AppHandle, label: String) {
     windows::show(&app, &label);
+}
+
+#[tauri::command]
+async fn set_tray_people_only(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    state.tray_people_only.store(enabled, std::sync::atomic::Ordering::Relaxed);
+    state.store.touch();
+    let shared = state.config.clone();
+    async_runtime::spawn_blocking(move || config::set_tray_people_only(&shared, enabled)).await.map_err(|e| e.to_string())?.map_err(err)
+}
+
+/// Marks a sender as person (`bulk = false`), bulk mail (`true`) or back to automatic (`None`).
+#[tauri::command]
+async fn set_sender_kind(app: AppHandle, addr: String, bulk: Option<bool>) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    state.kinds.set(&addr, bulk);
+    if let Some(b) = bulk {
+        state.store.reclassify(&addr, b);
+    } else {
+        state.check_now.notify_waiters();
+    }
+    let shared = state.config.clone();
+    async_runtime::spawn_blocking(move || config::set_sender_kind(&shared, &addr, bulk)).await.map_err(|e| e.to_string())?.map_err(err)
+}
+
+/// Where an archived mail went – enough to bring it back.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Archived {
+    account_id: String,
+    folder: String,
+    message_id: Option<String>,
+}
+
+/// Archives several mails (e.g. all bulk mail). Returns what can be undone.
+#[tauri::command]
+async fn archive_mails(state: State<'_, AppState>, ids: Vec<String>) -> Result<Vec<Archived>, String> {
+    let mut done = vec![];
+    let mut first_error = None;
+    for id in ids {
+        let message_id = state.store.find(&id).and_then(|m| m.message_id);
+        let (account, uid) = locate(&state, &id)?;
+        match state.commands.archive(&account, uid).await {
+            Ok(folder) => {
+                state.store.remove(&account.id, uid);
+                done.push(Archived { account_id: account.id, folder, message_id });
+            }
+            Err(e) => first_error = first_error.or(Some(err(e))),
+        }
+    }
+    match (done.is_empty(), first_error) {
+        (true, Some(e)) => Err(e),
+        _ => Ok(done),
+    }
+}
+
+/// Brings archived mails back as unread.
+#[tauri::command]
+async fn unarchive_mails(state: State<'_, AppState>, items: Vec<Archived>) -> Result<usize, String> {
+    let accounts = config::load_accounts_with_passwords().map_err(err)?;
+    let mut groups: std::collections::BTreeMap<(String, String), Vec<String>> = Default::default();
+    for item in items {
+        if let Some(mid) = item.message_id {
+            groups.entry((item.account_id, item.folder)).or_default().push(mid);
+        }
+    }
+    let mut moved = 0;
+    for ((account_id, folder), ids) in groups {
+        let Some(account) = accounts.iter().find(|a| a.id == account_id) else { continue };
+        moved += state.commands.unarchive(account, &folder, &ids).await.map_err(err)?;
+    }
+    state.check_now.notify_waiters();
+    Ok(moved)
 }
 
 #[tauri::command]
@@ -396,6 +473,7 @@ async fn spawn_watchers(app: &AppHandle, accounts: Vec<AccountConfig>) {
             last_uid: Arc::new(std::sync::atomic::AtomicU32::new(0)),
             store: state.store.clone(),
             hook: pipeline.clone() as Arc<dyn MailHook>,
+            kinds: state.kinds.clone(),
         };
         let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
         async_runtime::spawn(async move {
@@ -447,6 +525,10 @@ fn tray_tooltip(app: &AppHandle) -> String {
         1 => "Maillet – 1 neue Mail".to_string(),
         n => format!("Maillet – {n} neue Mails"),
     };
+    let state = app.state::<AppState>();
+    if state.tray_people_only.load(std::sync::atomic::Ordering::Relaxed) {
+        text = format!("Maillet – {} von Menschen, {total} insgesamt", state.store.unread_people());
+    }
     if snap.accounts.len() > 1 && total > 0 {
         let parts: Vec<String> = snap.accounts.iter().filter(|a| a.unread_total > 0).map(|a| format!("{} {}", a.account, a.unread_total)).collect();
         text += &format!(" ({})", parts.join(", "));
@@ -465,7 +547,8 @@ fn spawn_store_listener(app: AppHandle, tray: Option<tray::TrayHandle>) {
             if rx.changed().await.is_err() {
                 return;
             }
-            let count = app.state::<AppState>().store.unread_total();
+            let state = app.state::<AppState>();
+            let count = if state.tray_people_only.load(std::sync::atomic::Ordering::Relaxed) { state.store.unread_people() } else { state.store.unread_total() };
             if let Some(tray) = &tray {
                 tray::update(tray, count, tray_tooltip(&app)).await;
             }
@@ -486,6 +569,8 @@ pub fn run() {
     let config = config::load_config().unwrap_or_default();
     let (rules, _) = watch::channel(config.rules.clone());
     let notifications = Arc::new(std::sync::atomic::AtomicBool::new(config.notifications.unwrap_or(true)));
+    let tray_people_only = Arc::new(std::sync::atomic::AtomicBool::new(config.tray_people_only.unwrap_or(false)));
+    let kinds = Arc::new(crate::mail::classify::SenderKinds::new(config::sender_kinds(&config)));
     let state = AppState {
         config: Arc::new(Mutex::new(config)),
         tasks: Mutex::new(Vec::new()),
@@ -495,6 +580,8 @@ pub fn run() {
         commands: Arc::new(Commands::default()),
         pipeline: OnceLock::new(),
         notifications,
+        tray_people_only,
+        kinds,
     };
 
     tauri::Builder::default()
@@ -510,7 +597,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,

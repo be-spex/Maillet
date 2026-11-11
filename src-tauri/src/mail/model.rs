@@ -37,6 +37,8 @@ pub struct MailSummary {
     pub date: Option<i64>,
     pub preview: String,
     pub has_attachments: bool,
+    /// `Message-ID` header, used to find the mail again after moving it.
+    pub message_id: Option<String>,
     /// Newsletter or other bulk mail (`List-Unsubscribe`, `Precedence: bulk`, …).
     pub bulk: bool,
     pub findings: Vec<Finding>,
