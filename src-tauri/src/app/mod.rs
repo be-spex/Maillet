@@ -108,10 +108,11 @@ async fn archive_mail(state: State<'_, AppState>, id: String) -> Result<String, 
 // ---------------------------------------------------------------- Pinned & tasks
 
 /// Server folder holding mails that still need something done. The full name
-/// depends on the server, e.g. "Folders/Aufgaben" on Proton.
-const TASK_FOLDER: &str = "Aufgaben";
+/// depends on the server, e.g. "Folders/Tasks" on Proton. Folder names are
+/// English whatever the UI language, so they read the same in every mail client.
+const TASK_FOLDER: &str = "Tasks";
 /// Mails kept as a source of information.
-const KNOWLEDGE_FOLDER: &str = "Wissen";
+const INFO_FOLDER: &str = "Info";
 
 fn account_by_id(id: &str) -> Result<AccountConfig, String> {
     config::load_accounts_with_passwords().map_err(err)?.into_iter().find(|a| a.id == id).ok_or_else(|| "Account not found".into())
@@ -124,7 +125,7 @@ async fn task_folder(state: &AppState, account: &AccountConfig, create: bool) ->
 
 /// Task states and their folders: open = the task folder itself, the others
 /// are subfolders (custom IMAP keywords are not supported by every server).
-const STATES: [(&str, Option<&str>, usize); 3] = [("open", None, 200), ("progress", Some("In Arbeit"), 200), ("done", Some("Erledigt"), 30)];
+const STATES: [(&str, Option<&str>, usize); 3] = [("open", None, 200), ("progress", Some("In Progress"), 200), ("done", Some("Done"), 30)];
 
 /// Folder of a task state; `None` if it does not exist and `create` is off.
 async fn state_folder(state: &AppState, account: &AccountConfig, status: &str, create: bool) -> Result<Option<String>, String> {
@@ -164,22 +165,22 @@ async fn make_task(app: AppHandle, state: State<'_, AppState>, id: String) -> Re
     Ok(TaskRef { account_id: account.id, message_id })
 }
 
-/// Files a mail in the knowledge folder (created on first use).
+/// Files a mail in the info folder (created on first use).
 #[tauri::command]
-async fn file_knowledge(state: State<'_, AppState>, id: String) -> Result<TaskRef, String> {
+async fn file_info(state: State<'_, AppState>, id: String) -> Result<TaskRef, String> {
     let message_id = state.store.find(&id).and_then(|m| m.message_id);
     let (account, uid) = locate(&state, &id)?;
-    let folder = state.commands.resolve_folder(&account, KNOWLEDGE_FOLDER, true).await.map_err(err)?.ok_or("No knowledge folder on this account")?;
+    let folder = state.commands.resolve_folder(&account, INFO_FOLDER, true).await.map_err(err)?.ok_or("No info folder on this account")?;
     state.commands.move_to_folder(&account, uid, &folder).await.map_err(err)?;
     state.store.remove(&account.id, uid);
     Ok(TaskRef { account_id: account.id, message_id })
 }
 
-/// Undo of [`file_knowledge`]: back to the inbox.
+/// Undo of [`file_info`]: back to the inbox.
 #[tauri::command]
-async fn unfile_knowledge(state: State<'_, AppState>, account_id: String, message_id: String) -> Result<(), String> {
+async fn unfile_info(state: State<'_, AppState>, account_id: String, message_id: String) -> Result<(), String> {
     let account = account_by_id(&account_id)?;
-    let folder = state.commands.resolve_folder(&account, KNOWLEDGE_FOLDER, false).await.map_err(err)?.ok_or("Knowledge folder not found")?;
+    let folder = state.commands.resolve_folder(&account, INFO_FOLDER, false).await.map_err(err)?.ok_or("Info folder not found")?;
     state.commands.move_found(&account, &[folder], &message_id, Some(&account.mailbox)).await.map_err(err)?;
     state.check_now.notify_waiters();
     Ok(())
@@ -876,7 +877,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_knowledge, unfile_knowledge, trash_mail, set_actions, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_info, unfile_info, trash_mail, set_actions, get_task_mail,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,

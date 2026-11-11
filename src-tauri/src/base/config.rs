@@ -86,7 +86,7 @@ pub struct AppConfig {
     /// The inbox view shows mails of the last N days; missing means 7.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inbox_days: Option<u32>,
-    /// Actions offered on mails (`read`, `archive`, `task`, `knowledge`, `noise`,
+    /// Actions offered on mails (`read`, `archive`, `task`, `info`, `noise`,
     /// `pin`, `delete`); missing means the default set, see [`DEFAULT_ACTIONS`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actions: Option<Vec<String>>,
@@ -364,9 +364,9 @@ pub fn set_inbox_days(config: &SharedConfig, days: u32) -> Result<()> {
 }
 
 /// Every action a mail can offer, in display order.
-pub const ALL_ACTIONS: [&str; 7] = ["pin", "archive", "read", "noise", "task", "knowledge", "delete"];
+pub const ALL_ACTIONS: [&str; 7] = ["pin", "archive", "read", "noise", "task", "info", "delete"];
 /// Offered when nothing is configured: all but delete.
-pub const DEFAULT_ACTIONS: [&str; 6] = ["pin", "archive", "read", "noise", "task", "knowledge"];
+pub const DEFAULT_ACTIONS: [&str; 6] = ["pin", "archive", "read", "noise", "task", "info"];
 
 pub fn set_actions(config: &SharedConfig, actions: Vec<String>) -> Result<()> {
     let mut cfg = config.blocking_lock();

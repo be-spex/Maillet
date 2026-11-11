@@ -298,7 +298,7 @@ async fn fetch_body(session: &mut Session, uid: u32) -> Result<MailBody> {
 #[derive(Default)]
 pub struct Commands {
     sessions: Mutex<HashMap<String, (Session, Instant)>>,
-    /// Resolved folder names per account, e.g. "Aufgaben" → "Folders/Aufgaben" on Proton.
+    /// Resolved folder names per account, e.g. "Tasks" → "Folders/Tasks" on Proton.
     folders: Mutex<HashMap<(String, String), String>>,
 }
 
@@ -359,7 +359,7 @@ impl Commands {
         self.run(account, ContentById { folders, message_id: message_id.to_string(), mailbox: account.mailbox.clone() }).await
     }
 
-    /// Finds a folder by its last name part ("Aufgaben" matches "Folders/Aufgaben");
+    /// Finds a folder by its last name part ("Tasks" matches "Folders/Tasks");
     /// with `create`, creates it if missing – at the top level, or below a
     /// "Folders" parent where the server allows no own top-level folders (Proton).
     pub async fn resolve_folder(&self, account: &AccountConfig, name: &str, create: bool) -> Result<Option<String>> {
@@ -897,19 +897,19 @@ mod tests {
         assert!(!s.uid_search("FLAGGED").await.unwrap().contains(&malte.uid));
 
         // Task: into the folder (created on demand), listed, readable there.
-        assert_eq!(cmds.resolve_folder(&account, "Aufgaben", false).await.unwrap(), None);
-        let folder = cmds.resolve_folder(&account, "Aufgaben", true).await.unwrap().unwrap();
-        assert_eq!(folder, "Aufgaben");
+        assert_eq!(cmds.resolve_folder(&account, "Tasks", false).await.unwrap(), None);
+        let folder = cmds.resolve_folder(&account, "Tasks", true).await.unwrap().unwrap();
+        assert_eq!(folder, "Tasks");
         cmds.move_to_folder(&account, malte.uid, &folder).await.unwrap();
         s.noop().await.unwrap();
         assert!(!s.uid_search("ALL").await.unwrap().contains(&malte.uid));
-        let tasks = cmds.folder_mails(&account, "Aufgaben", 100).await.unwrap();
+        let tasks = cmds.folder_mails(&account, "Tasks", 100).await.unwrap();
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].message_id.as_deref(), Some(mid.as_str()));
         // States as subfolders: open → in progress → back to open.
-        assert_eq!(cmds.resolve_child(&account, &folder, "In Arbeit", false).await.unwrap(), None);
-        let progress = cmds.resolve_child(&account, &folder, "In Arbeit", true).await.unwrap().unwrap();
-        assert_eq!(progress, "Aufgaben/In Arbeit");
+        assert_eq!(cmds.resolve_child(&account, &folder, "In Progress", false).await.unwrap(), None);
+        let progress = cmds.resolve_child(&account, &folder, "In Progress", true).await.unwrap().unwrap();
+        assert_eq!(progress, "Tasks/In Progress");
         cmds.move_by_message_id(&account, &folder, &mid, Some(&progress)).await.unwrap();
         assert!(cmds.folder_mails(&account, &folder, 100).await.unwrap().is_empty(), "subfolder mails are not listed with the parent");
         assert_eq!(cmds.folder_mails(&account, &progress, 100).await.unwrap().len(), 1);
@@ -918,16 +918,16 @@ mod tests {
         assert_eq!(cmds.folder_mails(&account, &folder, 100).await.unwrap().len(), 1);
         // Already in the target: success without moving.
         cmds.move_found(&account, &[progress.clone()], &mid, Some(&folder)).await.unwrap();
-        let text = cmds.content_by_message_id(&account, vec!["Aufgaben".into(), "INBOX".into()], &mid).await.unwrap().text;
+        let text = cmds.content_by_message_id(&account, vec!["Tasks".into(), "INBOX".into()], &mid).await.unwrap().text;
         assert!(text.contains("drei Rückfragen"));
 
         // Done → archive, undo → back into the task folder, then back to the inbox.
-        let folder = cmds.move_by_message_id(&account, "Aufgaben", &mid, None).await.unwrap();
+        let folder = cmds.move_by_message_id(&account, "Tasks", &mid, None).await.unwrap();
         assert_eq!(folder, "Archive");
-        assert!(cmds.folder_mails(&account, "Aufgaben", 100).await.unwrap().is_empty());
-        cmds.move_by_message_id(&account, &folder, &mid, Some("Aufgaben")).await.unwrap();
-        assert_eq!(cmds.folder_mails(&account, "Aufgaben", 100).await.unwrap().len(), 1);
-        cmds.move_by_message_id(&account, "Aufgaben", &mid, Some("INBOX")).await.unwrap();
+        assert!(cmds.folder_mails(&account, "Tasks", 100).await.unwrap().is_empty());
+        cmds.move_by_message_id(&account, &folder, &mid, Some("Tasks")).await.unwrap();
+        assert_eq!(cmds.folder_mails(&account, "Tasks", 100).await.unwrap().len(), 1);
+        cmds.move_by_message_id(&account, "Tasks", &mid, Some("INBOX")).await.unwrap();
         s.noop().await.unwrap();
         assert_eq!(s.uid_search(format!("HEADER Message-ID \"{}\"", mid.trim_matches(['<', '>']))).await.unwrap().len(), 1);
         // A missing folder lists as empty, not as error.

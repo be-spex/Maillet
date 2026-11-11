@@ -301,7 +301,7 @@ const sender = m => m.from_name || m.from_addr || t('mail.unknown');
 const avatar = (m, cls = '') => { const n = sender(m); return `<span class="av ${cls}" style="--h:${hue(n)}">${esc(initials(n))}</span>`; };
 const CODE_TTL = 120000;
 // Welche Aktionen der Nutzer an Mails sehen will (Einstellungen → Allgemein).
-const DEFAULT_ACTIONS = ['pin', 'archive', 'read', 'noise', 'task', 'knowledge'];
+const DEFAULT_ACTIONS = ['pin', 'archive', 'read', 'noise', 'task', 'info'];
 const can = a => ((S.status && S.status.actions) || DEFAULT_ACTIONS).includes(a);
 
 /* ---- Übersetzungen (dist/i18n/*.json, vom Backend geliefert) ---- */
@@ -469,7 +469,7 @@ function cardActs(m) {
   ].join('');
   const h = [
     can('task') ? b('task', 'task', t('card.task')) : '',
-    can('knowledge') ? b('knowledge', 'book', t('card.knowledge')) : '',
+    can('info') ? b('info', 'book', t('card.info')) : '',
     can('delete') ? b('trash', 'trash', t('card.delete')) : '',
   ].join('');
   return `${v ? `<div class="acts-v">${v}</div>` : ''}${h ? `<div class="acts-h"${v ? '' : ' style="right:0;border-top-right-radius:11px"'}>${h}</div>` : ''}`;
@@ -612,7 +612,7 @@ function renderReader() {
            <button class="ab" data-act="taskMove" data-key="${esc(m.key)}" data-to="inbox" title="${t('tasks.back_tip')}">${ic('inbox', 'sm')}${t('tasks.back')}</button>`
         : [can('archive') ? `<button class="ab main" data-act="archive" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('reader.done')}</button>` : '',
            can('task') ? `<button class="ab" data-act="task" data-id="${esc(m.id)}">${ic('task', 'sm')}${t('reader.task')}</button>` : '',
-           can('knowledge') ? `<button class="ab" data-act="knowledge" data-id="${esc(m.id)}">${ic('book', 'sm')}${t('reader.knowledge')}</button>` : '',
+           can('info') ? `<button class="ab" data-act="info" data-id="${esc(m.id)}">${ic('book', 'sm')}${t('reader.info')}</button>` : '',
            can('pin') ? `<button class="ab ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}${isPinned(m.id) ? t('reader.pinned') : t('reader.pin')}</button>` : '',
            can('read') ? `<button class="ab" data-act="unread" data-id="${esc(m.id)}">${ic('eye-off', 'sm')}${t('reader.unread')}</button>` : '',
            can('delete') ? `<button class="ab" data-act="trash" data-id="${esc(m.id)}">${ic('trash', 'sm')}${t('reader.delete')}</button>` : ''].join('')}
@@ -745,15 +745,15 @@ async function refreshTasks() {
   render();
 }
 const mailById = id => (S.data && S.data.mails.find(m => m.id === id)) || (S.data && (S.data.pinned || []).find(m => m.id === id)) || (S.inbox || []).find(m => m.id === id);
-async function fileKnowledge(id) {
+async function fileInfo(id) {
   const mid = (mailById(id) || {}).message_id;
   try {
-    const ref = await invoke('file_knowledge', { id });
+    const ref = await invoke('file_info', { id });
     const messageId = ref.message_id || mid;
     inboxDrop(id);
     if (S.open && S.open.id === id) closeReader();
-    toast(t('toast.knowledge'), false, messageId ? {
-      label: t('toast.undo'), run: () => invoke('unfile_knowledge', { accountId: ref.account_id, messageId }).then(() => toast(t('toast.back_inbox'))).catch(e => toast(String(e), true)),
+    toast(t('toast.info'), false, messageId ? {
+      label: t('toast.undo'), run: () => invoke('unfile_info', { accountId: ref.account_id, messageId }).then(() => toast(t('toast.back_inbox'))).catch(e => toast(String(e), true)),
     } : undefined);
   } catch (e) { toast(String(e), true); }
 }
@@ -853,7 +853,7 @@ document.addEventListener('click', e => {
     case 'inboxMore': S.inboxDays += S.inboxBase; refreshInbox(); break;
     case 'pin': togglePin(id); break;
     case 'task': makeTask(id); break;
-    case 'knowledge': fileKnowledge(id); break;
+    case 'info': fileInfo(id); break;
     case 'trash': trashMail(id); break;
     case 'openTask': openTask(el.dataset.key); break;
     case 'taskMove': taskMove(el.dataset.key, el.dataset.to); break;
