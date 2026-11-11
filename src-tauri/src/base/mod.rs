@@ -2,4 +2,5 @@
 pub mod config;
 pub mod html;
 pub mod log;
+pub mod notify;
 pub mod status;

@@ -2350,6 +2350,7 @@ dependencies = [
  "ksni",
  "mail-parser",
  "native-tls",
+ "notify-rust",
  "regex",
  "reqwest 0.12.28",
  "serde",

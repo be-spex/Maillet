@@ -7,7 +7,6 @@ use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::{async_runtime, AppHandle, Emitter, Manager, RunEvent, State};
 use tauri_plugin_dialog::DialogExt;
-use tauri_plugin_notification::NotificationExt;
 use tokio::sync::{watch, Mutex, Notify};
 
 use crate::base::config::{self, AccountConfig, SharedConfig};
@@ -380,7 +379,7 @@ async fn run_with_reconnect(watch: Watch) {
         tracing::error!("[{label}] connection failed (attempt {failures}): {e:#}");
         log::event(&app, &id, &label, "error", format!("{e:#} – retry {failures} in {}s", delay.as_secs()));
         if failures == 1 {
-            let _ = app.notification().builder().title(format!("Maillet – {label}")).body(format!("Connection failed: {e:#}")).show();
+            crate::base::notify::show(format!("Maillet – {label}"), format!("Verbindung fehlgeschlagen: {e:#}"));
         }
         status::set(&app, &id, "error", format!("{e:#} – retrying in {}s", delay.as_secs()));
         tokio::select! {

@@ -34,6 +34,7 @@ axum = { version = "0.8", default-features = false, features = ["tokio", "http1"
 tower-http = { version = "0.6", features = ["cors"] }
 tauri-plugin-dialog = "2"
 ksni = "0.3"
+notify-rust = "4"
 async-trait = "0.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]

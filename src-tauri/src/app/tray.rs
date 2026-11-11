@@ -31,9 +31,13 @@ impl MailletTray {
     }
 }
 
-/// Starts the tray; `None` if the desktop offers no StatusNotifierItem host.
+/// Starts the tray; `None` if there is no D-Bus session at all.
+/// A missing or not yet started tray host is no error: Cinnamon's
+/// xapp-sn-watcher shows icons even while reporting no registered host, and
+/// at login Maillet may start before the panel. The icon appears once a host
+/// picks it up.
 pub async fn spawn(app: AppHandle) -> Option<TrayHandle> {
-    match MailletTray::new(app).spawn().await {
+    match MailletTray::new(app).assume_sni_available(true).spawn().await {
         Ok(handle) => Some(handle),
         Err(e) => {
             tracing::warn!("No tray available ({e}) – install a StatusNotifierItem/AppIndicator host");
@@ -75,6 +79,15 @@ impl Tray for MailletTray {
 
     fn tool_tip(&self) -> ToolTip {
         ToolTip { title: self.tooltip.clone(), description: "Klick öffnet Maillet".into(), ..Default::default() }
+    }
+
+    fn watcher_online(&self) {
+        tracing::info!("Tray host available – icon registered");
+    }
+
+    fn watcher_offline(&self, reason: ksni::OfflineReason) -> bool {
+        tracing::warn!("Tray host not available yet ({reason:?}) – waiting for it");
+        true
     }
 
     fn activate(&mut self, x: i32, y: i32) {
