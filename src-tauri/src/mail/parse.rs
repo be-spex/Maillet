@@ -34,6 +34,8 @@ pub fn summarize(origin: &Origin, header: &[u8], text_start: &[u8]) -> MailSumma
         date: parsed.as_ref().and_then(|m| m.date()).map(|d| d.to_timestamp()),
         preview: parsed.as_ref().map(preview).unwrap_or_default(),
         has_attachments: parsed.as_ref().is_some_and(looks_like_attachments),
+        seen: false,
+        flagged: false,
         message_id: parsed.as_ref().and_then(|m| m.message_id()).map(str::to_string),
         bulk: parsed.as_ref().is_some_and(is_bulk),
         findings: vec![],

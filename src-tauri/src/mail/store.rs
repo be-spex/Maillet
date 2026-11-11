@@ -157,6 +157,8 @@ mod tests {
             date: Some(date),
             preview: String::new(),
             has_attachments: false,
+            seen: false,
+            flagged: false,
             message_id: None,
             bulk: false,
             findings: vec![],

@@ -255,14 +255,21 @@ async fn fetch_summaries<'a>(session: &mut Session, uids: &[u32], origin: &(dyn 
     let mut out = HashMap::new();
     for chunk in uids.chunks(FETCH_CHUNK) {
         let set = chunk.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
-        let query = format!("(UID BODY.PEEK[HEADER] BODY.PEEK[TEXT]<0.{PREVIEW_BYTES}>)");
+        let query = format!("(UID FLAGS BODY.PEEK[HEADER] BODY.PEEK[TEXT]<0.{PREVIEW_BYTES}>)");
         let stream = with_timeout(session.uid_fetch(&set, &query)).await.context("FETCH failed")?;
         let fetches: Vec<_> = tokio::time::timeout(COMMAND_TIMEOUT, stream.try_collect())
             .await
             .context("Server did not respond – connection lost")??;
         for f in fetches {
             let Some(uid) = f.uid else { continue };
-            let summary = parse::summarize(&origin(uid), f.header().unwrap_or(&[]), f.text().unwrap_or(&[]));
+            let mut summary = parse::summarize(&origin(uid), f.header().unwrap_or(&[]), f.text().unwrap_or(&[]));
+            for flag in f.flags() {
+                match flag {
+                    async_imap::types::Flag::Seen => summary.seen = true,
+                    async_imap::types::Flag::Flagged => summary.flagged = true,
+                    _ => {}
+                }
+            }
             out.insert(uid, summary);
         }
     }
@@ -755,6 +762,8 @@ mod tests {
         assert!(jana.preview.starts_with("Hallo, anbei die Spezifikation für"), "{}", jana.preview);
         assert!(jana.has_attachments);
         assert!(summaries.values().any(|m| m.bulk));
+        assert!(summaries.values().find(|m| m.subject == "Bereits gelesen").unwrap().seen, "\\Seen flag is fetched");
+        assert!(!jana.seen || !unseen.is_empty());
         // Fetching the preview must not mark anything as read.
         assert_eq!(s.uid_search("UNSEEN").await.unwrap().len(), unseen.len());
 

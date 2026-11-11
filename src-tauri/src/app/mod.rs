@@ -231,6 +231,27 @@ async fn move_task(app: AppHandle, state: State<'_, AppState>, account_id: Strin
     Ok(moved)
 }
 
+/// The whole inbox (read and unread), newest first: `limit` per account.
+#[tauri::command]
+async fn list_inbox(state: State<'_, AppState>, limit: usize) -> Result<Vec<MailSummary>, String> {
+    let limit = limit.clamp(20, 1000);
+    let mut all = vec![];
+    for account in config::load_accounts_with_passwords().map_err(err)? {
+        if account.server.is_empty() || account.pass.is_empty() {
+            continue;
+        }
+        let mut mails = state.commands.folder_mails(&account, &account.mailbox, limit).await.map_err(err)?;
+        for m in &mut mails {
+            if let Some(bulk) = m.from_addr.as_deref().and_then(|a| state.kinds.get(a)) {
+                m.bulk = bulk;
+            }
+        }
+        all.extend(mails);
+    }
+    all.sort_by_key(|m| std::cmp::Reverse(m.date.unwrap_or(0)));
+    Ok(all)
+}
+
 /// Text of a task mail (it lives in one of the task folders).
 #[tauri::command]
 async fn get_task_mail(state: State<'_, AppState>, account_id: String, message_id: String) -> Result<MailContent, String> {
@@ -773,7 +794,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, move_task, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, move_task, get_task_mail,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,
