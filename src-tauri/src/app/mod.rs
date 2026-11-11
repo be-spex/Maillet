@@ -597,6 +597,71 @@ async fn test_connection(account: AccountConfig) -> Result<String, String> {
     imap::test_connection(&account).await.map_err(err)
 }
 
+/// A Microsoft sign-in in progress: client ID, tenant and the device code.
+static GRAPH_LOGIN: std::sync::LazyLock<tokio::sync::Mutex<Option<(String, String, crate::mail::graph::DeviceCode)>>> = std::sync::LazyLock::new(Default::default);
+
+#[derive(serde::Serialize)]
+struct SignInCode {
+    user_code: String,
+    verification_uri: String,
+    message: String,
+}
+
+/// Microsoft sign-in, step 1: the code the user enters in the browser.
+#[tauri::command]
+async fn graph_sign_in_start(client_id: String, tenant: String) -> Result<SignInCode, String> {
+    let client_id = client_id.trim().to_string();
+    if client_id.is_empty() {
+        return Err("Enter the application (client) ID of your app registration".into());
+    }
+    let code = crate::mail::graph::shared().start_device_login(&client_id, &tenant).await.map_err(err)?;
+    let view = SignInCode { user_code: code.user_code.clone(), verification_uri: code.verification_uri.clone(), message: code.message.clone() };
+    *GRAPH_LOGIN.lock().await = Some((client_id, tenant, code));
+    Ok(view)
+}
+
+/// Microsoft sign-in, step 2: waits for the confirmation in the browser, then
+/// creates the account (or renews the sign-in of `account_id`). The refresh
+/// token goes straight to the keyring and never to the window.
+#[tauri::command]
+async fn graph_sign_in_finish(app: AppHandle, label: String, account_id: Option<String>) -> Result<Vec<AccountConfig>, String> {
+    let (client_id, tenant, code) = GRAPH_LOGIN.lock().await.clone().ok_or("No sign-in in progress")?;
+    let graph = crate::mail::graph::shared();
+    let signed = graph.finish_device_login(&client_id, &tenant, &code).await.map_err(err)?;
+    *GRAPH_LOGIN.lock().await = None;
+    let shared = app.state::<AppState>().config.clone();
+    let accounts = match account_id {
+        Some(id) => {
+            config::store_secret(&id, &signed.refresh_token).map_err(err)?;
+            graph.forget(&id).await;
+            config::get_accounts(&shared)
+        }
+        None => {
+            let account = AccountConfig {
+                label: if label.trim().is_empty() { signed.email.clone() } else { label.trim().to_string() },
+                server: "graph.microsoft.com".into(),
+                port: 443,
+                user: signed.email.clone(),
+                pass: signed.refresh_token.clone(),
+                mailbox: "INBOX".into(),
+                kind: config::AccountKind::Graph,
+                client_id,
+                tenant,
+                ..Default::default()
+            };
+            async_runtime::spawn_blocking(move || config::add_account(&shared, account)).await.map_err(|e| e.to_string())?.map_err(err)?
+        }
+    };
+    let all = config::load_accounts_with_passwords().map_err(err)?;
+    spawn_watchers(&app, all).await;
+    Ok(accounts)
+}
+
+#[tauri::command]
+async fn graph_sign_in_cancel() {
+    *GRAPH_LOGIN.lock().await = None;
+}
+
 #[tauri::command]
 async fn restart_imap(app: AppHandle) -> Result<(), String> {
     let accounts = config::load_accounts_with_passwords().map_err(err)?;
@@ -918,7 +983,7 @@ pub fn run() {
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
             list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_mail, unfile_mail, set_categories, list_folders, set_mark_read_on_open, trash_mail, set_actions, get_task_mail,
-            get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
+            get_accounts, add_account, update_account, remove_account, graph_sign_in_start, graph_sign_in_finish, graph_sign_in_cancel, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,
             get_default_rules, get_catalog, get_api_settings, set_api_settings, regenerate_api_token,

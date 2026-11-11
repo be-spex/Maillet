@@ -239,10 +239,13 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 .pv-v{position:absolute;top:0;right:0;bottom:0;width:36px;display:flex;flex-direction:column;align-items:center;padding:4px 0;background:#f8f8fb;border-left:1px solid #e4e4ec;border-radius:0 11px 11px 0}
 .pv-h{position:absolute;top:0;right:0;height:36px;display:flex;align-items:center;gap:2px;padding:0 4px 0 6px;background:#f8f8fb;border-left:1px solid #e4e4ec;border-bottom:1px solid #e4e4ec;border-radius:0 11px 0 11px;z-index:1}
 .pv-h.over::after{content:"";position:absolute;right:0;bottom:-1px;width:35px;height:1px;background:#f8f8fb}
-.pv-v.under{padding-top:38px}
+.pv-v.under{padding-top:32px}
 .fixed-pos{width:62px;text-align:center;font-size:12px;opacity:.6}
 .pv-b{width:28px;height:27px;display:grid;place-items:center;color:#6b6b7b}
 .pv-b.main{color:#6c5ce7}
+.graph-signin{margin:4px 0 14px}
+.graph-signin .g-step{margin:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.g-usercode{font:600 18px ui-monospace,monospace;letter-spacing:.12em;padding:2px 10px;border-radius:6px;background:var(--bg,#f3f5f9)}
 </style>
 </head>
 <body>
@@ -283,14 +286,40 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
     <div class="card">
       <div class="grid-2">
         <div class="form-group">
+          <label>Account type</label>
+          <select id="f-kind" onchange="onKindChange()">
+            <option value="imap">IMAP – Gmail, Proton Bridge, most providers</option>
+            <option value="graph">Microsoft 365 / Outlook.com</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Display name</label>
           <input id="f-label" placeholder="e.g. Gmail">
         </div>
-        <div class="form-group">
-          <label>Mailbox</label>
-          <input id="f-mailbox" value="INBOX">
+      </div>
+      <div id="graph-fields" style="display:none">
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Application (client) ID</label>
+            <input id="f-client-id" class="mono" placeholder="00000000-0000-0000-0000-000000000000" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Accounts</label>
+            <select id="f-tenant">
+              <option value="organizations">Work or school (Microsoft 365)</option>
+              <option value="common">Work, school or personal</option>
+              <option value="consumers">Personal (Outlook.com, Hotmail)</option>
+            </select>
+          </div>
+        </div>
+        <div class="hint" style="margin:-6px 0 12px">Maillet reads mail through Microsoft Graph with your own app registration – see <button class="link" onclick="invoke('open_link', { url: 'https://github.com/Skrrytch/Maillet/blob/main/docs/outlook.md' })">docs/outlook.md</button>. Whether you may allow it yourself is decided by your organisation: if Microsoft asks for <i>admin approval</i>, it is not allowed without your IT.</div>
+        <div class="graph-signin">
+          <div id="g-signed" class="hint"></div>
+          <button class="btn-primary" id="g-start" onclick="graphSignIn()">Sign in with Microsoft</button>
+          <div id="g-code" style="display:none"></div>
         </div>
       </div>
+      <div id="imap-fields">
       <div class="grid-port">
         <div class="form-group">
           <label>IMAP server</label>
@@ -325,7 +354,14 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
           <input id="f-pass" type="password" autocomplete="new-password">
         </div>
       </div>
-      <div class="form-actions">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Mailbox</label>
+          <input id="f-mailbox" value="INBOX">
+        </div>
+      </div>
+      </div>
+      <div class="form-actions" id="acc-actions">
         <button class="left" onclick="testConnection()">Test connection</button>
         <button onclick="closeAccount()">Cancel</button>
         <button class="btn-primary" onclick="saveAccount()">Save</button>
@@ -662,7 +698,7 @@ function renderAccountList() {
     <div class="card account-row" onclick="openAccount('${esc(a.id)}')">
       <div>
         <h3>${esc(a.label || a.user || '(unnamed)')}</h3>
-        <div class="meta">${esc(a.user)} · ${esc(a.server)}:${a.port} · ${esc(a.mailbox)}</div>
+        <div class="meta">${a.kind === 'graph' ? `${esc(a.user)} · Microsoft 365` : `${esc(a.user)} · ${esc(a.server)}:${a.port} · ${esc(a.mailbox)}`}</div>
       </div>
       <div style="text-align:right">
         <code class="mono dim" style="font-size:12px">${esc(a.tag)}</code><br>
@@ -699,6 +735,16 @@ function openAccount(id) {
   document.getElementById('f-user').value = a.user || ''
   document.getElementById('f-pass').value = ''
   document.getElementById('f-mailbox').value = a.mailbox || 'INBOX'
+  document.getElementById('f-kind').value = a.kind || 'imap'
+  document.getElementById('f-kind').disabled = !!id
+  document.getElementById('f-client-id').value = a.client_id || ''
+  document.getElementById('f-client-id').disabled = !!id
+  document.getElementById('f-tenant').value = a.tenant || 'organizations'
+  document.getElementById('f-tenant').disabled = !!id
+  document.getElementById('g-signed').innerHTML = id && a.kind === 'graph' ? `Signed in as <b>${esc(a.user)}</b>.` : ''
+  document.getElementById('g-start').textContent = id ? 'Sign in again' : 'Sign in with Microsoft'
+  resetGraphCode()
+  onKindChange()
   document.getElementById('test-conn').innerHTML = ''
   document.getElementById('acc-tag-card').style.display = id ? '' : 'none'
   document.getElementById('acc-delete-bar').style.display = id ? '' : 'none'
@@ -726,7 +772,50 @@ function onSecurityChange() {
   if (sec === 'ssl' && (port.value === '143' || port.value === '1143')) port.value = '993'
 }
 
+function onKindChange() {
+  const graph = document.getElementById('f-kind').value === 'graph'
+  document.getElementById('graph-fields').style.display = graph ? '' : 'none'
+  document.getElementById('imap-fields').style.display = graph ? 'none' : ''
+  document.getElementById('f-label').placeholder = graph ? 'e.g. Work' : 'e.g. Gmail'
+  // A new Microsoft account is created by signing in; there is nothing to save before.
+  const newGraph = graph && !editAccountId
+  document.querySelector('#acc-actions .btn-primary').style.display = newGraph ? 'none' : ''
+  document.querySelector('#acc-actions .left').style.display = newGraph ? 'none' : ''
+}
+
+function resetGraphCode() {
+  const box = document.getElementById('g-code')
+  box.style.display = 'none'; box.innerHTML = ''
+  document.getElementById('g-start').disabled = false
+}
+
+// Microsoft sign-in: show the code, open the page, wait for the confirmation.
+async function graphSignIn() {
+  const btn = document.getElementById('g-start'), box = document.getElementById('g-code')
+  btn.disabled = true
+  try {
+    const c = await invoke('graph_sign_in_start', { clientId: document.getElementById('f-client-id').value, tenant: document.getElementById('f-tenant').value })
+    box.style.display = ''
+    box.innerHTML = `<div class="g-step">1. Open <button class="link" id="g-open">${esc(c.verification_uri)}</button></div>
+      <div class="g-step">2. Enter this code: <code class="g-usercode">${esc(c.user_code)}</code> <button class="btn-sm" id="g-copy">Copy</button></div>
+      <div class="g-step">3. Sign in and allow access. <span class="status connecting" style="display:inline-flex"><span class="dot connecting"></span><span class="msg">Waiting for confirmation …</span></span> <button class="btn-sm" id="g-cancel">Cancel</button></div>`
+    document.getElementById('g-open').onclick = () => invoke('open_link', { url: c.verification_uri })
+    document.getElementById('g-copy').onclick = () => invoke('copy_code', { code: c.user_code }).then(() => showToast('Code copied', 'success'))
+    document.getElementById('g-cancel').onclick = () => { invoke('graph_sign_in_cancel'); resetGraphCode() }
+    invoke('open_link', { url: c.verification_uri }).catch(() => {})
+    accounts = await invoke('graph_sign_in_finish', { label: document.getElementById('f-label').value, accountId: editAccountId })
+    showToast(editAccountId ? 'Signed in again.' : 'Microsoft account added.', 'success')
+    closeAccount()
+  } catch (e) {
+    box.style.display = ''
+    box.innerHTML = `<div class="status error"><span class="dot error"></span><span class="msg">${esc(e)}</span></div>`
+    btn.disabled = false
+  }
+}
+
 function accountForm() {
+  const existing = accounts.find(x => x.id === editAccountId)
+  if (existing && existing.kind === 'graph') return { ...existing, label: document.getElementById('f-label').value, pass: '' }
   return {
     id: editAccountId || crypto.randomUUID(),
     label: document.getElementById('f-label').value,

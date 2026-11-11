@@ -112,6 +112,9 @@ async fn connect_inner(account: &AccountConfig) -> Result<Session> {
 
 /// Logs in and opens the mailbox, for the "Test connection" button.
 pub async fn test_connection(account: &AccountConfig) -> Result<String> {
+    if account.is_graph() {
+        return super::graph::shared().test_connection(account).await;
+    }
     let mut session = connect(account).await?;
     let mailbox = session
         .select(&account.mailbox)
@@ -139,6 +142,9 @@ pub struct Watch {
 /// Connects, loads the unread mails and then waits for changes (IDLE).
 /// Returns only on errors; the caller reconnects.
 pub async fn run_watcher(w: &Watch) -> Result<()> {
+    if w.account.is_graph() {
+        return super::graph::shared().run_watcher(w).await;
+    }
     let account = &w.account;
     status::set(&w.app, &account.id, "connecting", format!("Connecting to {}…", account.server));
     log::event(&w.app, &account.id, &account.label, "info", format!("Connecting to {}:{}", account.server, account.port));
@@ -337,25 +343,40 @@ impl Commands {
     }
 
     pub async fn content(&self, account: &AccountConfig, uid: u32) -> Result<MailContent> {
+        if account.is_graph() {
+            return super::graph::shared().content(account, uid).await;
+        }
         self.run(account, Content(uid)).await
     }
 
     pub async fn set_seen(&self, account: &AccountConfig, uid: u32, seen: bool) -> Result<()> {
+        if account.is_graph() {
+            return super::graph::shared().set_seen(account, uid, seen).await;
+        }
         self.run(account, SetSeen(uid, seen)).await
     }
 
     /// Marks the mail as read and moves it to the archive folder. Returns the folder.
     pub async fn archive(&self, account: &AccountConfig, uid: u32) -> Result<String> {
+        if account.is_graph() {
+            return super::graph::shared().archive(account, uid).await;
+        }
         self.run(account, Archive(uid, account.mailbox.clone())).await
     }
 
     /// Pins (`\Flagged`, the star in most mail clients) or unpins a mail.
     pub async fn set_flagged(&self, account: &AccountConfig, uid: u32, flagged: bool) -> Result<()> {
+        if account.is_graph() {
+            return super::graph::shared().set_flagged(account, uid, flagged).await;
+        }
         self.run(account, SetFlag(uid, "\\Flagged", flagged)).await
     }
 
     /// Reads a mail found by Message-ID in one of `folders` (e.g. after it was archived).
     pub async fn content_by_message_id(&self, account: &AccountConfig, folders: Vec<String>, message_id: &str) -> Result<MailContent> {
+        if account.is_graph() {
+            return super::graph::shared().content_by_message_id(account, message_id).await;
+        }
         self.run(account, ContentById { folders, message_id: message_id.to_string(), mailbox: account.mailbox.clone() }).await
     }
 
@@ -363,6 +384,9 @@ impl Commands {
     /// with `create`, creates it if missing – at the top level, or below a
     /// "Folders" parent where the server allows no own top-level folders (Proton).
     pub async fn resolve_folder(&self, account: &AccountConfig, name: &str, create: bool) -> Result<Option<String>> {
+        if account.is_graph() {
+            return super::graph::shared().resolve_folder(account, name, create).await;
+        }
         let key = (account.id.clone(), name.to_string());
         if let Some(found) = self.folders.lock().await.get(&key) {
             return Ok(Some(found.clone()));
@@ -376,11 +400,17 @@ impl Commands {
 
     /// All selectable folders of the account (full names).
     pub async fn list_folders(&self, account: &AccountConfig) -> Result<Vec<String>> {
+        if account.is_graph() {
+            return super::graph::shared().list_folders(account).await;
+        }
         self.run(account, ListFolders).await
     }
 
     /// The subfolder `child` of `parent` (full name), created on request.
     pub async fn resolve_child(&self, account: &AccountConfig, parent: &str, child: &str, create: bool) -> Result<Option<String>> {
+        if account.is_graph() {
+            return super::graph::shared().resolve_child(account, parent, child, create).await;
+        }
         let key = (account.id.clone(), format!("{parent}\u{0}{child}"));
         if let Some(found) = self.folders.lock().await.get(&key) {
             return Ok(Some(found.clone()));
@@ -394,6 +424,9 @@ impl Commands {
 
     /// Moves a mail of the watched mailbox to `folder`, creating the folder if needed.
     pub async fn move_to_folder(&self, account: &AccountConfig, uid: u32, folder: &str) -> Result<()> {
+        if account.is_graph() {
+            return super::graph::shared().move_to_folder(account, uid, folder).await;
+        }
         self.run(account, MoveUid { uid, folder: folder.to_string() }).await
     }
 
@@ -405,6 +438,9 @@ impl Commands {
     /// Mails received in the last `days` days (newest `limit` at most), filtered
     /// on the server. Also tells whether older mails exist.
     pub async fn folder_mails_since(&self, account: &AccountConfig, folder: &str, days: Option<u32>, limit: usize) -> Result<(Vec<MailSummary>, bool)> {
+        if account.is_graph() {
+            return super::graph::shared().folder_mails_since(account, folder, days, limit).await;
+        }
         let since = days.map(imap_date_days_ago);
         self.run(account, FolderMails { folder: folder.to_string(), limit, since, account_id: account.id.clone(), label: account.label.clone(), mailbox: account.mailbox.clone() }).await
     }
@@ -420,23 +456,35 @@ impl Commands {
     /// folders in order – a server may report a move with delay, so the mail
     /// may not be where the window last saw it. Already in the target: done.
     pub async fn move_found(&self, account: &AccountConfig, from: &[String], message_id: &str, to: Option<&str>) -> Result<String> {
+        if account.is_graph() {
+            return super::graph::shared().move_found(account, message_id, to).await;
+        }
         self.run(account, MoveById { from: from.to_vec(), message_id: message_id.to_string(), to: to.map(str::to_string), mailbox: account.mailbox.clone() }).await
     }
 
     /// Opens the command connection ahead of time, or keeps it alive with a
     /// NOOP, so that the first click in the window does not wait for a login.
     pub async fn keep_warm(&self, account: &AccountConfig) -> Result<()> {
+        if account.is_graph() {
+            return super::graph::shared().keep_warm(account).await;
+        }
         self.run(account, Noop).await
     }
 
     /// Moves archived mails (found by Message-ID) back to the watched mailbox
     /// as unread. Returns how many were found and moved.
     pub async fn unarchive(&self, account: &AccountConfig, folder: &str, message_ids: &[String]) -> Result<usize> {
+        if account.is_graph() {
+            return super::graph::shared().unarchive(account, message_ids).await;
+        }
         self.run(account, Unarchive { folder: folder.to_string(), message_ids: message_ids.to_vec(), mailbox: account.mailbox.clone() }).await
     }
 
     /// Moves the mail to the trash, or flags and expunges it if there is none.
     pub async fn delete(&self, account: &AccountConfig, uid: u32) -> Result<()> {
+        if account.is_graph() {
+            return super::graph::shared().delete(account, uid).await;
+        }
         self.run(account, Delete(uid, account.mailbox.clone())).await
     }
 }

@@ -26,6 +26,17 @@ pub enum Security {
     Starttls,
 }
 
+/// Where the mails come from.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountKind {
+    #[default]
+    Imap,
+    /// Microsoft 365 / Outlook.com via Microsoft Graph. `pass` holds the
+    /// OAuth refresh token, `server` is `graph.microsoft.com`.
+    Graph,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountConfig {
     pub id: String,
@@ -42,6 +53,14 @@ pub struct AccountConfig {
     #[serde(default, skip_serializing)]
     pub pass: String,
     pub mailbox: String,
+    #[serde(default, skip_serializing_if = "is_imap")]
+    pub kind: AccountKind,
+    /// Graph only: the app registration (client ID) used to sign in.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub client_id: String,
+    /// Graph only: `organizations`, `common`, `consumers` or a tenant ID.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub tenant: String,
     /// Fixed on creation, kept on rename; assigns rules to this account.
     #[serde(default)]
     pub tag: String,
@@ -62,6 +81,9 @@ impl Default for AccountConfig {
             user: String::new(),
             pass: String::new(),
             mailbox: "INBOX".to_string(),
+            kind: AccountKind::Imap,
+            client_id: String::new(),
+            tenant: String::new(),
             tag: String::new(),
             rules: vec![],
         }
@@ -192,6 +214,21 @@ fn save_config(config: &AppConfig) -> Result<()> {
 
 fn save_rules(config: &AppConfig) -> Result<()> {
     rule_store::save(&config_dir()?.join(RULES_FILE), &config.rules)
+}
+
+fn is_imap(kind: &AccountKind) -> bool {
+    *kind == AccountKind::Imap
+}
+
+impl AccountConfig {
+    pub fn is_graph(&self) -> bool {
+        self.kind == AccountKind::Graph
+    }
+}
+
+/// Saves a renewed secret (Graph: the rotated refresh token) of an account.
+pub fn store_secret(account_id: &str, secret: &str) -> Result<()> {
+    store_password(account_id, secret)
 }
 
 fn keyring_entry(account_id: &str) -> Result<Entry> {
