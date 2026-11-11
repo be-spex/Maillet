@@ -29,6 +29,7 @@ Maillet ist bewusst **kein vollständiger Mail-Client mit allem**. Es ist schlan
 | 9 | **Freude durch Leichtigkeit** | Spaß entsteht durch flüssige Bewegung und das gute Gefühl eines leeren Eingangs, nicht durch Punkte und Abzeichen. |
 | 10 | **Fluss und Bestand trennen** | Was erscheint, um abgearbeitet zu werden, lebt woanders als das, was dauerhaft da ist. Der Fluss soll leer werden, der Bestand soll stabil bleiben. |
 | 11 | **KI liest mit, der Mensch entscheidet** | KI fasst zusammen, bewertet und schlägt vor, nach Kriterien, die der Nutzer selbst als Prompts hinterlegt. Sie ist optional, sichtbar markiert und handelt nie ohne Klick oder ausdrückliche Regel. |
+| 12 | **Wächst mit der Nutzung** | Maillet startet als schmales, effektives Werkzeug. Funktionen und Fensterbreite kommen dazu, wenn sie gebraucht werden. Das Potenzial ist sichtbar, aber nie aufgedrängt. |
 
 ---
 
@@ -117,15 +118,14 @@ Maillet trennt deshalb zwei Zonen mit eigenen Regeln:
 
 ## 4. Ebenen der Oberfläche
 
-Maillet hat fünf Ebenen. Jede tiefere Ebene ist nur einen Klick entfernt, und `Esc` führt immer eine Ebene zurück.
+Maillet hat vier Ebenen. Jede tiefere Ebene ist nur einen Klick entfernt, und `Esc` führt immer eine Ebene zurück.
 
 | Ebene | Wann | Inhalt |
 |---|---|---|
 | **1. Tray-Icon** | immer | Zustand auf einen Blick: neutral, neue Mail von Menschen (Badge), Verbindungsproblem. |
 | **2. Desktop-Benachrichtigung** | bei Ereignis | Absender, Betreff, bis zu drei Aktionen (*Öffnen, Aufgabe, Erledigt*). Erledigt Dinge, ohne Maillet zu öffnen. |
-| **3. Tray-Popup** | Klick aufs Icon | Kompakte Sicht (≈ 380 px): Codes, neue Mails von Menschen und Maschinen, Angepinntes. Schnellaktionen beim Überfahren. |
-| **4. Hauptfenster** | „Maillet öffnen“ | Navigation links: Übersicht, Triage, Themen, Aufgaben, Wissen, Ablage. |
-| **5. Mail-Ansicht** | Klick auf eine Mail | Seitenpanel von rechts. Die Übersicht bleibt dahinter sichtbar, der Kontext geht nicht verloren. |
+| **3. Maillet-Fenster** | Klick aufs Icon | **Ein** Fenster in drei Formen: Popup am Tray, Seitenleiste, Vollbild. Seine Breite wächst mit der Nutzung (siehe 4.3). Navigation links. |
+| **4. Mail-Ansicht** | Klick auf eine Mail | Deckt das ganze Fenster ab, nur die Navigation bleibt sichtbar. `Esc` oder *Zurück* führt zur vorherigen Ansicht. |
 
 **Dialoge** (Aufgabe anlegen, Merken, Ablegen) sind klein, haben sinnvolle Vorbelegung und lassen sich mit `Enter` bestätigen. **Popover** (Thema wählen, Später) öffnen direkt am Auslöser und brauchen keinen Bestätigungsknopf.
 
@@ -165,7 +165,53 @@ Maillet hat fünf Ebenen. Jede tiefere Ebene ist nur einen Klick entfernt, und `
 
 - **Links der Fluss.** Er zählt herunter und hat ein Ziel: leer.
 - **Rechts das Board.** Seine Karten haben feste Plätze. *Anpassen* erlaubt Verschieben, Entfernen und Hinzufügen von Karten: Angepinnt, Zustand, Spickzettel, Heute dran, Themen, Smart-Karten (gespeicherte Suchen), Konten.
-- **Im Tray-Popup** steht oben der Fluss in Kurzform, darunter die Board-Karten, die der Nutzer dafür auswählt.
+- **Ohne Board** (wer nichts anpinnt und keine Zusatzfunktion nutzt) gibt es nur den Fluss in voller Breite, ohne Zonen-Beschriftung.
+
+### 4.3 Ein Fenster, das mitwächst
+
+Maillet soll sich wie eine Tray-Anwendung anfühlen, nicht wie ein großes Mailprogramm. Deshalb **beginnt das Fenster schmal und wächst mit dem, was der Nutzer tatsächlich nutzt.**
+
+**Grundsatz:** Wer keine Themen anlegt, nichts anpinnt und keine Mails in Aufgaben verwandelt, bekommt ein schmales Fenster, eher ein Menü: Navigation links, darunter vertikale Kacheln. Das Design ist dasselbe, nur reduziert. Wer Funktionen nutzt, bekommt Platz dafür.
+
+| Stufe | Typische Nutzung | Breite (Popup) | Layout |
+|---|---|---|---|
+| **Kern** | nur Mails lesen und erledigen, Codes | ≈ 420 px | Navigation nur mit Symbolen, eine Kartenspalte, Fluss ohne Board |
+| **Erweitert** | 1–2 Funktionen, z. B. Themen und Angepinntes | ≈ 640 px | Navigation mit Beschriftung, zwei Kartenspalten, Board unter dem Fluss |
+| **Arbeitsplatz** | 3–4 Funktionen | ≈ 920 px | Fluss und Board nebeneinander |
+| **Zentrale** | 5 und mehr | ≈ 1200 px | volle Darstellung wie im Vollbild |
+
+**Wie Funktionen dazukommen:**
+- **Durch Benutzen.** Wer eine Mail einem Thema zuordnet, in eine Aufgabe verwandelt, merkt oder ablegt, schaltet die Funktion damit ein. Die Navigation bekommt einen Eintrag, das Board eine Karte, das Fenster wird bei Bedarf breiter. Eine kurze Meldung sagt, was dazugekommen ist.
+- **Bewusst einschalten** unter *Mehr*: eine Übersicht aller Funktionen mit Nutzen und Schalter.
+- **Ausschalten** blendet nur aus, die Daten bleiben.
+- Die Aktionen selbst (Aufgabe, Merken, Ablegen, Thema) sind immer erreichbar, in schmalen Fenstern hinter `⋯`. So ist das Potenzial sichtbar, ohne aufzudrängen.
+
+**Responsiv auf jeder Stufe:** Jede Kachel und jedes Bedienelement richtet sich nach der **Fensterbreite**, nicht nach der Bildschirmbreite (technisch: Container-Abfragen). Das gilt schon bei wenig Inhalt:
+
+| Fensterbreite | Anpassung |
+|---|---|
+| < 520 px | Navigation nur Symbole, Suche als Symbol, eine Kartenspalte mit einzeiliger Vorschau, Schnellaktionen reduziert plus `⋯`, Board-Karten einklappbar (ab der dritten eingeklappt), Kanban als Liste, Aktionsknöpfe der Mail-Ansicht nur mit Symbol |
+| 520–899 px | Beschriftungen kommen zurück, zwei Kartenspalten, Board als Raster unter dem Fluss, Kanban zweispaltig |
+| ≥ 900 px | Fluss und Board nebeneinander, alle Schnellaktionen sichtbar, Kanban vierspaltig |
+
+**Drei Fensterformen** (Umschalter in der Kopfzeile, auch per Suche):
+
+| Form | Verhalten | Breite |
+|---|---|---|
+| **Popup am Tray** | öffnet per Klick aufs Symbol, schließt bei Klick daneben | automatisch nach Nutzung |
+| **Seitenleiste** | rechts angedockt, volle Höhe, bleibt offen | automatisch, innerhalb der eingestellten Grenzen (Standard 200–480 px); mehr Inhalt bedeutet mehr Scrollen und Einklappen |
+| **Vollbild** | maximale Übersicht | ganze Bildschirmbreite |
+
+Die Breite lässt sich jederzeit **von Hand** am linken Fensterrand ziehen. Dann gilt die manuelle Breite, bis der Nutzer auf *automatisch* zurückstellt.
+
+**Grenzen der Seitenleiste:** Der Nutzer legt fest, wie schmal und wie breit die Seitenleiste werden darf, von **200 px bis zur vollen Bildschirmbreite**.
+- Die Grenzen lassen sich in Pixeln oder **relativ zur Bildschirmbreite** angeben, z. B. „mindestens 240 px, höchstens 30 %“. So passt die Seitenleiste auf Laptop und großem Monitor gleichermaßen.
+- Die automatische Breite wächst nur innerhalb dieser Grenzen. Auch Ziehen am Fensterrand bleibt innerhalb.
+- Ist das Maximum die volle Bildschirmbreite, darf die Seitenleiste mit der Nutzung bis zur Zentrale-Stufe wachsen.
+
+**Unter ≈ 300 px** wandert die Navigation als Symbolleiste nach oben, damit die Inhalte die ganze Breite nutzen. Schnellaktionen auf Karten entfallen, die Aktionen bleiben in der Mail-Ansicht erreichbar.
+
+Auch mit viel Inhalt bleibt Maillet damit als kleines Popup nutzbar: Es scrollt mehr und klappt mehr ein, verliert aber keine Funktion.
 
 ---
 

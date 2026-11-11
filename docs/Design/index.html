@@ -18,7 +18,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow:hidden}
+body{font-family:var(--font);background:linear-gradient(135deg,#1d2647 0%,#3a2d63 48%,#0e5b68 100%);color:var(--text);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow:hidden}
 button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 input,textarea{font:inherit;color:inherit}
 kbd{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
@@ -27,7 +27,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .i.sm{width:15px;height:15px}
 
 /* ---------- Layout ---------- */
-#app{display:grid;grid-template-columns:76px 1fr;height:100vh}
+#app{--railw:76px;position:relative;display:grid;grid-template-columns:var(--railw) 1fr;height:100%;background:var(--bg)}
 .rail{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:4px}
 .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:grid;place-items:center;font-weight:800;font-size:19px;margin-bottom:14px;box-shadow:0 6px 18px rgba(109,93,252,.35)}
 .rail .nav{position:relative;width:56px;padding:9px 0 7px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10.5px;font-weight:550}
@@ -37,11 +37,14 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .rail .spacer{flex:1}
 .badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;display:inline-grid;place-items:center}
 .badge.soft{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
-main{display:flex;flex-direction:column;min-width:0;height:100vh}
+main{display:flex;flex-direction:column;min-width:0;height:100%}
 .top{display:flex;align-items:center;gap:10px;padding:12px 22px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(8px)}
 .search-trigger{flex:1;max-width:560px;display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:11px;background:var(--panel);border:1px solid var(--line);color:var(--muted);text-align:left}
 .search-trigger:hover{border-color:var(--accent)}
-.search-trigger span{flex:1}
+.search-trigger span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-trigger{min-width:0}
+.filters{scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
 .top .grow{flex:1}
 .tbtn{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:10px;color:var(--muted);font-weight:550;font-size:13px}
 .tbtn:hover{background:var(--hover);color:var(--text)}
@@ -93,11 +96,10 @@ h1{font-size:26px;margin:0;letter-spacing:-.02em}
 .otp{position:relative;display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:var(--r);background:linear-gradient(135deg,var(--accent-soft),var(--panel));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);box-shadow:0 8px 26px color-mix(in srgb,var(--accent) 18%,transparent);text-align:left;animation:pop .35s ease}
 .otp:hover{transform:translateY(-1px)}
 .otp small{display:block;color:var(--muted);font-size:11.5px;font-weight:600}
-.otp .code{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:.12em}
+.otp .code{white-space:nowrap;font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:.12em}
 .ring{--p:1;width:30px;height:30px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*360deg),var(--line) 0);display:grid;place-items:center}
 .ring::after{content:"";width:22px;height:22px;border-radius:50%;background:var(--panel)}
-.home-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
-@media (max-width:1100px){.home-grid{grid-template-columns:1fr}}
+.home-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
 .side-col{display:flex;flex-direction:column;gap:18px}
 .filters{display:flex;gap:6px;flex-wrap:wrap;padding:4px 16px 12px}
 .filters .sep{width:1px;background:var(--line);margin:0 4px}
@@ -148,7 +150,7 @@ h1{font-size:26px;margin:0;letter-spacing:-.02em}
 .hint-line{font-size:12px;color:var(--faint);padding:0 16px 14px;display:flex;gap:6px;align-items:center}
 
 /* ---------- Dock ---------- */
-#dock{position:fixed;left:50%;bottom:22px;transform:translate(-50%,140%);display:flex;gap:8px;padding:10px;border-radius:18px;background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:var(--shadow-lg);transition:transform .25s cubic-bezier(.2,.9,.3,1.2),opacity .2s;opacity:0;pointer-events:none;z-index:40;max-width:94vw;flex-wrap:wrap;justify-content:center}
+#dock{position:absolute;left:50%;bottom:22px;transform:translate(-50%,140%);display:flex;gap:8px;padding:10px;border-radius:18px;background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:var(--shadow-lg);transition:transform .25s cubic-bezier(.2,.9,.3,1.2),opacity .2s;opacity:0;pointer-events:none;z-index:40;max-width:94%;flex-wrap:wrap;justify-content:center}
 #dock.show{transform:translate(-50%,0);opacity:1;pointer-events:auto}
 .dz{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:78px;padding:10px 8px;border-radius:12px;border:1.5px dashed var(--line);font-size:11.5px;font-weight:650;color:var(--muted);transition:all .12s}
 .dz.topic{border-color:color-mix(in srgb,var(--c) 45%,transparent);color:color-mix(in srgb,var(--c) 80%,var(--text))}
@@ -157,9 +159,9 @@ h1{font-size:26px;margin:0;letter-spacing:-.02em}
 .dock-sep{width:1px;background:var(--line);margin:4px 2px}
 
 /* ---------- Reader ---------- */
-#scrim{position:fixed;inset:0;background:rgba(10,10,20,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+#scrim{position:absolute;inset:0;background:rgba(10,10,20,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
 #scrim.show{opacity:1;pointer-events:auto}
-#reader{position:fixed;top:0;right:0;bottom:0;width:min(640px,96vw);background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow-lg);transform:translateX(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:30;display:flex;flex-direction:column}
+#reader{position:absolute;top:0;left:var(--railw);right:0;bottom:0;background:var(--panel);border-left:1px solid var(--line);transform:translateX(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:30;display:flex;flex-direction:column}
 #reader.show{transform:none}
 .rd-top{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
 .rd-top .grow{flex:1}
@@ -201,9 +203,9 @@ h1{font-size:26px;margin:0;letter-spacing:-.02em}
 .pi kbd{font-size:10px}
 .pop-hint{font-size:11.5px;color:var(--faint);padding:6px 10px 2px;border-top:1px solid var(--line);margin-top:6px}
 .pop-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:6px 10px}
-#modal{position:fixed;inset:0;z-index:65;display:none;place-items:center;background:rgba(10,10,20,.35);backdrop-filter:blur(2px)}
+#modal{position:absolute;inset:0;z-index:65;display:none;place-items:center;background:rgba(10,10,20,.35);backdrop-filter:blur(2px)}
 #modal.show{display:grid}
-.dlg{width:min(520px,94vw);max-height:90vh;overflow:auto;background:var(--panel);border-radius:18px;box-shadow:var(--shadow-lg);padding:22px 24px;animation:pop .2s ease}
+.dlg{width:min(520px,94%);max-height:90vh;overflow:auto;background:var(--panel);border-radius:18px;box-shadow:var(--shadow-lg);padding:22px 24px;animation:pop .2s ease}
 .dlg h3{margin:0 0 4px;font-size:18px;display:flex;gap:9px;align-items:center}
 .dlg .sub{color:var(--muted);margin:0 0 16px;font-size:13px}
 .dlg label.l{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.05em}
@@ -227,11 +229,11 @@ h1{font-size:26px;margin:0;letter-spacing:-.02em}
 .tagsug{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
 
 /* ---------- Toasts / Notifications ---------- */
-#toasts{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;z-index:80;pointer-events:none}
+#toasts{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;z-index:80;pointer-events:none}
 .toast{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;border-radius:12px;background:var(--text);color:var(--panel);box-shadow:var(--shadow-lg);font-weight:550;font-size:13px;animation:up .25s ease}
 .toast button{padding:5px 10px;border-radius:8px;font-weight:700;color:var(--accent-2)}
 .toast button:hover{background:rgba(127,127,127,.25)}
-#notify{position:fixed;top:14px;right:14px;display:flex;flex-direction:column;gap:10px;z-index:90}
+#notify{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:10px;z-index:90}
 .note{width:360px;padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-lg);animation:slide .3s ease}
 .note .nh{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--muted);font-weight:600}
 .note .nh .mini{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:grid;place-items:center;font-size:10px;font-weight:800}
@@ -295,8 +297,7 @@ h1{font-size:26px;margin:0;letter-spacing:-.02em}
 .ws-grid .cards{grid-template-columns:1fr;padding:6px 12px 14px}
 
 /* ---------- Tasks ---------- */
-.kanban{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;align-items:start}
-@media (max-width:1100px){.kanban{grid-template-columns:repeat(2,1fr)}}
+.kanban{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
 .col{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:10px;min-height:200px}
 .col>header{display:flex;align-items:center;gap:8px;padding:4px 6px 10px;font-weight:700;font-size:13px}
 .col>header .grow{flex:1}
@@ -346,9 +347,9 @@ h1{font-size:26px;margin:0;letter-spacing:-.02em}
 .files .fn{font-family:var(--mono);font-size:11px;color:var(--faint)}
 
 /* ---------- Palette ---------- */
-#palette{position:fixed;inset:0;z-index:75;display:none;background:rgba(10,10,20,.35);backdrop-filter:blur(3px);padding-top:12vh}
+#palette{position:absolute;inset:0;z-index:75;display:none;background:rgba(10,10,20,.35);backdrop-filter:blur(3px);padding-top:8%}
 #palette.show{display:block}
-.pal{width:min(640px,94vw);margin:0 auto;background:var(--panel);border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden;animation:pop .15s ease}
+.pal{width:min(640px,94%);margin:0 auto;background:var(--panel);border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden;animation:pop .15s ease}
 .pal-in{display:flex;gap:10px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
 .pal-in input{flex:1;border:0;outline:none;background:none;font-size:16px}
 .pal-res{max-height:56vh;overflow:auto;padding:6px}
@@ -371,10 +372,125 @@ h1{font-size:26px;margin:0;letter-spacing:-.02em}
 .tr-row:hover .qa{display:flex}
 .tr-f{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
 .tr-f .btn{flex:1;justify-content:center}
-.dummy{position:fixed;right:14px;bottom:12px;z-index:15;display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--faint);background:var(--panel);border:1px solid var(--line);padding:4px 10px;border-radius:20px;box-shadow:var(--shadow)}
-.dummy button{color:var(--muted);text-decoration:underline}
 .shortcuts{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13px;align-items:center}
 
+/* ---------- Desktop & Fenster ---------- */
+.deskbar{position:fixed;top:0;left:0;right:0;height:30px;display:flex;align-items:center;gap:14px;padding:0 12px;background:rgba(12,12,20,.72);backdrop-filter:blur(10px);color:#e9e9f2;font-size:12.5px;font-weight:600;z-index:5}
+.deskbar .grow{flex:1}
+.deskbar .clock{position:absolute;left:50%;transform:translateX(-50%)}
+.trayic{position:relative;width:26px;height:22px;border-radius:6px;display:grid;place-items:center;color:#e9e9f2;opacity:.85}
+.trayic:hover{background:rgba(255,255,255,.12);opacity:1}
+.trayic .m{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,#8b7dff,#22c3b5);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center}
+.trayic .b{position:absolute;top:-3px;right:-4px;min-width:14px;height:14px;border-radius:7px;background:#e5484d;color:#fff;font-size:9px;font-weight:800;display:grid;place-items:center;padding:0 3px}
+.trayic .b:empty{display:none}
+.trayic.on{background:rgba(255,255,255,.2);opacity:1}
+#desk{position:fixed;inset:30px 0 0 0}
+.deskhint{position:absolute;left:28px;top:24px;color:rgba(255,255,255,.6);font-size:13px;max-width:380px;line-height:1.55}
+.deskhint b{color:#fff;font-size:15px}
+#win{--w:420px;position:fixed;z-index:10;container:win/inline-size;overflow:hidden;border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.08);transition:width .5s cubic-bezier(.2,.8,.2,1),height .35s ease,border-radius .3s,opacity .18s,transform .18s}
+#win.mode-popup{top:38px;right:10px;width:var(--w);height:min(780px,calc(100vh - 50px))}
+#win.mode-side{top:30px;right:0;bottom:0;width:var(--w);border-radius:0}
+#win.mode-full{top:30px;left:0;right:0;bottom:0;border-radius:0}
+#win.hidden{opacity:0;transform:translateY(-10px) scale(.98);pointer-events:none}
+#win.resizing{transition:none}
+.grip{position:absolute;left:0;top:0;bottom:0;width:7px;cursor:ew-resize;z-index:60}
+.grip:hover,#win.resizing .grip{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 50%,transparent),transparent)}
+#win.mode-full .grip{display:none}
+#ctl{position:fixed;left:14px;bottom:14px;z-index:95;width:310px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);font-size:12.5px;overflow:hidden}
+#ctl .ctl-h{display:flex;gap:8px;align-items:center;width:100%;padding:10px 12px;font-weight:700}
+#ctl .ctl-h .grow{flex:1;text-align:left}
+#ctl .ctl-b{padding:0 12px 12px;display:none}
+#ctl.open .ctl-b{display:block}
+#ctl label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 5px}
+#ctl .seg button{padding:5px 8px;font-size:12px}
+#ctl .wline{padding:8px 10px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);line-height:1.45}
+#ctl .wline b{font-family:var(--mono)}
+#ctl .sims{display:flex;flex-wrap:wrap;gap:5px}
+.more-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.mod{padding:14px 16px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.mod.on{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.mod h3{margin:0;font-size:15px;display:flex;gap:8px;align-items:center}
+.mod h3 .grow{flex:1}
+.mod p{margin:0;color:var(--muted);font-size:13px}
+.mod .adds{font-size:12px;color:var(--faint)}
+.x-more{display:contents}
+.b-more{display:none}
+.panel>header.tog{cursor:pointer}
+.chev{transition:transform .2s;color:var(--faint);font-size:12px}
+.panel.coll .chev{transform:rotate(-90deg)}
+.rd-inner{max-width:780px;margin:0 auto}
+/* ---------- Container-Abfragen: die Fensterbreite bestimmt das Layout ---------- */
+@container win (min-width:900px){
+  .home-grid.with-board{grid-template-columns:minmax(0,1fr) 320px}
+}
+@container win (min-width:520px) and (max-width:899px){
+  .search-trigger kbd,.tbtn .lbl{display:none}
+  .board.side-col{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));align-items:start}
+  .kanban{grid-template-columns:repeat(2,1fr)}
+  .cards{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+}
+@container win (max-width:519px){
+  #app{--railw:60px}
+  .rail .nav{width:46px;padding:9px 0}
+  .rail .nav .lbl{display:none}
+  .rail .nav .badge{top:2px;right:0}
+  .logo{width:34px;height:34px;font-size:16px;border-radius:10px}
+  .top{padding:10px 12px;gap:4px}
+  .search-trigger{flex:0 0 auto;padding:9px}
+  .search-trigger span,.search-trigger kbd,.tbtn .lbl,.wide-only{display:none}
+  #view{padding:14px 12px 80px}
+  h1{font-size:20px}
+  .hero{flex-direction:column;align-items:stretch;gap:10px;margin-bottom:12px}
+  .hero .btn.big{justify-content:center;padding:10px}
+  .otp-strip{flex-direction:column;gap:8px}
+  .cards{grid-template-columns:1fr;padding:4px 10px 12px;gap:8px}
+  .mcard{padding:11px 12px 9px}
+  .mcard .mc-prev{-webkit-line-clamp:1}
+  .x-more{display:none}
+  .b-more{display:grid}
+  .filters{flex-wrap:nowrap;overflow-x:auto;padding:4px 12px 10px}
+  .panel>header{padding:12px 12px 6px}
+  .kanban{grid-template-columns:1fr}
+  .col{min-height:0}
+  .ablage{grid-template-columns:1fr}
+  .files td:nth-child(n+3){display:none}
+  .tr-actions{gap:6px}
+  .ta{font-size:11px;padding:10px 2px}
+  .ta kbd,.ab kbd{display:none}
+  .ab .lbl{display:none}
+  .tcardfront{padding:16px}
+  .rd-subj,.tcardfront .rd-subj{font-size:18px}
+  .rd-scroll{padding:14px 14px 40px}
+  .rd-top .lbl{display:none}
+  .section-title{flex-wrap:wrap;gap:6px}
+  .section-title>.muted{display:none}
+  .kgrid{columns:1}
+  .pgrid,.more-grid,.tgrid{grid-template-columns:1fr}
+  .ai-top,.localinfo{flex-wrap:wrap}
+  .digest ul{padding-left:14px}
+}
+@container win (max-width:299px){
+  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:50px minmax(0,1fr);--railw:0px}
+  main{height:auto;min-height:0}
+  .rail{height:50px;flex-direction:row;padding:6px 8px;gap:2px;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+  .cards{grid-template-columns:minmax(0,1fr)}
+  .mc-subj,.mc-from b,.rd-subj{overflow-wrap:anywhere}
+  .top .tbtn[data-act=keys],.top .tbtn[data-act=theme]{display:none}
+  .hero .btn.big kbd{display:none}
+  .rail .logo,.rail .spacer{display:none}
+  .rail .nav{width:38px;flex:none;padding:7px 0}
+  #reader{left:0;top:50px}
+  .top{padding:8px}
+  #view{padding:10px 8px 70px}
+  .hero p{font-size:12.5px}
+  .mc-acts{display:none}
+  .otp .code{font-size:18px}
+  .filters .sep{display:none}
+}
+#ctl .rng{display:flex;gap:8px;align-items:center;font-size:12px;margin:4px 0}
+#ctl .rng span{width:30px;color:var(--muted)}
+#ctl .rng input{flex:1;accent-color:var(--accent)}
+#ctl .rng b{min-width:96px;text-align:right;font-family:var(--mono);font-size:11.5px}
 /* ---------- Fluss & Bestand ---------- */
 .zone{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:0 0 8px 4px;display:flex;gap:8px;align-items:center}
 .zone b{color:var(--muted)}
@@ -453,32 +569,40 @@ h1{font-size:26px;margin:0;letter-spacing:-.02em}
 </style>
 </head>
 <body>
-<div id="app">
-  <nav class="rail" id="rail"></nav>
-  <main>
-    <header class="top">
-      <button class="search-trigger" data-act="palette"><svg class="i"><use href="#i-search"/></svg><span>Suchen oder Befehl …</span><kbd>Strg K</kbd></button>
-      <div class="grow"></div>
-      <button class="tbtn" data-act="simMenu"><svg class="i"><use href="#i-spark"/></svg>Simulieren</button>
-      <button class="tbtn" id="focusBtn" data-act="focus" title="Fokus-Modus: nur Menschen dürfen stören"><svg class="i"><use href="#i-bell"/></svg>Fokus</button>
-      <button class="tbtn" data-act="tray" title="So sieht Maillet im System-Tray aus"><svg class="i"><use href="#i-tray"/></svg>Tray-Popup</button>
-      <button class="tbtn" data-act="theme" title="Hell / Dunkel"><svg class="i"><use href="#i-moon"/></svg></button>
-      <button class="tbtn" data-act="keys" title="Tastenkürzel"><svg class="i"><use href="#i-kbd"/></svg></button>
-    </header>
-    <section id="view"></section>
-  </main>
+<div class="deskbar"><span>Anwendungen</span><span style="color:rgba(255,255,255,.5)">Orte</span><span class="clock">Mi 11. Nov · 09:24</span><span class="grow"></span>
+  <span class="trayic" title="Netzwerk"><svg class="i sm"><path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/></svg></span>
+  <span class="trayic" title="Lautstärke"><svg class="i sm"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg></span>
+  <button class="trayic" id="trayIcon" data-act="trayIcon" title="Maillet – Klick öffnet/schließt"><span class="m">M</span><span class="b" id="trayBadge"></span></button>
 </div>
-<div id="scrim" data-act="closeReader"></div>
-<aside id="reader"></aside>
-<div id="dock"></div>
+<div id="desk" data-act="desk"><div class="deskhint"><b>Dein Desktop</b><br>Maillet sitzt oben rechts im Tray. Ein Klick auf das M-Symbol öffnet und schließt das Fenster. Ein Klick auf den Desktop schließt das Popup.</div></div>
+<div id="win" class="mode-popup">
+  <div class="grip" id="grip" title="Breite ziehen"></div>
+  <div id="app">
+    <nav class="rail" id="rail"></nav>
+    <main>
+      <header class="top">
+        <button class="search-trigger" data-act="palette" title="Suchen (Strg K)"><svg class="i"><use href="#i-search"/></svg><span>Suchen oder Befehl …</span><kbd>Strg K</kbd></button>
+        <div class="grow"></div>
+        <button class="tbtn" id="focusBtn" data-act="focus" title="Fokus-Modus: nur Menschen dürfen stören"><svg class="i"><use href="#i-bell"/></svg><span class="lbl">Fokus</span></button>
+        <button class="tbtn" id="modeBtn" data-act="modeMenu" title="Fensterform: Popup, Seitenleiste, Vollbild"></button>
+        <button class="tbtn" data-act="theme" title="Hell / Dunkel"><svg class="i"><use href="#i-moon"/></svg></button>
+        <button class="tbtn" data-act="keys" title="Tastenkürzel"><svg class="i"><use href="#i-kbd"/></svg></button>
+      </header>
+      <section id="view"></section>
+    </main>
+    <div id="scrim" data-act="closeReader"></div>
+    <aside id="reader"></aside>
+    <div id="dock"></div>
+    <div id="modal"></div>
+    <div id="palette"></div>
+    <div id="toasts"></div>
+  </div>
+</div>
 <div id="pop"></div>
-<div id="modal"></div>
-<div id="palette"></div>
 <div id="tray"></div>
 <div id="selbubble"><button data-act="selKnow"><svg class="i sm"><use href="#i-bulb"/></svg>Merken</button><button data-act="selTask"><svg class="i sm"><use href="#i-task"/></svg>Aufgabe</button></div>
-<div id="toasts"></div>
 <div id="notify"></div>
-<div class="dummy">Click-Dummy · alle Daten fiktiv · <button data-act="reset">Zurücksetzen</button></div>
+<div id="ctl" class="open"></div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -510,6 +634,8 @@ h1{font-size:26px;margin:0;letter-spacing:-.02em}
     <symbol id="i-kbd" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
     <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6z"/><path d="M14 2v5h5"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
   </defs>
 </svg>
 
@@ -734,11 +860,99 @@ Begründung: kleinere Angriffsfläche, einfachere Rotation.` },
   };
 }
 
-let D = seed();
-applyRules();
 const S = { view: 'home', filter: 'alle', open: null, topic: null, folder: 'Projekte/Atlas', kq: '', ktag: null, focus: false,
   tq: [], ti: 0, tstats: null, tfilter: 'alle', pal: { q: '', idx: 0 }, drag: null, dragTask: null, sel: '',
-  sortAI: false, editBoard: false, board: ['pinned', 'live', 'today', 'cheat', 'topics'], flash: null };
+  sortAI: false, editBoard: false, board: ['pinned', 'live', 'today', 'cheat', 'topics'], flash: null,
+  profile: 'start', mode: 'popup', sideMin: 200, sideMax: 480, manualW: null, winHidden: false, coll: {}, ctlOpen: true, prevMods: null, prevAuto: 0, curW: 420, resizing: false };
+let D = makeProfile(S.profile);
+applyRules();
+
+/* ---------- Wachsendes Fenster: Profile, Module, Breite ---------- */
+function makeProfile(p) {
+  const d = seed();
+  if (p === 'power') { d.on = { topics: true, tasks: true, know: true, ablage: true, live: true }; return d; }
+  d.mails = d.mails.filter(m => m.acc !== 'lokal');
+  d.mails.forEach(m => { if (m.absorbed) { delete m.absorbed; m.archived = false; if (m.id === 'm6') m.unread = true; } m.pinned = false; m.topic = null; m.auto = false; });
+  d.tasks = []; d.know = []; d.live = []; d.rules = []; d.ai.on = false;
+  d.on = { topics: false, tasks: false, know: false, ablage: false, live: false };
+  if (p === 'mid') {
+    d.topics = d.topics.filter(t => ['t1', 't2', 't5'].includes(t.id));
+    d.rules = [{ id: 'r1', topic: 't2', match: '@nordwind.de' }];
+    const set = { m12: 't1', m11: 't2', m14: 't5' };
+    d.mails.forEach(m => { if (set[m.id]) m.topic = set[m.id]; if (m.id === 'm11' || m.id === 'm12') m.pinned = true; });
+    d.on.topics = true;
+  } else d.topics = [];
+  return d;
+}
+const MODS = [
+  ['topics', 'Themen', 'hash', 'Mails nach Projekt oder Kunde bündeln. Ein Thema ist ein Arbeitsraum mit allem, was dazugehört.', 'Navigation „Themen“, Themen-Chips an Mails, Themen-Karte auf dem Board'],
+  ['tasks', 'Aufgaben', 'task', 'Aus Mails werden Aufgaben mit Frist. Der Eingang bleibt leer, nichts geht verloren.', 'Navigation „Aufgaben“, Board-Karte „Heute dran“'],
+  ['know', 'Wissen', 'bulb', 'Kostenstellen, Ansprechpartner, Regeln dauerhaft merken – mit Quelle.', 'Navigation „Wissen“, Spickzettel auf dem Board'],
+  ['ablage', 'Ablage', 'box', 'Mails als Dateien in einem lokalen Konto aufbewahren: offline, dauerhaft, offenes Format.', 'Navigation „Ablage“, Konto ~/Maillet/Ablage'],
+  ['live', 'Zustandskarten', 'clock', 'Jira, Pakete, Builds: ein aktueller Stand statt vieler Mails im Eingang.', 'Board-Karte „Zustand“, Statusmails verlassen den Fluss'],
+  ['ai', 'KI-Assistenz', 'spark', 'Große Mengen lesen und bewerten – nach deinen eigenen Prompts, lokal.', 'Navigation „KI“, Wichtigkeit, Radar, Kurzfassungen'],
+];
+const modOn = k => k === 'ai' ? D.ai.on : !!D.on[k];
+const pinnedList = () => D.mails.filter(m => m.pinned && !(m.archived && !m.ablage));
+function activeMods() { const a = MODS.filter(([k]) => modOn(k)).map(x => x[1]); if (pinnedList().length) a.push('Angepinnt'); return a; }
+function autoWidth() { const n = activeMods().length; return n === 0 ? 420 : n <= 2 ? 640 : n <= 4 ? 920 : 1200; }
+function targetWidth() {
+  if (S.mode === 'full') return innerWidth;
+  let w = S.manualW || autoWidth();
+  if (S.mode === 'side') return Math.min(innerWidth, Math.max(S.sideMin, Math.min(S.sideMax, w)));
+  return Math.min(w, innerWidth - 20);
+}
+function boardItems() {
+  const ok = { pinned: pinnedList().length > 0, live: D.on.live && D.live.length > 0, today: D.on.tasks, cheat: D.on.know && D.know.some(k => k.fav), topics: D.on.topics, owe: D.ai.on || D.on.tasks, smart: true, accounts: true };
+  return S.board.filter(w => ok[w]);
+}
+function isColl(w) { return S.coll[w] ?? (S.curW < 520 && boardItems().indexOf(w) >= 2); }
+function enableModule(k) {
+  if (k === 'ai') D.ai.on = true; else D.on[k] = true;
+  if (k === 'live' && !D.live.length) { D.live = seed().live; [['m6', 'l1'], ['m15', 'l2']].forEach(([id, l]) => { const m = mail(id); if (m) { m.archived = true; m.absorbed = l; m.unread = false; } }); }
+}
+function disableModule(k) { if (k === 'ai') D.ai.on = false; else D.on[k] = false; if ({ topics: 'topics', tasks: 'tasks', know: 'know', ablage: 'ablage', ai: 'ai' }[k] === S.view) S.view = 'home'; }
+function setMode(m) { S.mode = m; S.manualW = null; S.winHidden = false; if (m === 'full') S.ctlOpen = false; closePop(); render(); }
+function applyWindow() {
+  const win = $('#win'), mods = activeMods(), auto = autoWidth();
+  win.className = 'mode-' + S.mode + (S.winHidden ? ' hidden' : '') + (S.resizing ? ' resizing' : '');
+  win.style.setProperty('--w', S.curW + 'px');
+  if (S.prevMods && S.mode !== 'full' && !S.manualW) {
+    const neu = mods.filter(x => !S.prevMods.includes(x));
+    if (neu.length) setTimeout(() => toast(auto > S.prevAuto ? `Maillet wächst mit: ${neu.join(', ')} – mehr Platz dafür` : `Neu dabei: ${neu.join(', ')}`), 350);
+  }
+  S.prevMods = mods; S.prevAuto = auto;
+  $('#modeBtn').innerHTML = ic({ popup: 'tray', side: 'side', full: 'full' }[S.mode]) + `<span class="lbl">${{ popup: 'Popup', side: 'Seitenleiste', full: 'Vollbild' }[S.mode]}</span>`;
+  renderCtl(); renderDesk();
+}
+const sideLbl = v => v >= innerWidth ? 'Vollbild' : `${v} px · ${Math.round(v / innerWidth * 100)} %`;
+function renderDesk() { const n = unread().filter(m => m.group === 'mensch').length; $('#trayBadge').textContent = n || ''; $('#trayIcon').classList.toggle('on', !S.winHidden); }
+function renderCtl() {
+  const c = $('#ctl'), mods = activeMods();
+  c.className = S.ctlOpen ? 'open' : '';
+  c.innerHTML = `<button class="ctl-h" data-act="ctlToggle">${ic('gear', 'sm')}<span class="grow">Click-Dummy-Steuerung</span><span class="faint">${S.ctlOpen ? '▾' : '▴'}</span></button>
+    <div class="ctl-b">
+      <label>Nutzerprofil</label><div class="seg">${[['start', 'Einsteiger'], ['mid', 'Fortgeschritten'], ['power', 'Power']].map(([k, l]) => `<button class="${S.profile === k ? 'on' : ''}" data-act="ctlProfile" data-v="${k}">${l}</button>`).join('')}</div>
+      <label>Fensterform</label><div class="seg">${[['popup', 'Popup'], ['side', 'Seitenleiste'], ['full', 'Vollbild']].map(([k, l]) => `<button class="${S.mode === k ? 'on' : ''}" data-act="setMode" data-v="${k}">${l}</button>`).join('')}</div>
+      <label>Breite</label><div class="wline">${S.mode === 'full' ? 'Vollbild: ganze Bildschirmbreite' : S.manualW ? `manuell: <b>${S.manualW} px</b> · <button class="link" data-act="ctlAuto">wieder automatisch</button>` : `automatisch: <b>${S.curW} px</b><br><span class="muted">Kern${mods.length ? ' + ' + mods.join(', ') : ' – noch nichts zusätzlich genutzt'}</span>`}</div>
+      ${S.mode === 'side' ? `<label>Seitenleiste: Grenzen</label>
+        <div class="rng"><span>Min</span><input type="range" min="200" max="${innerWidth}" step="10" value="${S.sideMin}" data-input="sideMin"><b id="vMin">${sideLbl(S.sideMin)}</b></div>
+        <div class="rng"><span>Max</span><input type="range" min="200" max="${innerWidth}" step="10" value="${S.sideMax}" data-input="sideMax"><b id="vMax">${sideLbl(S.sideMax)}</b></div>` : ''}
+      <label>Ereignis simulieren</label><div class="sims">${[['mensch', 'Mail'], ['kunde', 'Kundenmail'], ['jira', 'Jira-Status'], ['otp', 'Login-Code'], ['news', 'Newsletter']].map(([k, l]) => `<button class="chip" data-act="sim" data-k="${k}">${l}</button>`).join('')}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:12px"><button class="btn" data-act="reset">Zurücksetzen</button><span class="faint" style="font-size:11.5px">Linken Fensterrand ziehen ändert die Breite</span></div>
+    </div>`;
+}
+function vMore() {
+  return `<div class="section-title"><h1>Mehr Maillet</h1></div>
+  <p class="muted" style="margin:-8px 0 16px">Maillet startet klein. Jede Funktion kommt erst dazu, wenn du sie brauchst – durch Benutzen oder hier per Schalter. Das Fenster wächst mit.</p>
+  <div class="more-grid">${MODS.map(([k, n, i, d, adds]) => `<div class="mod ${modOn(k) ? 'on' : ''}"><h3>${ic(i, 'sm')}<span class="grow">${n}</span><button class="sw-toggle ${modOn(k) ? 'on' : ''}" data-act="${modOn(k) ? 'modOff' : 'modOn'}" data-k="${k}" title="${modOn(k) ? 'Ausblenden' : 'Einschalten'}"></button></h3><p>${d}</p><div class="adds">+ ${adds}</div></div>`).join('')}</div>
+  <p class="muted" style="margin-top:18px;font-size:12.5px">Ausschalten blendet nur aus, die Daten bleiben. Auch ohne Schalter: Wer eine Mail einem Thema zuordnet, in eine Aufgabe verwandelt, merkt oder ablegt, schaltet die Funktion damit ein.</p>`;
+}
+function loadProfile(p) {
+  S.profile = p; D = makeProfile(p); applyRules();
+  Object.assign(S, { view: 'home', open: null, filter: 'alle', tstats: null, sortAI: false, editBoard: false, coll: {}, manualW: null, prevMods: null, winHidden: false, board: ['pinned', 'live', 'today', 'cheat', 'topics'] });
+  closeModal(); closePop(); render();
+}
 
 /* ---------- Abfragen ---------- */
 const mail = id => D.mails.find(m => m.id === id);
@@ -798,13 +1012,13 @@ function card(m) {
     <div class="mc-subj">${esc(m.subject)}</div>
     <div class="mc-prev">${esc(m.body.replace(/\s+/g, ' ').slice(0, 160))}</div>
     ${aiLine(m)}
-    <div class="mc-foot">${tp}${m.expires ? `<span class="exp" title="Verlässt den Fluss danach von selbst">${ic('clock', 'sm')}läuft ab ${esc(m.expires)}</span>` : ''}<span class="grow"></span>
+    <div class="mc-foot">${D.on.topics ? tp : ''}${m.expires ? `<span class="exp" title="Verlässt den Fluss danach von selbst">${ic('clock', 'sm')}läuft ab ${esc(m.expires)}</span>` : ''}<span class="grow"></span>
       <div class="mc-acts">
+        <span class="x-more"><button class="ib" data-act="task" data-id="${m.id}" title="Aufgabe daraus (A)">${ic('task', 'sm')}</button><button class="ib" data-act="know" data-id="${m.id}" title="Ins Wissen (M)">${ic('bulb', 'sm')}</button><button class="ib" data-act="ablage" data-id="${m.id}" title="Lokal ablegen (L)">${ic('box', 'sm')}</button></span>
         <button class="ib ${m.pinned ? 'on' : ''}" data-act="pin" data-id="${m.id}" title="Anpinnen (P)">${ic('pin', 'sm')}</button>
-        <button class="ib" data-act="task" data-id="${m.id}" title="Aufgabe daraus (A)">${ic('task', 'sm')}</button>
-        <button class="ib" data-act="know" data-id="${m.id}" title="Ins Wissen (M)">${ic('bulb', 'sm')}</button>
         <button class="ib" data-act="snooze" data-id="${m.id}" title="Später (S)">${ic('clock', 'sm')}</button>
         <button class="ib" data-act="archive" data-id="${m.id}" title="Erledigt / Archiv (E)">${ic('check', 'sm')}</button>
+        <button class="ib b-more" data-act="cardMore" data-id="${m.id}" title="Mehr: Thema, Aufgabe, Merken, Ablegen">⋯</button>
       </div></div>
   </article>`;
 }
@@ -812,17 +1026,20 @@ function card(m) {
 /* ---------- Rail ---------- */
 function renderRail() {
   const nU = unread().length, nT = D.tasks.filter(t => t.status !== 'done').length;
-  const nav = (v, icon, label, badge) => `<button class="nav ${S.view === v || (v === 'topics' && S.view === 'topic') ? 'on' : ''}" data-act="view" data-view="${v}">${ic(icon)}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+  const cur = v => S.view === v || (v === 'topics' && S.view === 'topic');
+  const show = (v, mod) => modOn(mod) || cur(v);
+  const nav = (v, icon, label, badge) => `<button class="nav ${cur(v) ? 'on' : ''}" data-act="view" data-view="${v}" title="${label}">${ic(icon)}<span class="lbl">${label}</span>${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
   $('#rail').innerHTML = `<div class="logo" title="Maillet">M</div>
     ${nav('home', 'home', 'Übersicht', nU)}
     ${nav('triage', 'zap', 'Triage')}
-    ${nav('topics', 'hash', 'Themen')}
-    ${nav('tasks', 'task', 'Aufgaben', nT)}
-    ${nav('know', 'bulb', 'Wissen')}
-    ${nav('ablage', 'box', 'Ablage')}
-    ${nav('ai', 'spark', 'KI')}
+    ${show('topics', 'topics') ? nav('topics', 'hash', 'Themen') : ''}
+    ${show('tasks', 'tasks') ? nav('tasks', 'task', 'Aufgaben', nT) : ''}
+    ${show('know', 'know') ? nav('know', 'bulb', 'Wissen') : ''}
+    ${show('ablage', 'ablage') ? nav('ablage', 'box', 'Ablage') : ''}
+    ${show('ai', 'ai') ? nav('ai', 'spark', 'KI') : ''}
     <div class="spacer"></div>
-    <button class="nav" data-act="settings">${ic('gear')}Konten</button>`;
+    ${nav('more', 'plus', 'Mehr')}
+    <button class="nav" data-act="settings" title="Konten">${ic('gear')}<span class="lbl">Konten</span></button>`;
 }
 
 /* ---------- Übersicht ---------- */
@@ -842,12 +1059,13 @@ function vHome() {
   if (S.sortAI && D.ai.on) shown = [...shown].sort((a, b) => ((aiFor(b) || {}).score || 0) - ((aiFor(a) || {}).score || 0));
   const cnt = g => u.filter(m => m.group === g || m.acc === g).length;
   const people = cnt('mensch');
-  const today = D.tasks.filter(t => t.status !== 'done' && ['heute', 'ue'].includes(t.due));
-  const waiting = D.tasks.filter(t => t.status === 'wait');
-  const nAbs = D.mails.filter(m => m.absorbed).length;
+  const today = D.on.tasks ? D.tasks.filter(t => t.status !== 'done' && ['heute', 'ue'].includes(t.due)) : [];
+  const waiting = D.on.tasks ? D.tasks.filter(t => t.status === 'wait') : [];
+  const nAbs = D.on.live ? D.mails.filter(m => m.absorbed).length : 0;
   const noise = shown.filter(m => m.group === 'rauschen');
   const p1 = D.ai.prompts.find(p => p.id === 'p1');
   const digest = D.ai.on && p1 && p1.on && noise.length ? digestCard(noise) : '';
+  const items = boardItems(), hasBoard = items.length > 0;
   const fchip = (k, label) => `<button class="chip ${f === k ? 'on' : ''}" data-act="filter" data-f="${k}">${label}${k === 'alle' ? '' : ` <span class="faint">${cnt(k)}</span>`}</button>`;
   return `
   <div class="hero">
@@ -857,22 +1075,22 @@ function vHome() {
     ${u.length ? `<button class="btn primary big" data-act="view" data-view="triage">${ic('zap')}Triage starten <kbd>${u.length}</kbd></button>` : ''}
   </div>
   ${otpStrip()}
-  <div class="home-grid">
+  <div class="home-grid ${hasBoard ? 'with-board' : ''}">
     <div>
-      <div class="zone"><b>Fluss</b> · erscheint, um abgearbeitet zu werden<span class="grow"></span><span class="goal">${u.length ? `noch ${u.length} · Ziel 0` : 'Ziel erreicht ✓'}</span></div>
+      ${hasBoard ? `<div class="zone"><b>Fluss</b><span class="wide-only">· erscheint, um abgearbeitet zu werden</span><span class="grow"></span><span class="goal">${u.length ? `noch ${u.length} · Ziel 0` : 'Ziel erreicht ✓'}</span></div>` : ''}
       <section class="panel">
         <header><h2>${ic('mail', 'sm')}Neu</h2><span class="grow"></span>
-          ${D.ai.on ? `<button class="chip ${!S.sortAI ? 'on' : ''}" data-act="sortAI" data-v="0">Zeit</button><button class="chip ${S.sortAI ? 'on' : ''}" data-act="sortAI" data-v="1" title="Sortiert nach deinem Prompt „Wichtigkeit“">${ic('spark', 'sm')}Wichtigkeit</button>` : ''}</header>
+          ${D.ai.on ? `<button class="chip ${!S.sortAI ? 'on' : ''}" data-act="sortAI" data-v="0">Zeit</button><button class="chip ${S.sortAI ? 'on' : ''}" data-act="sortAI" data-v="1" title="Sortiert nach deinem Prompt „Wichtigkeit“">${ic('spark', 'sm')}<span class="wide-only">Wichtigkeit</span></button>` : `<span class="faint" style="font-size:12px">${u.length ? `Ziel 0 · noch ${u.length}` : '✓'}</span>`}</header>
         <div class="filters">${fchip('alle', 'Alle')}${fchip('mensch', 'Menschen')}${fchip('maschine', 'Maschinen')}${fchip('rauschen', 'Rauschen')}<span class="sep"></span>${fchip('arbeit', 'Arbeit')}${fchip('privat', 'Privat')}</div>
         <div class="cards">${digest}${shown.map(card).join('') || `<div class="empty" style="grid-column:1/-1"><div class="big">🌿</div>Nichts Neues hier. Genieß die Ruhe.</div>`}</div>
-        ${nAbs ? `<div class="hint-line">${ic('clock', 'sm')}${nAbs} Zustandsmeldungen (Jira, Paket …) sind direkt in Zustandskarten gewandert und tauchen hier nicht auf.</div>` : ''}
-        ${!digest && shown.some(m => m.group === 'rauschen') ? `<div class="hint-line">${ic('spark', 'sm')}Rauschen ist gedämpft und löst nie eine Benachrichtigung aus. <button class="link" data-act="archiveNoise">Alles Rauschen erledigen</button></div>` : ''}
+        ${nAbs ? `<div class="hint-line">${ic('clock', 'sm')}${nAbs} Zustandsmeldungen sind direkt in Zustandskarten gewandert.</div>` : ''}
+        ${!digest && shown.some(m => m.group === 'rauschen') ? `<div class="hint-line">${ic('spark', 'sm')}<span class="wide-only">Rauschen ist gedämpft und benachrichtigt nie.</span> <button class="link" data-act="archiveNoise">Alles Rauschen erledigen</button></div>` : ''}
       </section>
     </div>
-    <div>
-      <div class="zone"><b>Board</b> · bleibt, drängt nicht<span class="grow"></span><button class="link" data-act="boardEdit">${S.editBoard ? 'Fertig' : 'Anpassen'}</button></div>
-      <div class="side-col board ${S.editBoard ? 'edit' : ''}">${S.board.map(widget).join('')}${S.editBoard ? `<button class="addw" data-act="bAdd">${ic('plus', 'sm')}Karte hinzufügen</button>` : ''}</div>
-    </div>
+    ${hasBoard ? `<div>
+      <div class="zone"><b>Board</b><span class="wide-only">· bleibt, drängt nicht</span><span class="grow"></span><button class="link" data-act="boardEdit">${S.editBoard ? 'Fertig' : 'Anpassen'}</button></div>
+      <div class="side-col board ${S.editBoard ? 'edit' : ''}">${items.map(widget).join('')}${S.editBoard ? `<button class="addw" data-act="bAdd">${ic('plus', 'sm')}Karte hinzufügen</button>` : ''}</div>
+    </div>` : ''}
   </div>`;
 }
 function digestCard(noise) {
@@ -885,7 +1103,8 @@ const WIDGETS = {
   pinned: { t: 'Angepinnt', i: 'pin' }, live: { t: 'Zustand', i: 'clock' }, today: { t: 'Heute dran', i: 'task' }, cheat: { t: 'Spickzettel', i: 'key' },
   topics: { t: 'Themen', i: 'hash' }, owe: { t: 'Ich schulde Antworten', i: 'reply' }, smart: { t: 'Smart-Karte: Rechnungen', i: 'search' }, accounts: { t: 'Konten', i: 'mail' },
 };
-function widget(w, i) {
+function widget(w) {
+  const i = S.board.indexOf(w);
   const W = WIDGETS[w];
   const pinned = D.mails.filter(m => m.pinned && !(m.archived && !m.ablage));
   const extra = { pinned: `<span class="badge soft">${pinned.length}</span>`, today: `<button class="link" data-act="view" data-view="tasks">Alle Aufgaben</button>`, topics: `<button class="link" data-act="view" data-view="topics">Verwalten</button>`, cheat: `<button class="link" data-act="view" data-view="know">Wissen</button>` }[w] || '';
@@ -907,7 +1126,8 @@ function widget(w, i) {
   if (w === 'smart') { const ms = D.mails.filter(m => /rechnung/i.test(m.subject));
     body = `<div class="hint-line" style="padding-top:2px"><span class="chip">betreff:rechnung</span></div><div class="list-pad">${ms.map(m => `<button class="row" data-act="open" data-id="${m.id}">${ic('file', 'sm')}<span class="grow"><span class="t">${esc(m.subject)}</span><small class="faint">${esc(m.from)} · ${esc(m.time)}</small></span></button>`).join('')}</div>`; }
   if (w === 'accounts') body = `<div class="list-pad">${D.accounts.map(a => `<div class="acc-row"><span class="live ${a.kind === 'local' ? 'local' : ''}"></span><span class="grow"><b>${esc(a.name)}</b> <span class="faint">${esc(a.addr)}</span></span><small class="faint">${esc(a.sync)}</small></div>`).join('')}</div>`;
-  return `<section class="panel"><header><h2>${ic(W.i, 'sm')}${W.t}</h2><span class="grow"></span>${ctl}</header>${body}</section>`;
+  const c = !S.editBoard && isColl(w);
+  return `<section class="panel ${c ? 'coll' : ''}"><header class="${S.editBoard ? '' : 'tog'}" ${S.editBoard ? '' : `data-act="bToggle" data-w="${w}"`}><h2>${ic(W.i, 'sm')}${W.t}</h2><span class="grow"></span>${c ? '' : ctl}${S.editBoard ? '' : '<span class="chev">▾</span>'}</header>${c ? '' : body}</section>`;
 }
 function livePop(anchor, id) {
   const l = D.live.find(x => x.id === id); S.popCtx = { kind: 'live', id };
@@ -1157,27 +1377,27 @@ const fileName = m => `${m.ablage}/${m.date}_${slug(m.subject)}.eml`;
 /* ---------- Reader ---------- */
 function renderReader() {
   const r = $('#reader'), m = mail(S.open);
-  $('#scrim').classList.toggle('show', !!m);
+  $('#scrim').classList.remove('show');
   r.classList.toggle('show', !!m);
   if (!m) return;
   const t = topic(m.topic), fs = finds(m);
   const ts = D.tasks.filter(x => x.mail === m.id), ks = D.know.filter(k => k.mail === m.id);
   const list = S.view === 'triage' ? [] : (m.acc === 'lokal' ? [] : unread().map(x => x.id));
-  r.innerHTML = `<div class="rd-top"><button class="ib" data-act="closeReader" title="Schließen (Esc)">${ic('x')}</button>
+  r.innerHTML = `<div class="rd-top"><button class="btn ghost" data-act="closeReader" title="Zurück (Esc)">${ic('back')}<span class="lbl">Zurück</span></button>
       <span class="muted" style="font-size:12.5px">${esc(acc(m.acc).name)} · ${GROUPS[m.group]}</span><span class="grow"></span>
       ${m.ablage ? `<span class="offline-badge">${ic('box', 'sm')}lokal · ${esc(m.ablage)}</span>` : ''}
     </div>
-    <div class="rd-scroll">
+    <div class="rd-scroll"><div class="rd-inner">
       <div class="rd-head">${avatar(m.from, 'lg')}<div class="grow"><b>${esc(m.from)}</b><br><small>${esc(m.addr)} · ${esc(m.time)}</small></div></div>
       <h2 class="rd-subj">${esc(m.subject)}</h2>
       <div class="rd-meta">${t ? topicChip(t, m) : `<button class="chip ghost" data-act="pickTopic" data-id="${m.id}">${ic('hash', 'sm')}Thema zuordnen</button>`}${m.pinned ? `<span class="chip" style="color:var(--accent)">${ic('pin', 'sm')}angepinnt</span>` : ''}</div>
       <div class="rd-actions">
         <button class="ab" data-act="reply" data-id="${m.id}">${ic('reply', 'sm')}Antworten</button>
-        <button class="ab ${m.pinned ? 'on' : ''}" data-act="pin" data-id="${m.id}">${ic('pin', 'sm')}${m.pinned ? 'Gepinnt' : 'Anpinnen'} <kbd>P</kbd></button>
-        <button class="ab" data-act="task" data-id="${m.id}">${ic('task', 'sm')}Aufgabe <kbd>A</kbd></button>
-        <button class="ab" data-act="know" data-id="${m.id}">${ic('bulb', 'sm')}Merken <kbd>M</kbd></button>
-        <button class="ab ${m.ablage ? 'on' : ''}" data-act="ablage" data-id="${m.id}">${ic('box', 'sm')}${m.ablage ? 'Abgelegt' : 'Ablegen'} <kbd>L</kbd></button>
-        ${m.acc !== 'lokal' ? `<button class="ab" data-act="snooze" data-id="${m.id}">${ic('clock', 'sm')}Später <kbd>S</kbd></button>
+        <button class="ab ${m.pinned ? 'on' : ''}" data-act="pin" data-id="${m.id}">${ic('pin', 'sm')}<span class="lbl">${m.pinned ? 'Gepinnt' : 'Anpinnen'}</span> <kbd>P</kbd></button>
+        <button class="ab" data-act="task" data-id="${m.id}" title="Aufgabe">${ic('task', 'sm')}<span class="lbl">Aufgabe</span> <kbd>A</kbd></button>
+        <button class="ab" data-act="know" data-id="${m.id}" title="Merken">${ic('bulb', 'sm')}<span class="lbl">Merken</span> <kbd>M</kbd></button>
+        <button class="ab ${m.ablage ? 'on' : ''}" data-act="ablage" data-id="${m.id}">${ic('box', 'sm')}<span class="lbl">${m.ablage ? 'Abgelegt' : 'Ablegen'}</span> <kbd>L</kbd></button>
+        ${m.acc !== 'lokal' ? `<button class="ab" data-act="snooze" data-id="${m.id}" title="Später">${ic('clock', 'sm')}<span class="lbl">Später</span> <kbd>S</kbd></button>
         <button class="ab" data-act="archive" data-id="${m.id}">${ic('check', 'sm')}Erledigt <kbd>E</kbd></button>` : ''}
       </div>
       ${fs.length ? `<div class="finds"><span>${ic('spark', 'sm')}Erkannt</span>${fs.map(f => `<button class="find" data-act="find" data-id="${m.id}" data-kind="${f.kind}" data-label="${esc(f.label)}" data-val="${esc(f.value)}" title="${['deadline', 'date'].includes(f.kind) ? 'Als Aufgabe mit Termin' : 'Ins Wissen übernehmen'}"><em>${esc(f.label)}</em>${esc(f.value.length > 34 ? f.value.slice(0, 32) + '…' : f.value)}</button>`).join('')}</div>` : ''}
@@ -1186,7 +1406,7 @@ function renderReader() {
       ${m.attach ? `<div class="att-row">${m.attach.map(a => `<span class="att">${ic('file', 'sm')}${esc(a)}</span>`).join('')}</div>` : ''}
       ${ts.length || ks.length ? `<div class="related"><h4>Aus dieser Mail entstanden</h4>${ts.map(taskRow).join('')}${ks.map(k => `<button class="row" data-act="view" data-view="know">${ic(k.kind === 'fact' ? 'key' : 'bulb', 'sm')}<span class="grow"><span class="t">${esc(k.title)}</span></span><span class="faint">Wissen</span></button>`).join('')}</div>` : ''}
       <div class="tip">${ic('spark', 'sm')}Text markieren → als Wissen merken oder Aufgabe daraus machen.</div>
-    </div>`;
+    </div></div>`;
 }
 function openMail(id) {
   const m = mail(id); if (!m) return;
@@ -1197,7 +1417,7 @@ function openMail(id) {
 /* ---------- Dock (beim Ziehen) ---------- */
 function showDock() {
   const m = mail(S.drag);
-  $('#dock').innerHTML = D.topics.map(t => `<div class="dz topic" style="--c:${t.color}" data-drop="topic:${t.id}"><span class="dot" style="--c:${t.color}"></span>${esc(t.name)}</div>`).join('')
+  $('#dock').innerHTML = (D.on.topics && D.topics.length ? '' : `<div class="dz" data-drop="newtopic">${ic('hash')}Thema …</div>`) + (D.on.topics ? D.topics : []).map(t => `<div class="dz topic" style="--c:${t.color}" data-drop="topic:${t.id}"><span class="dot" style="--c:${t.color}"></span>${esc(t.name)}</div>`).join('')
     + `<div class="dock-sep"></div>`
     + [['pin', 'pin', m && m.pinned ? 'Lösen' : 'Anpinnen'], ['task', 'task', 'Aufgabe'], ['know', 'bulb', 'Merken'], ['ablage', 'box', 'Ablegen'], ['snooze', 'clock', 'Später'], ['archive', 'check', 'Erledigt']]
       .map(([k, i, l]) => `<div class="dz" data-drop="${k}">${ic(i)}${l}</div>`).join('');
@@ -1221,7 +1441,7 @@ function doArchive(id) {
 function assignTopic(id, tid) {
   const m = mail(id), t = topic(tid);
   const snap = structuredClone(D);
-  m.topic = tid || null; m.auto = false;
+  m.topic = tid || null; m.auto = false; if (tid) D.on.topics = true;
   render();
   const d = domain(m.addr);
   const others = D.mails.filter(x => x !== m && x.addr.endsWith(d) && x.topic !== tid && x.acc !== 'lokal').length;
@@ -1233,7 +1453,7 @@ function assignTopic(id, tid) {
 }
 function createTopic(name, color) {
   const t = { id: uid('t'), name: name.trim(), color: color || COLORS[D.topics.length % COLORS.length] };
-  D.topics.push(t); return t;
+  D.topics.push(t); D.on.topics = true; return t;
 }
 const SNOOZE = [['Heute 16:00', 'clock'], ['Morgen 9:00', 'clock'], ['Montag 9:00', 'clock'], ['Wenn keine Antwort kommt (3 Tage)', 'reply'], ['Wenn ich im Büro bin', 'home']];
 function doSnooze(id, label) {
@@ -1260,7 +1480,7 @@ function topicPicker(anchor, id) {
     const list = D.topics.filter(t => !q || t.name.toLowerCase().includes(q));
     const exact = D.topics.some(t => t.name.toLowerCase() === q);
     const items = list.map((t, i) => `<button class="pi ${i === c.idx ? 'sel' : ''}" data-act="pickT" data-t="${t.id}"><span class="dot" style="--c:${t.color}"></span><span class="grow">${esc(t.name)}</span>${m.topic === t.id ? ic('check', 'sm') : i < 9 ? `<kbd>${i + 1}</kbd>` : ''}</button>`).join('');
-    $('#pop .pl').innerHTML = items + (q && !exact ? `<button class="pi ${list.length === 0 ? 'sel' : ''}" data-act="pickNew">${ic('plus', 'sm')}<span class="grow">„${esc(c.q.trim())}“ als neues Thema</span><kbd>↵</kbd></button>` : '')
+    $('#pop .pl').innerHTML = (!D.topics.length && !q ? '<div class="faint" style="padding:4px 10px 8px">Noch keine Themen. Tippe einen Namen – Enter legt das erste an.</div>' : '') + items + (q && !exact ? `<button class="pi ${list.length === 0 ? 'sel' : ''}" data-act="pickNew">${ic('plus', 'sm')}<span class="grow">„${esc(c.q.trim())}“ als neues Thema</span><kbd>↵</kbd></button>` : '')
       + (m.topic ? `<button class="pi" data-act="pickT" data-t=""><span class="faint">${ic('x', 'sm')}</span><span class="grow muted">Thema entfernen</span></button>` : '');
   };
   const sug = suggestTopic(mail(id));
@@ -1365,7 +1585,7 @@ function settingsDialog() {
 const COMMANDS = [
   ['Triage starten', 'zap', () => go('triage')], ['Übersicht', 'home', () => go('home')], ['Aufgaben', 'task', () => go('tasks')], ['Wissen', 'bulb', () => go('know')],
   ['Ablage', 'box', () => go('ablage')], ['Themen', 'hash', () => go('topics')], ['KI-Assistenz & Prompts', 'spark', () => go('ai')], ['Neue Notiz', 'plus', () => knowDialog(null)], ['Neue Aufgabe', 'plus', () => taskDialog(null)],
-  ['Fokus-Modus umschalten', 'belloff', () => toggleFocus()], ['Hell / Dunkel', 'moon', () => toggleTheme()], ['Tray-Popup zeigen', 'tray', () => toggleTray(true)], ['Tastenkürzel', 'kbd', () => keysDialog()],
+  ['Fokus-Modus umschalten', 'belloff', () => toggleFocus()], ['Hell / Dunkel', 'moon', () => toggleTheme()], ['Fenster: Popup am Tray', 'tray', () => setMode('popup')], ['Fenster: Seitenleiste', 'side', () => setMode('side')], ['Fenster: Vollbild', 'full', () => setMode('full')], ['Mehr Funktionen', 'plus', () => go('more')], ['Tastenkürzel', 'kbd', () => keysDialog()],
 ];
 function palResults() {
   const q = S.pal.q.trim().toLowerCase();
@@ -1447,6 +1667,10 @@ function notify(title, body, actions) {
   setTimeout(() => el.remove(), 9000);
 }
 function simulate(kind) {
+  if (kind === 'jira' && !D.on.live) {
+    D.mails.unshift({ id: uid('m'), acc: 'arbeit', from: 'Jira', addr: 'jira@firma.example', group: 'maschine', unread: true, time: new Date().toTimeString().slice(0, 5), date: '2026-11-10', subject: '[ATLAS-412] Status geändert: In Arbeit', body: 'ATLAS-412 wurde auf „In Arbeit“ gesetzt.' });
+    render(); toast('Zustandskarten sind aus – die Meldung landet im Fluss. Einschalten unter „Mehr“.'); return;
+  }
   if (kind === 'jira') {
     const l = D.live.find(x => x.id === 'l1');
     if (!l) { toast('Zustandskarte wurde entfernt – Zurücksetzen stellt sie wieder her'); return; }
@@ -1484,19 +1708,21 @@ function copyOtp(id) {
   act(`Code ${o.code} kopiert · Mail archiviert`, () => { D.otps = D.otps.filter(x => x.id !== id); });
   if ($('#tray').classList.contains('show')) renderTray();
 }
-function toggleFocus() { S.focus = !S.focus; $('#focusBtn').classList.toggle('on', S.focus); $('#focusBtn').innerHTML = `${ic(S.focus ? 'belloff' : 'bell')}Fokus`; toast(S.focus ? 'Fokus an – nur Menschen dürfen stören' : 'Fokus aus'); }
+function toggleFocus() { S.focus = !S.focus; $('#focusBtn').classList.toggle('on', S.focus); $('#focusBtn').innerHTML = `${ic(S.focus ? 'belloff' : 'bell')}<span class="lbl">Fokus</span>`; toast(S.focus ? 'Fokus an – nur Menschen dürfen stören' : 'Fokus aus'); }
 function toggleTheme() { const r = document.documentElement; r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark'; }
 function go(v) { S.view = v; S.open = null; if (v === 'triage') S.tstats = null; closePop(); render(); $('#view').scrollTop = 0; }
 
 /* ---------- Render ---------- */
 function render() {
+  S.curW = targetWidth();
   renderRail();
-  const v = { home: vHome, triage: vTriage, topics: vTopics, topic: vTopic, tasks: vTasks, know: vKnow, ablage: vAblage, ai: vAI }[S.view];
+  const v = { home: vHome, triage: vTriage, topics: vTopics, topic: vTopic, tasks: vTasks, know: vKnow, ablage: vAblage, ai: vAI, more: vMore }[S.view];
   const active = document.activeElement && document.activeElement.id;
   $('#view').innerHTML = v();
   if (active === 'kq') { const k = $('#kq'); k.focus(); k.setSelectionRange(k.value.length, k.value.length); }
   renderReader();
   if ($('#tray').classList.contains('show')) renderTray();
+  applyWindow();
 }
 
 /* ---------- Ereignisse ---------- */
@@ -1511,6 +1737,18 @@ document.addEventListener('click', e => {
   const a = el.dataset.act, id = el.dataset.id;
   e.stopPropagation();
   switch (a) {
+    case 'cardMore': S.moreAnchor = el; openPop(el, `<div class="pop-title">Was wird aus dieser Mail?</div>${[['topic', 'hash', 'Thema zuordnen'], ['task', 'task', 'Aufgabe daraus'], ['know', 'bulb', 'Merken (Wissen)'], ['ablage', 'box', 'Lokal ablegen']].map(([x, i, l]) => `<button class="pi" data-act="moreDo" data-a="${x}" data-id="${id}">${ic(i, 'sm')}<span class="grow">${l}</span></button>`).join('')}`); break;
+    case 'moreDo': { const x = el.dataset.a; closePop(); if (x === 'topic') topicPicker(S.moreAnchor, id); else if (x === 'task') taskDialog(id); else if (x === 'know') knowDialog(id); else ablageDialog(id); break; }
+    case 'modeMenu': openPop(el, `<div class="pop-title">Fensterform</div>${[['popup', 'tray', 'Popup am Tray', 'klein, öffnet per Klick aufs Symbol'], ['side', 'side', 'Seitenleiste', 'rechts angedockt, volle Höhe'], ['full', 'full', 'Vollbild', 'maximale Übersicht']].map(([k, i, l, d]) => `<button class="pi ${S.mode === k ? 'sel' : ''}" data-act="setMode" data-v="${k}">${ic(i, 'sm')}<span class="grow">${l}<br><small class="faint">${d}</small></span>${S.mode === k ? ic('check', 'sm') : ''}</button>`).join('')}`); break;
+    case 'setMode': setMode(el.dataset.v); break;
+    case 'trayIcon': S.winHidden = !S.winHidden; applyWindow(); break;
+    case 'desk': if (S.mode === 'popup' && !S.winHidden) { S.winHidden = true; applyWindow(); } break;
+    case 'ctlToggle': S.ctlOpen = !S.ctlOpen; renderCtl(); break;
+    case 'ctlProfile': loadProfile(el.dataset.v); toast({ start: 'Einsteiger: Maillet startet schmal, nur das Nötigste', mid: 'Fortgeschritten: Themen und Angepinntes – das Fenster ist breiter', power: 'Power: alles im Einsatz – volle Breite' }[el.dataset.v]); break;
+    case 'ctlAuto': S.manualW = null; render(); break;
+    case 'modOn': enableModule(el.dataset.k); render(); break;
+    case 'modOff': disableModule(el.dataset.k); render(); toast('Ausgeblendet – die Daten bleiben erhalten'); break;
+    case 'bToggle': { const w = el.dataset.w; S.coll[w] = !isColl(w); render(); break; }
     case 'view': closeModal(); go(el.dataset.view); break;
     case 'open': closePop(); closeModal(); openMail(id); break;
     case 'sortAI': S.sortAI = el.dataset.v === '1'; render(); break;
@@ -1590,7 +1828,7 @@ document.addEventListener('click', e => {
     case 'theme': toggleTheme(); break;
     case 'keys': keysDialog(); break;
     case 'settings': settingsDialog(); break;
-    case 'reset': D = seed(); applyRules(); Object.assign(S, { view: 'home', open: null, filter: 'alle', tstats: null, sortAI: false, editBoard: false, board: ['pinned', 'live', 'today', 'cheat', 'topics'] }); render(); toast('Dummy zurückgesetzt'); break;
+    case 'reset': loadProfile(S.profile); toast('Dummy zurückgesetzt'); break;
     case 'tArchive': { const m = triageCurrent(); m.archived = true; m.unread = false; triageAdvance('left', 'archived'); break; }
     case 'tPin': { const m = triageCurrent(); m.pinned = true; m.unread = false; triageAdvance('up', 'pinned'); break; }
     case 'tSkip': { const m = triageCurrent(); m.unread = false; triageAdvance('right', 'skipped'); break; }
@@ -1606,7 +1844,7 @@ function saveTask() {
   closeModal();
   const inTriage = S.view === 'triage' && m && triageCurrent() === m;
   act(`Aufgabe angelegt${arch ? ' · Mail erledigt' : ''}`, () => {
-    D.tasks.unshift({ id: uid('k'), title, mail: c.id, due: c.due || '', status: c.status, topic: m ? m.topic : null, since: 0, waitFor: '', subtasks: c.subtasks ? c.subtasks.map(x => ({ t: x, done: false })) : null });
+    D.on.tasks = true; D.tasks.unshift({ id: uid('k'), title, mail: c.id, due: c.due || '', status: c.status, topic: m ? m.topic : null, since: 0, waitFor: '', subtasks: c.subtasks ? c.subtasks.map(x => ({ t: x, done: false })) : null });
     if (m && arch) { m.archived = true; m.unread = false; if (S.open === m.id) S.open = null; }
   });
   if (inTriage) { if (arch) triageAdvance('up', 'tasks'); else S.tstats.tasks++; }
@@ -1616,13 +1854,13 @@ function saveKnow() {
   const tags = $('#kTags').value.split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean);
   closeModal();
   if (S.view === 'triage' && S.tstats) S.tstats.know++;
-  act('Gemerkt – zu finden unter Wissen und in der Suche', () => { D.know.unshift({ id: uid('w'), kind: c.k, title: title || content.slice(0, 40), content, tags, topic: c.topic, mail: c.id }); });
+  act('Gemerkt – zu finden unter Wissen und in der Suche', () => { D.on.know = true; D.know.unshift({ id: uid('w'), kind: c.k, title: title || content.slice(0, 40), content, tags, topic: c.topic, mail: c.id }); });
 }
 function saveAblage() {
   const c = S.mctx, m = mail(c.id);
   closeModal();
   const inTriage = S.view === 'triage' && triageCurrent() === m;
-  act(`Abgelegt in ${c.folder} · offline verfügbar`, () => { m.ablage = c.folder; m.unread = false; if (c.mode === 'move' && m.acc !== 'lokal') { m.archived = true; if (S.open === m.id && S.view !== 'ablage') S.open = null; } });
+  act(`Abgelegt in ${c.folder} · offline verfügbar`, () => { D.on.ablage = true; m.ablage = c.folder; m.unread = false; if (c.mode === 'move' && m.acc !== 'lokal') { m.archived = true; if (S.open === m.id && S.view !== 'ablage') S.open = null; } });
   if (inTriage && c.mode === 'move') triageAdvance('up', 'ablage'); else if (inTriage) S.tstats.ablage++;
 }
 function newFolderInDlg() {
@@ -1676,6 +1914,15 @@ document.addEventListener('keydown', e => {
 
 document.addEventListener('input', e => {
   if (e.target.dataset.input === 'kq') { S.kq = e.target.value; render(); }
+  const k = e.target.dataset.input;
+  if (k === 'sideMin' || k === 'sideMax') {
+    S[k] = +e.target.value;
+    if (k === 'sideMin' && S.sideMax < S.sideMin) S.sideMax = S.sideMin;
+    if (k === 'sideMax' && S.sideMin > S.sideMax) S.sideMin = S.sideMax;
+    if (S.manualW) S.manualW = Math.max(S.sideMin, Math.min(S.sideMax, S.manualW));
+    S.curW = targetWidth(); $('#win').style.setProperty('--w', S.curW + 'px');
+    $('#vMin').textContent = sideLbl(S.sideMin); $('#vMax').textContent = sideLbl(S.sideMax);
+  }
 });
 document.addEventListener('focusout', e => {
   const id = e.target.dataset && e.target.dataset.rename;
@@ -1728,6 +1975,7 @@ document.addEventListener('drop', e => {
   else if (d === 'know') knowDialog(id);
   else if (d === 'ablage') ablageDialog(id);
   else if (d === 'snooze') snoozePicker(z, id);
+  else if (d === 'newtopic') topicPicker(z, id);
 });
 
 /* OTP-Countdown */
@@ -1741,6 +1989,16 @@ setInterval(() => {
   if (expired) { D.otps = D.otps.filter(o => o.exp > Date.now()); render(); }
 }, 500);
 
+$('#grip').addEventListener('mousedown', e => {
+  e.preventDefault();
+  const win = $('#win'), right = win.getBoundingClientRect().right;
+  S.resizing = true; win.classList.add('resizing');
+  const mv = ev => { const lo = S.mode === 'side' ? S.sideMin : 340, hi = S.mode === 'side' ? S.sideMax : innerWidth - 20; S.manualW = Math.round(Math.max(lo, Math.min(hi, right - ev.clientX))); S.curW = S.manualW; win.style.setProperty('--w', S.manualW + 'px'); renderCtl(); };
+  const up = () => { S.resizing = false; win.classList.remove('resizing'); removeEventListener('mousemove', mv); removeEventListener('mouseup', up); render(); };
+  addEventListener('mousemove', mv); addEventListener('mouseup', up);
+});
+addEventListener('resize', () => render());
+document.addEventListener('change', e => { if (['sideMin', 'sideMax'].includes(e.target.dataset.input)) render(); });
 render();
 setTimeout(() => notify('Jana Wolff', 'Atlas: Review der Spezifikation bis Freitag', [
   { label: 'Öffnen', run: () => openMail('m1') }, { label: 'Aufgabe', run: () => taskDialog('m1') }, { label: 'Später', run: () => doSnooze('m1', 'Morgen 9:00') }]), 1200);

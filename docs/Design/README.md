@@ -23,6 +23,12 @@ Der Posteingang wird so zur Durchgangsstation statt zum Lager. **Themen** halten
 
 ## Was man ausprobieren sollte
 
+0. **Wachsendes Fenster:** Der Dummy zeigt einen Desktop. Maillet sitzt als Popup oben rechts am Tray-Symbol (M). Unten links ist die **Dummy-Steuerung**:
+   - **Nutzerprofil** *Einsteiger* (≈ 420 px, nur Übersicht und Triage), *Fortgeschritten* (Themen und Angepinntes, ≈ 640 px), *Power* (alles, ≈ 1200 px).
+   - Als Einsteiger eine Mail in eine Aufgabe verwandeln, einem Thema zuordnen oder anpinnen: Navigation und Fenster wachsen mit. *Mehr* in der Navigation schaltet Funktionen bewusst ein und aus.
+   - **Fensterform** Popup, Seitenleiste, Vollbild. Den linken Fensterrand ziehen ändert die Breite; alles reagiert auf die Fensterbreite.
+   - Eine geöffnete Mail deckt das Fenster ab, nur die Navigation bleibt.
+
 1. **Übersicht:** Neue Mails als Karten, gefiltert nach *Menschen / Maschinen / Rauschen* und Konto. Rechts: Angepinntes, heute Fälliges, Themen, Konten.
 2. **Ziehen:** Eine Mail-Karte greifen – unten erscheint ein **Dock** mit allen Zielen (Themen, Anpinnen, Aufgabe, Merken, Ablegen, Später, Erledigt). Loslassen = erledigt.
 3. **Themen zuordnen:**
