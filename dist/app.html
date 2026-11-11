@@ -102,7 +102,8 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .ring{--p:1;width:26px;height:26px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*360deg),var(--line) 0);display:grid;place-items:center;flex:none}
 .ring::after{content:"";width:19px;height:19px;border-radius:50%;background:var(--panel)}
 .cards{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
-.mcard{position:relative;display:flex;flex-direction:column;gap:5px;padding:11px 12px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--line);cursor:pointer;text-align:left;width:100%;transition:border-color .15s,box-shadow .15s,transform .15s;animation:pop .25s ease both}
+.mcard{position:relative;display:flex;flex-direction:column;gap:5px;padding:11px 12px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--line);cursor:pointer;text-align:left;width:100%;transition:border-color .15s,box-shadow .15s,transform .15s}
+.mcard.fresh{animation:pop .25s ease both}
 .mcard:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:var(--shadow);transform:translateY(-1px)}
 .mcard::before{content:"";position:absolute;left:-1px;top:12px;bottom:12px;width:3px;border-radius:3px;background:var(--accent)}
 .mcard.bulk{opacity:.72}
@@ -116,8 +117,11 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .mc-tags{display:flex;gap:6px;flex-wrap:wrap}
 .tag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
 .tag.code{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-family:var(--mono)}
-.mc-acts{position:absolute;right:8px;top:8px;display:flex;gap:2px;opacity:0;background:var(--panel);border-radius:9px;transition:opacity .15s}
-.mcard:hover .mc-acts,.mcard:focus-within .mc-acts{opacity:1}
+.mc-acts{position:absolute;right:6px;top:6px;opacity:0;pointer-events:none;transition:opacity .15s;z-index:2}
+.mcard:hover .mc-acts,.mcard:focus-within .mc-acts{opacity:1;pointer-events:auto}
+.acts-v,.acts-h{position:absolute;top:0;display:flex;gap:2px;padding:2px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.acts-v{right:0;flex-direction:column}
+.acts-h{right:36px;flex-direction:row-reverse}
 .av{--h:250;width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;font-weight:700;font-size:12px;flex:none;background:hsl(var(--h) 70% 92%);color:hsl(var(--h) 45% 35%)}
 :root[data-theme=dark] .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}}
@@ -344,7 +348,7 @@ function tasksView() {
   return `<div class="hero"><h1>${t('app.tasks')}</h1><p>${S.tasks.length ? t('tasks.open', { n: S.tasks.length }) : ''}${t('tasks.folder')}</p></div>
     <div class="cards">${S.tasks.map(taskCard).join('') || empty(t('tasks.empty'))}</div>`;
 }
-const taskCard = m => `<div class="mcard" data-act="openTask" data-id="${esc(m.id)}" tabindex="0">
+const taskCard = m => `<div class="mcard ${fresh(m.id)}" data-act="openTask" data-id="${esc(m.id)}" tabindex="0">
     <div class="mc-head">${avatar(m)}<div class="mc-from"><b>${esc(sender(m))}</b><small>${esc(m.account)} · ${esc(when(m.date))}</small></div></div>
     <div class="mc-subj">${esc(m.subject || t('mail.no_subject'))}</div>
     ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
@@ -354,21 +358,28 @@ const empty = text => `<div class="empty"><div class="big">🌿</div>${esc(text)
 
 const skeleton = () => [1, 2, 3].map(() => `<div class="mcard" style="cursor:default"><div class="skel" style="width:40%"></div><div class="skel" style="width:85%"></div><div class="skel" style="width:70%"></div></div>`).join('');
 
+// Karten nur beim ersten Erscheinen animieren, nicht bei jedem Neuzeichnen.
+const seenCards = new Set();
+const fresh = id => { if (seenCards.has(id)) return ''; seenCards.add(id); return 'fresh'; };
 function card(m) {
   const codes = (m.findings || []).filter(f => f.feature === 'otp');
-  return `<div class="mcard ${m.bulk ? 'bulk' : ''}" data-act="open" data-id="${esc(m.id)}" tabindex="0">
+  return `<div class="mcard ${m.bulk ? 'bulk' : ''} ${fresh(m.id)}" data-act="open" data-id="${esc(m.id)}" tabindex="0">
     <div class="mc-head">${avatar(m)}<div class="mc-from"><b>${esc(sender(m))}</b><small>${esc(m.account)} · ${esc(when(m.date))}${m.has_attachments ? ' · 📎' : ''}</small></div></div>
     <div class="mc-subj">${esc(m.subject || t('mail.no_subject'))}</div>
     ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
     ${codes.length || m.bulk ? `<div class="mc-tags">${codes.map(f => `<span class="tag code">${f.kind === 'link' ? t('mail.login_link') : esc(f.value)}</span>`).join('')}${m.bulk ? `<span class="tag">${t('mail.newsletter')}</span>` : ''}</div>` : ''}
     <div class="mc-acts">
-      ${m.from_addr ? (m.bulk
-        ? `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="0" title="${t('card.is_person')}">${ic('user', 'sm')}</button>`
-        : `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="1" title="${t('card.is_noise')}">${ic('mute', 'sm')}</button>`) : ''}
-      <button class="ib sm ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}" title="${isPinned(m.id) ? t('card.unpin') : t('card.pin')}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}</button>
-      <button class="ib sm" data-act="task" data-id="${esc(m.id)}" title="${t('card.task')}">${ic('task', 'sm')}</button>
-      <button class="ib sm" data-act="read" data-id="${esc(m.id)}" title="${t('card.read')}">${ic('dot', 'sm')}</button>
-      <button class="ib sm" data-act="archive" data-id="${esc(m.id)}" title="${t('card.archive')}">${ic('check', 'sm')}</button>
+      <div class="acts-v">
+        <button class="ib sm ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}" title="${isPinned(m.id) ? t('card.unpin') : t('card.pin')}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}</button>
+        <button class="ib sm" data-act="archive" data-id="${esc(m.id)}" title="${t('card.archive')}">${ic('check', 'sm')}</button>
+        <button class="ib sm" data-act="read" data-id="${esc(m.id)}" title="${t('card.read')}">${ic('dot', 'sm')}</button>
+        ${m.from_addr ? (m.bulk
+          ? `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="0" title="${t('card.is_person')}">${ic('user', 'sm')}</button>`
+          : `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="1" title="${t('card.is_noise')}">${ic('mute', 'sm')}</button>`) : ''}
+      </div>
+      <div class="acts-h">
+        <button class="ib sm" data-act="task" data-id="${esc(m.id)}" title="${t('card.task')}">${ic('task', 'sm')}</button>
+      </div>
     </div>
   </div>`;
 }
@@ -601,11 +612,18 @@ function toast(text, error, action) {
 }
 async function togglePin(id) {
   const pinned = isPinned(id);
+  // Sofort zeigen; die Synchronisation mit dem Server bestätigt es kurz danach.
+  const before = S.data.pinned || [];
+  const mail = S.data.mails.find(m => m.id === id) || before.find(m => m.id === id);
+  S.data.pinned = pinned ? before.filter(p => p.id !== id) : (mail ? [mail, ...before] : before);
+  render(); if (S.open && S.open.id === id) renderReader();
   try {
     await invoke('set_pinned', { id, pinned: !pinned });
     toast(pinned ? t('toast.unpinned') : t('toast.pinned'));
-    setTimeout(refresh, 600);
-  } catch (e) { toast(String(e), true); }
+  } catch (e) {
+    S.data.pinned = before; render();
+    toast(String(e), true);
+  }
 }
 async function refreshTasks() {
   try { S.tasks = await invoke('list_tasks'); } catch (e) { toast(String(e), true); }
