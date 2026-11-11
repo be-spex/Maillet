@@ -111,8 +111,7 @@ async fn archive_mail(state: State<'_, AppState>, id: String) -> Result<String, 
 /// depends on the server, e.g. "Folders/Tasks" on Proton. Folder names are
 /// English whatever the UI language, so they read the same in every mail client.
 const TASK_FOLDER: &str = "Tasks";
-/// Mails kept as a source of information.
-const INFO_FOLDER: &str = "Info";
+
 
 fn account_by_id(id: &str) -> Result<AccountConfig, String> {
     config::load_accounts_with_passwords().map_err(err)?.into_iter().find(|a| a.id == id).ok_or_else(|| "Account not found".into())
@@ -165,25 +164,56 @@ async fn make_task(app: AppHandle, state: State<'_, AppState>, id: String) -> Re
     Ok(TaskRef { account_id: account.id, message_id })
 }
 
-/// Files a mail in the info folder (created on first use).
-#[tauri::command]
-async fn file_info(state: State<'_, AppState>, id: String) -> Result<TaskRef, String> {
-    let message_id = state.store.find(&id).and_then(|m| m.message_id);
-    let (account, uid) = locate(&state, &id)?;
-    let folder = state.commands.resolve_folder(&account, INFO_FOLDER, true).await.map_err(err)?.ok_or("No info folder on this account")?;
-    state.commands.move_to_folder(&account, uid, &folder).await.map_err(err)?;
-    state.store.remove(&account.id, uid);
-    Ok(TaskRef { account_id: account.id, message_id })
+fn categories(state: &AppState) -> Vec<config::Category> {
+    state.config.try_lock().ok().and_then(|c| c.categories.clone()).unwrap_or_else(config::default_categories)
 }
 
-/// Undo of [`file_info`]: back to the inbox.
+#[derive(serde::Serialize)]
+struct Filed {
+    account_id: String,
+    message_id: Option<String>,
+    folder: String,
+}
+
+/// Files a mail in the folder of a category (created on first use).
 #[tauri::command]
-async fn unfile_info(state: State<'_, AppState>, account_id: String, message_id: String) -> Result<(), String> {
+async fn file_mail(state: State<'_, AppState>, id: String, category: String) -> Result<Filed, String> {
+    let cat = categories(&state).into_iter().find(|c| c.id == category).ok_or("Unknown category")?;
+    let message_id = state.store.find(&id).and_then(|m| m.message_id);
+    let (account, uid) = locate(&state, &id)?;
+    let folder = state.commands.resolve_folder(&account, &cat.folder, true).await.map_err(err)?.ok_or("Folder could not be created")?;
+    state.commands.move_to_folder(&account, uid, &folder).await.map_err(err)?;
+    state.store.remove(&account.id, uid);
+    Ok(Filed { account_id: account.id, message_id, folder })
+}
+
+/// Undo of [`file_mail`]: back to the inbox.
+#[tauri::command]
+async fn unfile_mail(state: State<'_, AppState>, account_id: String, message_id: String, folder: String) -> Result<(), String> {
     let account = account_by_id(&account_id)?;
-    let folder = state.commands.resolve_folder(&account, INFO_FOLDER, false).await.map_err(err)?.ok_or("Info folder not found")?;
     state.commands.move_found(&account, &[folder], &message_id, Some(&account.mailbox)).await.map_err(err)?;
     state.check_now.notify_waiters();
     Ok(())
+}
+
+#[tauri::command]
+async fn set_categories(app: AppHandle, categories: Vec<config::Category>) -> Result<(), String> {
+    let shared = app.state::<AppState>().config.clone();
+    async_runtime::spawn_blocking(move || config::set_categories(&shared, categories)).await.map_err(|e| e.to_string())?.map_err(err)?;
+    let _ = app.emit("settings-changed", ());
+    Ok(())
+}
+
+/// Folder names of all accounts, for choosing an existing folder as target.
+#[tauri::command]
+async fn list_folders(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let accounts: Vec<_> = config::load_accounts_with_passwords().map_err(err)?.into_iter().filter(|a| !a.server.is_empty() && !a.pass.is_empty()).collect();
+    let commands = &state.commands;
+    let lists = futures_util::future::join_all(accounts.iter().map(|a| commands.list_folders(a))).await;
+    let mut all: Vec<String> = lists.into_iter().filter_map(Result::ok).flatten().collect();
+    all.sort();
+    all.dedup();
+    Ok(all)
 }
 
 /// Moves a mail to the trash (by its window id).
@@ -382,6 +412,7 @@ fn get_app_status(app: AppHandle, state: State<AppState>, statuses: State<status
         "inbox_days": state.config.try_lock().ok().and_then(|c| c.inbox_days).unwrap_or(INBOX_DAYS),
         "actions": state.config.try_lock().ok().and_then(|c| c.actions.clone()).unwrap_or_else(|| config::DEFAULT_ACTIONS.map(String::from).to_vec()),
         "all_actions": config::ALL_ACTIONS,
+        "categories": categories(&state),
     })
 }
 
@@ -877,7 +908,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_info, unfile_info, trash_mail, set_actions, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_mail, unfile_mail, set_categories, list_folders, trash_mail, set_actions, get_task_mail,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,

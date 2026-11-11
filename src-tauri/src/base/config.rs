@@ -86,10 +86,13 @@ pub struct AppConfig {
     /// The inbox view shows mails of the last N days; missing means 7.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inbox_days: Option<u32>,
-    /// Actions offered on mails (`read`, `archive`, `task`, `info`, `noise`,
-    /// `pin`, `delete`); missing means the default set, see [`DEFAULT_ACTIONS`].
+    /// Actions offered on mails, in the user's order (see [`ALL_ACTIONS`]);
+    /// missing means [`DEFAULT_ACTIONS`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actions: Option<Vec<String>>,
+    /// Filing targets for the "File" action; missing means [`default_categories`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub categories: Option<Vec<Category>>,
     /// Tray counts only mails from people (no bulk mail); missing means all.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tray_people_only: Option<bool>,
@@ -363,14 +366,55 @@ pub fn set_inbox_days(config: &SharedConfig, days: u32) -> Result<()> {
     save_config(&cfg)
 }
 
-/// Every action a mail can offer, in display order.
-pub const ALL_ACTIONS: [&str; 7] = ["pin", "archive", "read", "noise", "task", "info", "delete"];
+/// Every action a mail can offer. Exits (the mail leaves the inbox):
+/// archive, task, file, delete. Marks (it stays): pin, read, noise.
+pub const ALL_ACTIONS: [&str; 7] = ["archive", "task", "file", "delete", "pin", "read", "noise"];
 /// Offered when nothing is configured: all but delete.
-pub const DEFAULT_ACTIONS: [&str; 6] = ["pin", "archive", "read", "noise", "task", "info"];
+pub const DEFAULT_ACTIONS: [&str; 6] = ["archive", "task", "file", "pin", "read", "noise"];
 
+/// Keeps the user's order, drops unknown names and duplicates.
 pub fn set_actions(config: &SharedConfig, actions: Vec<String>) -> Result<()> {
     let mut cfg = config.blocking_lock();
-    cfg.actions = Some(ALL_ACTIONS.iter().filter(|a| actions.iter().any(|x| x == *a)).map(|a| a.to_string()).collect());
+    let mut clean: Vec<String> = vec![];
+    for a in actions {
+        if ALL_ACTIONS.contains(&a.as_str()) && !clean.contains(&a) {
+            clean.push(a);
+        }
+    }
+    cfg.actions = Some(clean);
+    save_config(&cfg)
+}
+
+/// A filing target: mails go to `folder` (a name, or a full path such as
+/// `Folders/Receipts`); the folder is created on first use.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Category {
+    pub id: String,
+    pub name: String,
+    pub folder: String,
+    /// CSS colour, e.g. `#3b82f6`.
+    pub color: String,
+}
+
+pub fn default_categories() -> Vec<Category> {
+    vec![Category { id: "info".into(), name: "Info".into(), folder: "Info".into(), color: "#3b82f6".into() }]
+}
+
+pub fn set_categories(config: &SharedConfig, categories: Vec<Category>) -> Result<()> {
+    let mut cfg = config.blocking_lock();
+    let mut clean: Vec<Category> = vec![];
+    for mut c in categories {
+        c.name = c.name.trim().to_string();
+        c.folder = c.folder.trim().trim_matches('/').to_string();
+        if c.folder.is_empty() {
+            c.folder = c.name.clone();
+        }
+        if c.name.is_empty() || c.id.is_empty() || clean.iter().any(|x| x.id == c.id) {
+            continue;
+        }
+        clean.push(c);
+    }
+    cfg.categories = Some(clean);
     save_config(&cfg)
 }
 

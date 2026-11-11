@@ -146,6 +146,25 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .acts-v{right:0;bottom:0;width:36px;flex-direction:column;padding:4px 0;border-left:1px solid var(--line);border-radius:0 11px 11px 0}
 .acts-h{right:35px;height:36px;flex-direction:row-reverse;padding:0 3px 0 5px;border-bottom:1px solid var(--line);border-left:1px solid var(--line);border-bottom-left-radius:11px;z-index:1}
 .acts-v .ib,.acts-h .ib{width:28px;height:27px}
+.acts-h .ib.main{color:var(--accent)}
+.acts-h .fchip{height:24px;display:inline-flex;align-items:center;gap:5px;padding:0 7px;margin-right:2px;border-radius:7px;font-size:12px;color:var(--text);max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acts-h .fchip:hover{background:var(--accent-soft)}
+.cdot{width:8px;height:8px;border-radius:50%;background:var(--c,#3b82f6);flex:none;display:inline-block}
+.split{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.split .ab{border:0;border-radius:0}
+.split .ab+.ab{border-left:1px solid var(--line);padding:0 9px}
+.split .cdot{margin-right:2px}
+.float{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;animation:pop .12s ease}
+.picker{width:240px}
+.menu{min-width:200px}
+.pk-in{width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit;font-size:13px;margin-bottom:4px;outline:none;background:var(--panel);color:var(--text)}
+.pk-in:focus{border-color:var(--accent)}
+.pk-opt{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;font-size:13px;cursor:pointer}
+.pk-opt:hover,.pk-opt.sel{background:var(--accent-soft)}
+.pk-opt kbd{min-width:16px;font:11px ui-monospace,monospace;color:var(--muted);text-align:center}
+.pk-opt small{color:var(--muted);font-size:11px}
+.pk-opt.new{color:var(--accent)}
+.pk-hint{padding:6px 8px 2px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);margin-top:4px}
 .av{--h:250;width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;font-weight:700;font-size:12px;flex:none;background:hsl(var(--h) 70% 92%);color:hsl(var(--h) 45% 35%)}
 :root[data-theme=dark] .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}}
@@ -275,6 +294,8 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
     <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></symbol>
     <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
@@ -301,8 +322,18 @@ const sender = m => m.from_name || m.from_addr || t('mail.unknown');
 const avatar = (m, cls = '') => { const n = sender(m); return `<span class="av ${cls}" style="--h:${hue(n)}">${esc(initials(n))}</span>`; };
 const CODE_TTL = 120000;
 // Welche Aktionen der Nutzer an Mails sehen will (Einstellungen → Allgemein).
-const DEFAULT_ACTIONS = ['pin', 'archive', 'read', 'noise', 'task', 'info'];
-const can = a => ((S.status && S.status.actions) || DEFAULT_ACTIONS).includes(a);
+// Ausgänge (die Mail verlässt den Eingang) stehen waagerecht oben, Markierungen
+// (sie bleibt) senkrecht rechts. Reihenfolge und Auswahl: Einstellungen → Actions.
+const DEFAULT_ACTIONS = ['archive', 'task', 'file', 'pin', 'read', 'noise'];
+const EXITS = ['archive', 'task', 'file', 'delete'], MARKS = ['pin', 'read', 'noise'];
+const MAX_EXITS = 4, MAX_MARKS = 3;
+const KEYS = { archive: 'E', task: 'T', file: 'F', delete: 'Del', pin: 'P', read: 'U', noise: 'N' };
+const actList = () => (S.status && S.status.actions) || DEFAULT_ACTIONS;
+const can = a => actList().includes(a);
+const DEFAULT_CATS = [{ id: 'info', name: 'Info', folder: 'Info', color: '#3b82f6' }];
+const cats = () => (S.status && S.status.categories && S.status.categories.length ? S.status.categories : DEFAULT_CATS);
+const lastCat = () => cats().find(c => c.id === localStorage.getItem('lastCat')) || cats()[0];
+const keyTip = (text, a) => `${text} (${KEYS[a]})`;
 
 /* ---- Übersetzungen (dist/i18n/*.json, vom Backend geliefert) ---- */
 let T = {};
@@ -457,21 +488,32 @@ const skeleton = () => [1, 2, 3].map(() => `<div class="mcard" style="cursor:def
 // Karten nur beim ersten Erscheinen animieren, nicht bei jedem Neuzeichnen.
 const seenCards = new Set();
 const fresh = id => { if (seenCards.has(id)) return ''; seenCards.add(id); return 'fresh'; };
+// Ein Knopf je Aktion; `file` besteht aus zwei: zuletzt benutzte Kategorie und Wähler.
+function actButton(a, m) {
+  const id = esc(m.id), b = (act, icon, title, cls = '') => `<button class="ib sm ${cls}" data-act="${act}" data-id="${id}" title="${title}">${ic(icon, cls.includes('filled') ? 'sm filled' : 'sm')}</button>`;
+  switch (a) {
+    case 'archive': return b('archive', 'check', keyTip(t('card.archive'), a), 'main');
+    case 'task': return b('task', 'task', keyTip(t('card.task'), a));
+    case 'delete': return b('trash', 'trash', keyTip(t('card.delete'), a));
+    case 'file': { const c = lastCat(); return b('filePick', 'folder', keyTip(t('card.file'), a))
+      + `<button class="fchip" data-act="fileLast" data-id="${id}" title="${esc(t('card.file_to', { c: c.name, k: cats().indexOf(c) + 1 }))}"><span class="cdot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</button>`; }
+    case 'pin': return b('pin', 'star', keyTip(isPinned(m.id) ? t('card.unpin') : t('card.pin'), a), isPinned(m.id) ? 'on filled' : '');
+    case 'read': return m.seen ? b('unread', 'eye-off', keyTip(t('card.unread'), a)) : b('read', 'eye', keyTip(t('card.read'), a));
+    case 'noise': return m.from_addr ? (m.bulk
+      ? `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="0" title="${keyTip(t('card.is_person'), a)}">${ic('user', 'sm')}</button>`
+      : `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="1" title="${keyTip(t('card.is_noise'), a)}">${ic('mute', 'sm')}</button>`) : '';
+  }
+  return '';
+}
 function cardActs(m) {
-  const b = (act, icon, title, extra = '') => `<button class="ib sm" data-act="${act}" data-id="${esc(m.id)}" ${extra} title="${title}">${ic(icon, 'sm')}</button>`;
-  const v = [
-    can('pin') ? `<button class="ib sm ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}" title="${isPinned(m.id) ? t('card.unpin') : t('card.pin')}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}</button>` : '',
-    can('archive') ? b('archive', 'check', t('card.archive')) : '',
-    can('read') ? (m.seen ? b('unread', 'eye-off', t('card.unread')) : b('read', 'eye', t('card.read'))) : '',
-    can('noise') && m.from_addr ? (m.bulk
-      ? `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="0" title="${t('card.is_person')}">${ic('user', 'sm')}</button>`
-      : `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="1" title="${t('card.is_noise')}">${ic('mute', 'sm')}</button>`) : '',
-  ].join('');
-  const h = [
-    can('task') ? b('task', 'task', t('card.task')) : '',
-    can('info') ? b('info', 'book', t('card.info')) : '',
-    can('delete') ? b('trash', 'trash', t('card.delete')) : '',
-  ].join('');
+  const list = actList();
+  // Erledigt immer in der Ecke (die Leiste läuft von rechts nach links).
+  const exits = list.filter(a => EXITS.includes(a)).sort((x, y) => (y === 'archive') - (x === 'archive'));
+  const marks = list.filter(a => MARKS.includes(a) && (a !== 'noise' || m.from_addr));
+  const more = [...exits.slice(MAX_EXITS), ...marks.slice(MAX_MARKS)];
+  const v = marks.slice(0, MAX_MARKS).map(a => actButton(a, m)).join('');
+  const h = exits.slice(0, MAX_EXITS).map(a => actButton(a, m)).join('')
+    + (more.length ? `<button class="ib sm" data-act="more" data-id="${esc(m.id)}" data-more="${more.join(',')}" title="${t('card.more')}">${ic('more', 'sm')}</button>` : '');
   return `${v ? `<div class="acts-v">${v}</div>` : ''}${h ? `<div class="acts-h"${v ? '' : ' style="right:0;border-top-right-radius:11px"'}>${h}</div>` : ''}`;
 }
 function card(m) {
@@ -592,6 +634,19 @@ async function openTask(key) {
   } catch (e) { S.content = { error: String(e) }; }
   if (S.open && S.open.key === key) renderReader();
 }
+function readerActs(m) {
+  const id = esc(m.id), c = lastCat(), out = [];
+  if (can('archive')) out.push(`<button class="ab main" data-act="archive" data-id="${id}" title="${keyTip(t('card.archive'), 'archive')}">${ic('check', 'sm')}${t('reader.done')}</button>`);
+  if (can('task')) out.push(`<button class="ab" data-act="task" data-id="${id}" title="${keyTip(t('card.task'), 'task')}">${ic('task', 'sm')}${t('reader.task')}</button>`);
+  if (can('file')) out.push(`<span class="split"><button class="ab" data-act="fileLast" data-id="${id}" title="${esc(t('card.file_to', { c: c.name, k: cats().indexOf(c) + 1 }))}"><span class="cdot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</button><button class="ab" data-act="filePick" data-id="${id}" title="${keyTip(t('card.file'), 'file')}">▾</button></span>`);
+  out.push('<span class="grow"></span>');
+  for (const a of actList()) {
+    if (a === 'pin') out.push(`<button class="ib ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${id}" title="${keyTip(isPinned(m.id) ? t('card.unpin') : t('card.pin'), a)}">${ic('star', isPinned(m.id) ? 'filled' : '')}</button>`);
+    if (a === 'read') out.push(`<button class="ib" data-act="unread" data-id="${id}" title="${keyTip(t('card.unread'), a)}">${ic('eye-off')}</button>`);
+    if (a === 'delete') out.push(`<button class="ib" data-act="trash" data-id="${id}" title="${keyTip(t('card.delete'), a)}">${ic('trash')}</button>`);
+  }
+  return out.join('');
+}
 function renderReader() {
   const r = $('#reader'), m = S.open;
   r.classList.toggle('show', !!m);
@@ -610,12 +665,7 @@ function renderReader() {
       <div class="rd-actions">${m.task
         ? `<span class="st-pill st-${m.status}"><span class="sdot"></span>${t('tasks.col_' + m.status)}</span>${taskButtons({ status: m.status, mail: m }, false)}
            <button class="ab" data-act="taskMove" data-key="${esc(m.key)}" data-to="inbox" title="${t('tasks.back_tip')}">${ic('inbox', 'sm')}${t('tasks.back')}</button>`
-        : [can('archive') ? `<button class="ab main" data-act="archive" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('reader.done')}</button>` : '',
-           can('task') ? `<button class="ab" data-act="task" data-id="${esc(m.id)}">${ic('task', 'sm')}${t('reader.task')}</button>` : '',
-           can('info') ? `<button class="ab" data-act="info" data-id="${esc(m.id)}">${ic('book', 'sm')}${t('reader.info')}</button>` : '',
-           can('pin') ? `<button class="ab ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}${isPinned(m.id) ? t('reader.pinned') : t('reader.pin')}</button>` : '',
-           can('read') ? `<button class="ab" data-act="unread" data-id="${esc(m.id)}">${ic('eye-off', 'sm')}${t('reader.unread')}</button>` : '',
-           can('delete') ? `<button class="ab" data-act="trash" data-id="${esc(m.id)}">${ic('trash', 'sm')}${t('reader.delete')}</button>` : ''].join('')}
+        : readerActs(m)}
       </div>
       ${!c ? `<div class="loading"><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`
         : c.error ? `<div class="loading" style="color:var(--danger)">${t('reader.load_error', { e: esc(c.error) })}</div>`
@@ -695,11 +745,13 @@ function toggleTheme() {
   document.documentElement.dataset.theme = next;
   localStorage.setItem('theme', next);
 }
+let lastUndo = null;
 function toast(text, error, action) {
   const el = document.createElement('div');
   el.className = 'toast' + (error ? ' err' : '');
   el.textContent = text;
   if (action) {
+    lastUndo = { run: action.run, until: Date.now() + 8000 };
     const b = document.createElement('button');
     b.textContent = action.label;
     b.onclick = () => { el.remove(); action.run(); };
@@ -745,17 +797,117 @@ async function refreshTasks() {
   render();
 }
 const mailById = id => (S.data && S.data.mails.find(m => m.id === id)) || (S.data && (S.data.pinned || []).find(m => m.id === id)) || (S.inbox || []).find(m => m.id === id);
-async function fileInfo(id) {
+async function fileMail(id, catId) {
+  const cat = cats().find(c => c.id === catId);
+  if (!cat) return;
   const mid = (mailById(id) || {}).message_id;
+  const card = document.querySelector(`.mcard[data-id="${CSS.escape(id)}"]`);
+  if (card) card.style.opacity = .4;
   try {
-    const ref = await invoke('file_info', { id });
-    const messageId = ref.message_id || mid;
+    const r = await invoke('file_mail', { id, category: catId });
+    localStorage.setItem('lastCat', catId);
+    const messageId = r.message_id || mid;
     inboxDrop(id);
     if (S.open && S.open.id === id) closeReader();
-    toast(t('toast.info'), false, messageId ? {
-      label: t('toast.undo'), run: () => invoke('unfile_info', { accountId: ref.account_id, messageId }).then(() => toast(t('toast.back_inbox'))).catch(e => toast(String(e), true)),
+    render();
+    toast(t('toast.filed', { c: cat.name }), false, messageId ? {
+      label: t('toast.undo'), run: () => invoke('unfile_mail', { accountId: r.account_id, messageId, folder: r.folder }).then(() => toast(t('toast.back_inbox'))).catch(e => toast(String(e), true)),
     } : undefined);
+  } catch (e) {
+    if (card) card.style.opacity = 1;
+    toast(String(e), true);
+  }
+}
+/* ---- Ablage-Wähler: tippen filtert, Ziffer wählt, Enter nimmt den markierten ---- */
+const PALETTE = ['#3b82f6', '#f59e0b', '#10b981', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b'];
+let picker = null; // { id, el, q, sel }
+function closeFloat() { document.querySelectorAll('.float').forEach(el => el.remove()); picker = null; }
+function placeFloat(el, anchor) {
+  document.body.appendChild(el);
+  const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2 - 120, right: innerWidth / 2 + 120, bottom: innerHeight / 3, top: innerHeight / 3 };
+  const w = el.offsetWidth, h = el.offsetHeight;
+  const left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8));
+  // Unter dem Knopf, sonst darüber, sonst so weit oben wie nötig.
+  const below = r.bottom + 4, above = r.top - h - 4;
+  const top = below + h <= innerHeight - 8 ? below : above >= 8 ? above : Math.max(8, innerHeight - h - 8);
+  el.style.left = left + 'px'; el.style.top = top + 'px';
+}
+function pickerItems() {
+  const q = picker.q.trim().toLowerCase();
+  const all = cats().map((c, i) => ({ c, k: i + 1 }));
+  const hits = q ? all.filter(x => x.c.name.toLowerCase().includes(q)) : all;
+  const exact = all.some(x => x.c.name.toLowerCase() === q);
+  return { hits, create: q && !exact ? picker.q.trim() : null };
+}
+function renderPicker() {
+  const { hits, create } = pickerItems();
+  const n = hits.length + (create ? 1 : 0);
+  picker.sel = Math.max(0, Math.min(picker.sel, n - 1));
+  picker.el.querySelector('.pk-list').innerHTML = hits.map((x, i) => `<div class="pk-opt ${i === picker.sel ? 'sel' : ''}" data-pick="${esc(x.c.id)}"><kbd>${x.k <= 9 ? x.k : ''}</kbd><span class="cdot" style="--c:${esc(x.c.color)}"></span><span class="grow">${esc(x.c.name)}</span>${i === picker.sel ? '<small>Enter</small>' : ''}</div>`).join('')
+    + (create ? `<div class="pk-opt new ${hits.length === picker.sel ? 'sel' : ''}" data-pick-new="1"><kbd>+</kbd>${esc(t('picker.new', { q: create }))}</div>`
+      : `<div class="pk-hint">${t('picker.hint')}</div>`);
+}
+function openPicker(id, anchor) {
+  closeFloat();
+  const el = document.createElement('div');
+  el.className = 'float picker';
+  el.innerHTML = `<input class="pk-in" placeholder="${t('picker.search')}" spellcheck="false"><div class="pk-list"></div>`;
+  picker = { id, el, q: '', sel: 0 };
+  renderPicker();
+  placeFloat(el, anchor);
+  const input = el.querySelector('.pk-in');
+  input.focus();
+  input.addEventListener('input', () => { picker.q = input.value; picker.sel = 0; renderPicker(); });
+  input.addEventListener('keydown', e => {
+    const { hits, create } = pickerItems();
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloat(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); picker.sel++; renderPicker(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); picker.sel--; renderPicker(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (picker.sel < hits.length) pickChoose(hits[picker.sel].c.id); else if (create) pickCreate(create); }
+    else if (/^[1-9]$/.test(e.key) && !picker.q) { e.preventDefault(); const c = cats()[+e.key - 1]; if (c) pickChoose(c.id); }
+  });
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    const o = e.target.closest('[data-pick],[data-pick-new]');
+    if (!o) return;
+    if (o.dataset.pickNew) pickCreate(picker.q.trim()); else pickChoose(o.dataset.pick);
+  });
+}
+function pickChoose(catId) { const id = picker.id; closeFloat(); fileMail(id, catId); }
+async function pickCreate(name) {
+  const id = picker.id, list = cats();
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'cat';
+  const cat = { id: slug + '-' + Date.now().toString(36), name, folder: name, color: PALETTE[list.length % PALETTE.length] };
+  closeFloat();
+  try {
+    await invoke('set_categories', { categories: [...list, cat] });
+    S.status = { ...(S.status || {}), categories: [...list, cat] };
+    fileMail(id, cat.id);
   } catch (e) { toast(String(e), true); }
+}
+// Überlauf: Aktionen, die nicht mehr in die Leiste passen.
+function openMore(id, actions, anchor) {
+  closeFloat();
+  const m = mailById(id);
+  if (!m) return;
+  const label = { archive: t('card.archive'), task: t('card.task'), file: t('card.file'), delete: t('card.delete'), pin: isPinned(id) ? t('card.unpin') : t('card.pin'), read: m.seen ? t('card.unread') : t('card.read'), noise: m.bulk ? t('card.is_person') : t('card.is_noise') };
+  const el = document.createElement('div');
+  el.className = 'float menu';
+  el.innerHTML = actions.map(a => `<div class="pk-opt" data-run="${a}"><kbd>${KEYS[a]}</kbd>${esc(label[a])}</div>`).join('');
+  placeFloat(el, anchor);
+  el.addEventListener('click', e => { e.stopPropagation(); const o = e.target.closest('[data-run]'); if (o) { closeFloat(); runAction(o.dataset.run, id, anchor); } });
+}
+// Eine Aktion auf eine Mail anwenden (Tastatur und Überlaufmenü).
+function runAction(a, id, anchor) {
+  const m = mailById(id) || (S.open && S.open.id === id ? S.open : null);
+  if (!m || !can(a)) return;
+  if (a === 'archive') archive(id);
+  else if (a === 'task') makeTask(id);
+  else if (a === 'file') openPicker(id, anchor);
+  else if (a === 'delete') trashMail(id);
+  else if (a === 'pin') togglePin(id);
+  else if (a === 'read') setSeen(id, !m.seen);
+  else if (a === 'noise' && m.from_addr) setKind(m.from_addr, !m.bulk);
 }
 async function trashMail(id) {
   try {
@@ -838,6 +990,7 @@ async function setKind(addr, bulk) {
 
 document.addEventListener('click', e => {
   if (!e.target.closest('#statusPop') && !e.target.closest('#statusBtn')) toggleStatus(false);
+  if (!e.target.closest('.float')) closeFloat();
   const el = e.target.closest('[data-act]');
   if (!el) return;
   e.stopPropagation();
@@ -853,7 +1006,9 @@ document.addEventListener('click', e => {
     case 'inboxMore': S.inboxDays += S.inboxBase; refreshInbox(); break;
     case 'pin': togglePin(id); break;
     case 'task': makeTask(id); break;
-    case 'info': fileInfo(id); break;
+    case 'filePick': openPicker(id, el); break;
+    case 'fileLast': fileMail(id, lastCat().id); break;
+    case 'more': openMore(id, el.dataset.more.split(','), el); break;
     case 'trash': trashMail(id); break;
     case 'openTask': openTask(el.dataset.key); break;
     case 'taskMove': taskMove(el.dataset.key, el.dataset.to); break;
@@ -879,11 +1034,30 @@ document.addEventListener('click', e => {
     }
   }
 });
+// Die Mail, auf die Tasten wirken: geöffnet, sonst fokussiert, sonst unter der Maus.
+let hoverId = null;
+document.addEventListener('mouseover', e => { const c = e.target.closest && e.target.closest('.mcard[data-id]'); hoverId = c ? c.dataset.id : null; });
+const KEY_ACTIONS = { e: 'archive', t: 'task', f: 'file', p: 'pin', u: 'read', n: 'noise', Delete: 'delete' };
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if ($('#statusPop').classList.contains('show')) toggleStatus(false); else if (S.open) closeReader(); else invoke('hide_main'); }
-  if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('mcard')) openMail(e.target.dataset.id);
-  if (S.open && (e.key === 'e' || e.key === 'E')) archive(S.open.id);
+  if (e.key === 'Escape') { if (document.querySelector('.float')) closeFloat(); else if ($('#statusPop').classList.contains('show')) toggleStatus(false); else if (S.open) closeReader(); else invoke('hide_main'); return; }
+  if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('mcard')) { openMail(e.target.dataset.id); return; }
+  if (e.ctrlKey || e.altKey || e.metaKey || (e.target.closest && e.target.closest('input,textarea,select,[contenteditable]')) || document.querySelector('.float')) return;
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (key === 'z') {
+    if (lastUndo && lastUndo.until > Date.now()) { const u = lastUndo; lastUndo = null; document.querySelectorAll('.toast').forEach(x => x.remove()); u.run(); }
+    return;
+  }
+  const focused = e.target.closest && e.target.closest('.mcard[data-id]');
+  const id = S.open ? (S.open.task ? null : S.open.id) : (focused ? focused.dataset.id : hoverId);
+  if (!id) return;
+  if (/^[1-9]$/.test(key)) { const c = cats()[+key - 1]; if (c && can('file')) { e.preventDefault(); fileMail(id, c.id); } return; }
+  const a = KEY_ACTIONS[key];
+  if (!a) return;
+  e.preventDefault();
+  const anchor = document.querySelector(S.open ? '#reader [data-act="filePick"]' : `.mcard[data-id="${CSS.escape(id)}"] [data-act="filePick"]`);
+  runAction(a, id, anchor);
 });
+
 
 const saved = localStorage.getItem('theme');
 if (saved) document.documentElement.dataset.theme = saved;

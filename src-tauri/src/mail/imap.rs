@@ -374,6 +374,11 @@ impl Commands {
         Ok(found)
     }
 
+    /// All selectable folders of the account (full names).
+    pub async fn list_folders(&self, account: &AccountConfig) -> Result<Vec<String>> {
+        self.run(account, ListFolders).await
+    }
+
     /// The subfolder `child` of `parent` (full name), created on request.
     pub async fn resolve_child(&self, account: &AccountConfig, parent: &str, child: &str, create: bool) -> Result<Option<String>> {
         let key = (account.id.clone(), format!("{parent}\u{0}{child}"));
@@ -554,6 +559,16 @@ impl AsyncOp<Option<String>> for ResolveChild {
     }
 }
 
+struct ListFolders;
+impl AsyncOp<Vec<String>> for ListFolders {
+    async fn call(&self, s: &mut Session) -> Result<Vec<String>> {
+        let list: Vec<_> = with_timeout(s.list(Some(""), Some("*"))).await?.try_collect().await?;
+        let mut names: Vec<String> = list.iter().filter(|n| !n.attributes().contains(&NameAttribute::NoSelect)).map(|n| n.name().to_string()).collect();
+        names.sort();
+        Ok(names)
+    }
+}
+
 fn already_exists(e: &anyhow::Error) -> bool {
     let msg = format!("{e:#}").to_lowercase();
     msg.contains("alreadyexists") || msg.contains("already exists")
@@ -571,7 +586,12 @@ impl AsyncOp<Option<String>> for ResolveFolder {
             let d = n.delimiter().unwrap_or("/");
             n.name().rsplit(d).next().unwrap_or("").to_lowercase()
         };
-        if let Some(n) = list.iter().find(|n| leaf(n) == wanted && !n.attributes().contains(&NameAttribute::NoSelect)) {
+        let selectable = |n: &&async_imap::types::Name| !n.attributes().contains(&NameAttribute::NoSelect);
+        // A full path ("Folders/Receipts") first, then the last name part.
+        if let Some(n) = list.iter().filter(selectable).find(|n| n.name().to_lowercase() == wanted) {
+            return Ok(Some(n.name().to_string()));
+        }
+        if let Some(n) = list.iter().filter(selectable).find(|n| leaf(n) == wanted) {
             return Ok(Some(n.name().to_string()));
         }
         if !self.create {
@@ -910,6 +930,9 @@ mod tests {
         assert_eq!(cmds.resolve_child(&account, &folder, "In Progress", false).await.unwrap(), None);
         let progress = cmds.resolve_child(&account, &folder, "In Progress", true).await.unwrap().unwrap();
         assert_eq!(progress, "Tasks/In Progress");
+        // A category may name an existing folder by its full path.
+        assert_eq!(cmds.resolve_folder(&account, "tasks/in progress", false).await.unwrap().as_deref(), Some("Tasks/In Progress"));
+        assert!(cmds.list_folders(&account).await.unwrap().contains(&"Tasks/In Progress".to_string()));
         cmds.move_by_message_id(&account, &folder, &mid, Some(&progress)).await.unwrap();
         assert!(cmds.folder_mails(&account, &folder, 100).await.unwrap().is_empty(), "subfolder mails are not listed with the parent");
         assert_eq!(cmds.folder_mails(&account, &progress, 100).await.unwrap().len(), 1);

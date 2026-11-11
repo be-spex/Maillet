@@ -217,7 +217,31 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 #toast { display:none; position:fixed; bottom:20px; right:20px; padding:10px 18px; border-radius:8px; font-size:13px; z-index:20; color:#fff; box-shadow:var(--shadow); max-width:80vw; }
 #toast.success { background:var(--ok); }
 #toast.error { background:var(--danger); }
-.actions-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}.actions-list .hint{display:inline}
+.act-group-title{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.act-list,.cat-list{display:flex;flex-direction:column;gap:4px}
+.act-row,.cat-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px}
+.act-row:hover,.cat-row:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.act-row .check{flex:1;display:flex;align-items:center;gap:7px;margin:0}
+.act-row .hint{display:inline}
+.act-row.off b,.act-row.off .pv-i{opacity:.5}
+.kbd{min-width:28px;text-align:center;font:11px ui-monospace,monospace;color:var(--muted);border:1px solid var(--border,#d8dde6);border-radius:5px;padding:1px 4px}
+.cat-row input[type=color]{width:30px;height:26px;padding:0;border:none;background:none;cursor:pointer}
+.cat-row .cat-name{flex:1;min-width:0}
+.cat-row .cat-folder{flex:1.3;min-width:0}
+.pv-i{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.act-preview{margin:14px 0 4px;padding:18px;border-radius:12px;background:#f3f3f7;display:flex;justify-content:center}
+.pv-card{position:relative;width:340px;background:#fff;color:#16161d;border:1px solid #e4e4ec;border-radius:12px;padding:12px 14px 14px;box-shadow:inset 3px 0 0 #6c5ce7,0 4px 14px rgba(20,20,40,.06);font-size:13px}
+.pv-head{display:flex;gap:10px;align-items:center}
+.pv-head b{display:block;font-size:14px}.pv-head small{color:#6b6b7b;font-size:11.5px}
+.pv-av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:#dff3e4;color:#2f7a45}
+.pv-subj{font-weight:650;margin:8px 0 3px;padding-right:40px}
+.pv-prev{color:#6b6b7b;padding-right:40px}
+.pv-v{position:absolute;top:0;right:0;bottom:0;width:36px;display:flex;flex-direction:column;align-items:center;padding:4px 0;background:#f8f8fb;border-left:1px solid #e4e4ec;border-radius:0 11px 11px 0}
+.pv-h{position:absolute;top:0;right:35px;height:34px;display:flex;flex-direction:row-reverse;align-items:center;gap:2px;padding:0 4px 0 6px;background:#f8f8fb;border-left:1px solid #e4e4ec;border-bottom:1px solid #e4e4ec;border-bottom-left-radius:11px}
+.pv-b{width:28px;height:27px;display:grid;place-items:center;color:#6b6b7b}
+.pv-b.main{color:#6c5ce7}
+.pv-chip{display:inline-flex;align-items:center;gap:5px;padding:0 7px;font-size:12px;color:#16161d}
+.pv-dot{width:8px;height:8px;border-radius:50%}
 </style>
 </head>
 <body>
@@ -226,6 +250,7 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 <aside class="sidebar">
   <div class="brand">Maillet<small>Settings</small></div>
   <button class="nav-btn" data-sec="general" onclick="go('general')">General</button>
+  <button class="nav-btn" data-sec="actions" onclick="go('actions')">Actions</button>
   <button class="nav-btn" data-sec="accounts" onclick="go('accounts')">Accounts <span class="badge dot" id="dot-accounts"></span></button>
   <button class="nav-btn" data-sec="notifications" onclick="go('notifications')">Notifications</button>
   <button class="nav-btn" data-sec="otp" onclick="go(otpTab)">One-Time Passwords <span class="badge" id="badge-rules"></span><span class="badge dot" id="api-dot" title="Local API"></span></button>
@@ -438,11 +463,6 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
     <select id="lang-select" style="margin-top:10px;max-width:260px" onchange="setLanguage(this.value)"></select>
   </div>
   <div class="card">
-    <h3 class="card-title">Mail actions</h3>
-    <div class="hint">Which actions mails offer, on the cards and when reading. Keep your inbox empty? Turn off “Mark as read” and decide for every mail where it goes.</div>
-    <div id="actions-list" class="actions-list"></div>
-  </div>
-  <div class="card">
     <h3 class="card-title">Inbox</h3>
     <div class="hint">The inbox view shows the mails of the last days; older ones are loaded on request.</div>
     <div class="shortcut-row"><input type="number" id="inbox-days" min="1" max="365" style="max-width:110px"> <span class="hint" style="align-self:center">days</span>
@@ -459,6 +479,28 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
     </div>
     <div id="sc-status" class="hint"></div>
     <div class="hint" style="margin-top:8px">Works on X11 desktops (Cinnamon, KDE, XFCE). On Wayland most desktops do not allow global shortcuts.</div>
+  </div>
+</section>
+
+<!-- ======== Actions ======== -->
+<section class="section" data-sec="actions">
+  <div class="page-head"><h1>Actions</h1></div>
+  <div class="card">
+    <h3 class="card-title">Quick actions</h3>
+    <div class="hint">What mails offer on hover and when reading. <b>Exits</b> take the mail out of the inbox and sit along the top of a card, <b>marks</b> keep it there and sit on the right. Keep your inbox empty? Turn off “Read / unread”.</div>
+    <div class="act-preview"><div id="act-preview"></div></div>
+    <div class="act-group-title">Exits</div>
+    <div id="act-exits" class="act-list"></div>
+    <div class="act-group-title">Marks</div>
+    <div id="act-marks" class="act-list"></div>
+    <div class="hint" style="margin-top:8px">At most 4 exits and 3 marks fit on a card; more go behind “⋯”. Done always sits in the corner.</div>
+  </div>
+  <div class="card">
+    <h3 class="card-title">Categories</h3>
+    <div class="hint">Targets of “File”. The order sets the keys 1–9. A new folder is created on the server on first use; you can also pick an existing one.</div>
+    <div id="cat-list" class="cat-list"></div>
+    <datalist id="folder-names"></datalist>
+    <button class="btn-primary" style="margin-top:10px" onclick="addCategory()">+ Add category</button>
   </div>
 </section>
 
@@ -560,6 +602,7 @@ function go(sec) {
   if (sec === 'api') loadApi()
   if (sec === 'log') loadLog()
   if (sec === 'general' || sec === 'notifications') loadPreferences()
+  if (sec === 'actions') loadActions()
 }
 
 const currentSection = () => document.querySelector('.section.on')?.dataset.sec
@@ -1578,23 +1621,129 @@ async function loadPreferences() {
   document.getElementById('nt-people').checked = st.tray_people_only
   showShortcut(st.shortcut)
   document.getElementById('inbox-days').value = st.inbox_days || 7
-  renderActions(st.all_actions || [], st.actions || [])
 }
+// ---- Actions: Schnellaktionen und Kategorien ----
 const ACTION_INFO = {
-  pin: ['Pin', 'Star on the server, stays on top'],
-  archive: ['Done', 'Moves the mail to the archive'],
-  read: ['Mark as read / unread', 'The mail stays in the inbox'],
-  noise: ['Noise / person', 'Teaches Maillet which senders are newsletters'],
-  task: ['Task', 'Moves the mail to the folder “Tasks”'],
-  info: ['Info', 'Moves the mail to the folder “Info”'],
-  delete: ['Delete', 'Moves the mail to the trash'],
+  archive: ['Done', 'Moves the mail to the archive', 'E'],
+  task: ['Task', 'Moves the mail to the folder “Tasks”', 'T'],
+  file: ['File', 'Moves the mail into a category (below)', 'F'],
+  delete: ['Delete', 'Moves the mail to the trash', 'Del'],
+  pin: ['Pin', 'Star on the server, stays on top', 'P'],
+  read: ['Read / unread', 'The mail stays in the inbox', 'U'],
+  noise: ['Noise / person', 'Teaches Maillet which senders are newsletters', 'N'],
 }
-function renderActions(all, on) {
-  document.getElementById('actions-list').innerHTML = all.map(a => `<label class="check"><input type="checkbox" value="${a}" ${on.includes(a) ? 'checked' : ''} onchange="saveActions()"> <b>${esc((ACTION_INFO[a] || [a])[0])}</b> <span class="hint">– ${esc((ACTION_INFO[a] || ['', ''])[1])}</span></label>`).join('')
+const EXIT_ACTIONS = ['archive', 'task', 'file', 'delete'], MARK_ACTIONS = ['pin', 'read', 'noise']
+const ICON = {
+  archive: '<path d="m5 12 5 5L20 7"/>',
+  task: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/>',
+  file: '<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  delete: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/>',
+  pin: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>',
+  read: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  noise: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+}
+const svg = n => `<svg viewBox="0 0 24 24" class="pv-i">${ICON[n]}</svg>`
+const CAT_COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
+let actOrder = [], actOn = new Set(), categories = [], catTimer = null
+
+async function loadActions() {
+  const st = await invoke('get_app_status')
+  const on = st.actions || []
+  // Eingeschaltete in ihrer Reihenfolge, danach die übrigen.
+  actOrder = [...on, ...(st.all_actions || []).filter(a => !on.includes(a))]
+  actOn = new Set(on)
+  categories = (st.categories || []).map(c => ({ ...c }))
+  renderActionLists(); renderCategories(); renderPreview()
+  invoke('list_folders').then(names => { document.getElementById('folder-names').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('') }).catch(() => {})
+}
+function renderActionLists() {
+  const row = (a, list) => {
+    const [name, hint, key] = ACTION_INFO[a] || [a, '', '']
+    const i = list.indexOf(a)
+    return `<div class="act-row ${actOn.has(a) ? '' : 'off'}">
+      <label class="check"><input type="checkbox" ${actOn.has(a) ? 'checked' : ''} onchange="toggleAction('${a}', this.checked)"> ${svg(a)} <b>${esc(name)}</b> <span class="hint">– ${esc(hint)}</span></label>
+      <span class="kbd">${key}</span>
+      <button class="btn-sm" title="Move up" ${i === 0 ? 'disabled' : ''} onclick="moveAction('${a}', -1)">↑</button>
+      <button class="btn-sm" title="Move down" ${i === list.length - 1 ? 'disabled' : ''} onclick="moveAction('${a}', 1)">↓</button>
+    </div>`
+  }
+  const exits = actOrder.filter(a => EXIT_ACTIONS.includes(a)), marks = actOrder.filter(a => MARK_ACTIONS.includes(a))
+  document.getElementById('act-exits').innerHTML = exits.map(a => row(a, exits)).join('')
+  document.getElementById('act-marks').innerHTML = marks.map(a => row(a, marks)).join('')
+}
+function toggleAction(a, on) { on ? actOn.add(a) : actOn.delete(a); renderActionLists(); renderPreview(); saveActions() }
+function moveAction(a, dir) {
+  const group = EXIT_ACTIONS.includes(a) ? EXIT_ACTIONS : MARK_ACTIONS
+  const members = actOrder.filter(x => group.includes(x))
+  const i = members.indexOf(a), j = i + dir
+  if (j < 0 || j >= members.length) return
+  ;[members[i], members[j]] = [members[j], members[i]]
+  let k = 0
+  actOrder = actOrder.map(x => group.includes(x) ? members[k++] : x)
+  renderActionLists(); renderPreview(); saveActions()
 }
 async function saveActions() {
-  const actions = [...document.querySelectorAll('#actions-list input:checked')].map(i => i.value)
-  try { await invoke('set_actions', { actions }); showToast('Mail actions saved', 'success') } catch (e) { showToast(String(e), 'error') }
+  const actions = actOrder.filter(a => actOn.has(a))
+  try { await invoke('set_actions', { actions }) } catch (e) { showToast(String(e), 'error') }
+}
+// Vorschau einer Karte, so wie sie im Fenster beim Überfahren aussieht.
+function renderPreview() {
+  const on = actOrder.filter(a => actOn.has(a))
+  const exits = on.filter(a => EXIT_ACTIONS.includes(a)).sort((x, y) => (y === 'archive') - (x === 'archive'))
+  const marks = on.filter(a => MARK_ACTIONS.includes(a))
+  const more = exits.length > 4 || marks.length > 3
+  const cat = categories[0] || { name: 'Info', color: '#3b82f6' }
+  const hBtn = a => a === 'file'
+    ? `<span class="pv-b">${svg('file')}</span><span class="pv-chip"><span class="pv-dot" style="background:${esc(cat.color)}"></span>${esc(cat.name)}</span>`
+    : `<span class="pv-b ${a === 'archive' ? 'main' : ''}">${svg(a)}</span>`
+  document.getElementById('act-preview').innerHTML = `<div class="pv-card">
+    <div class="pv-head"><span class="pv-av">JW</span><div><b>Jana Wolff</b><small>Work · 14:40</small></div></div>
+    <div class="pv-subj">Atlas: review of the specification</div>
+    <div class="pv-prev">Could you look through it by Friday?</div>
+    ${marks.length ? `<div class="pv-v">${marks.slice(0, 3).map(a => `<span class="pv-b">${svg(a)}</span>`).join('')}</div>` : ''}
+    ${exits.length || more ? `<div class="pv-h" style="${marks.length ? '' : 'right:0;border-top-right-radius:11px'}">${exits.slice(0, 4).map(hBtn).join('')}${more ? `<span class="pv-b">${svg('more')}</span>` : ''}</div>` : ''}
+  </div>`
+}
+function renderCategories() {
+  document.getElementById('cat-list').innerHTML = categories.map((c, i) => `<div class="cat-row">
+    <span class="kbd">${i < 9 ? i + 1 : ''}</span>
+    <input type="color" value="${esc(c.color)}" title="Colour" onchange="editCategory(${i}, 'color', this.value, true)">
+    <input class="cat-name" value="${esc(c.name)}" placeholder="Name" oninput="editCategory(${i}, 'name', this.value)">
+    <input class="cat-folder" value="${esc(c.folder)}" placeholder="Folder (default: the name)" list="folder-names" oninput="editCategory(${i}, 'folder', this.value)">
+    <button class="btn-sm" title="Move up" ${i === 0 ? 'disabled' : ''} onclick="moveCategory(${i}, -1)">↑</button>
+    <button class="btn-sm" title="Move down" ${i === categories.length - 1 ? 'disabled' : ''} onclick="moveCategory(${i}, 1)">↓</button>
+    <button class="btn-sm" title="Remove (the folder and its mails stay on the server)" onclick="removeCategory(${i})">✕</button>
+  </div>`).join('') || '<div class="hint">No categories – “File” has no targets.</div>'
+}
+function editCategory(i, field, value, now) {
+  // Ordner folgt dem Namen, solange der Nutzer keinen eigenen eingetragen hat.
+  if (field === 'name' && categories[i].folder === categories[i].name) {
+    categories[i].folder = value
+    const f = document.querySelectorAll('.cat-folder')[i]
+    if (f) f.value = value
+  }
+  categories[i][field] = value
+  renderPreview()
+  clearTimeout(catTimer)
+  catTimer = setTimeout(saveCategories, now ? 0 : 600)
+}
+function moveCategory(i, dir) {
+  const j = i + dir
+  ;[categories[i], categories[j]] = [categories[j], categories[i]]
+  renderCategories(); renderPreview(); saveCategories()
+}
+function removeCategory(i) { categories.splice(i, 1); renderCategories(); renderPreview(); saveCategories() }
+function addCategory() {
+  categories.push({ id: 'cat-' + Date.now().toString(36), name: '', folder: '', color: CAT_COLORS[categories.length % CAT_COLORS.length] })
+  renderCategories()
+  const names = document.querySelectorAll('.cat-name')
+  names[names.length - 1].focus()
+}
+async function saveCategories() {
+  // Ohne Namen wird eine Kategorie nicht gespeichert (sie bleibt hier stehen, bis sie einen hat).
+  const valid = categories.filter(c => c.name.trim())
+  try { await invoke('set_categories', { categories: valid }) } catch (e) { showToast(String(e), 'error') }
 }
 async function saveInboxDays() {
   const days = parseInt(document.getElementById('inbox-days').value, 10)

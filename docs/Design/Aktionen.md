@@ -158,3 +158,5 @@ Englische Buchstaben, weil die Oberfläche englisch ist. Sie wirken auf die geö
 | 3 | Tastenkürzel |
 | 4 | Einstellungsseite „Actions“ mit Live-Vorschau und Kategorie-Editor |
 | 5 | Ziehen, Vorschläge, Kategorie-Ansicht |
+
+**Stand:** Schritte 1–4 sind umgesetzt. Abweichungen: Umsortieren in den Einstellungen mit ↑/↓ statt Ziehen; Kategorien haben eine Farbe, aber noch kein Symbol.
