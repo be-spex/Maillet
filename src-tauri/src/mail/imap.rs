@@ -30,6 +30,8 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 /// Unread mails shown per account; the count still covers all of them.
 const LIST_LIMIT: usize = 200;
+/// Pinned (flagged) mails shown per account.
+const PIN_LIMIT: usize = 50;
 /// Bytes of the body fetched for the preview.
 const PREVIEW_BYTES: u32 = 4096;
 /// UIDs per FETCH command.
@@ -202,6 +204,9 @@ async fn sync(session: &mut Session, w: &Watch, uid_validity: u32) -> Result<()>
     unseen.sort_unstable();
     let total = unseen.len();
     let shown: Vec<u32> = unseen.iter().rev().take(LIST_LIMIT).copied().collect();
+    let mut flagged: Vec<u32> = with_timeout(session.uid_search("FLAGGED")).await.context("SEARCH FLAGGED failed")?.into_iter().collect();
+    flagged.sort_unstable();
+    let pinned: Vec<u32> = flagged.iter().rev().take(PIN_LIMIT).copied().collect();
 
     // New since the last check, read or not: another client may already
     // have marked a code mail as read.
@@ -215,8 +220,8 @@ async fn sync(session: &mut Session, w: &Watch, uid_validity: u32) -> Result<()>
         .collect();
     fresh.sort_unstable();
 
-    let mut known = w.store.known(&account.id);
-    let to_fetch: Vec<u32> = shown.iter().chain(fresh.iter()).copied().filter(|uid| !known.contains_key(uid)).collect::<HashSet<_>>().into_iter().collect();
+    let known = w.store.known(&account.id);
+    let to_fetch: Vec<u32> = shown.iter().chain(fresh.iter()).chain(pinned.iter()).copied().filter(|uid| !known.contains_key(uid)).collect::<HashSet<_>>().into_iter().collect();
     let mut fetched = fetch_summaries(session, &to_fetch, &origin).await?;
     for mail in fetched.values_mut() {
         if let Some(bulk) = mail.from_addr.as_deref().and_then(|a| w.kinds.get(a)) {
@@ -231,8 +236,10 @@ async fn sync(session: &mut Session, w: &Watch, uid_validity: u32) -> Result<()>
         w.last_uid.store(*uid, Ordering::Relaxed);
     }
 
-    let mails: Vec<MailSummary> = shown.iter().filter_map(|uid| known.remove(uid).or_else(|| fetched.remove(uid))).collect();
-    w.store.set_account(&account.id, &account.label, total, mails);
+    let pick = |uid: &u32| known.get(uid).or_else(|| fetched.get(uid)).cloned();
+    let mails: Vec<MailSummary> = shown.iter().filter_map(pick).collect();
+    let pinned_mails: Vec<MailSummary> = pinned.iter().filter_map(pick).collect();
+    w.store.set_account(&account.id, &account.label, total, mails, pinned_mails);
 
     let message = format!("Connected – {total} unread");
     status::set(&w.app, &account.id, "ok", message);
@@ -333,6 +340,32 @@ impl Commands {
         self.run(account, Archive(uid, account.mailbox.clone())).await
     }
 
+    /// Pins (`\Flagged`, the star in most mail clients) or unpins a mail.
+    pub async fn set_flagged(&self, account: &AccountConfig, uid: u32, flagged: bool) -> Result<()> {
+        self.run(account, SetFlag(uid, "\\Flagged", flagged)).await
+    }
+
+    /// Reads a mail found by Message-ID in one of `folders` (e.g. after it was archived).
+    pub async fn content_by_message_id(&self, account: &AccountConfig, folders: Vec<String>, message_id: &str) -> Result<MailContent> {
+        self.run(account, ContentById { folders, message_id: message_id.to_string(), mailbox: account.mailbox.clone() }).await
+    }
+
+    /// Moves a mail of the watched mailbox to `folder`, creating the folder if needed.
+    pub async fn move_to_folder(&self, account: &AccountConfig, uid: u32, folder: &str) -> Result<()> {
+        self.run(account, MoveUid { uid, folder: folder.to_string() }).await
+    }
+
+    /// Mails in another folder (e.g. the task folder); empty if it does not exist.
+    pub async fn folder_mails(&self, account: &AccountConfig, folder: &str, limit: usize) -> Result<Vec<MailSummary>> {
+        self.run(account, FolderMails { folder: folder.to_string(), limit, account_id: account.id.clone(), label: account.label.clone(), mailbox: account.mailbox.clone() }).await
+    }
+
+    /// Moves a mail found by Message-ID from `from` to `to` (`None` = the archive
+    /// folder, then marked as read). Returns the target folder.
+    pub async fn move_by_message_id(&self, account: &AccountConfig, from: &str, message_id: &str, to: Option<&str>) -> Result<String> {
+        self.run(account, MoveById { from: from.to_string(), message_id: message_id.to_string(), to: to.map(str::to_string), mailbox: account.mailbox.clone() }).await
+    }
+
     /// Moves archived mails (found by Message-ID) back to the watched mailbox
     /// as unread. Returns how many were found and moved.
     pub async fn unarchive(&self, account: &AccountConfig, folder: &str, message_ids: &[String]) -> Result<usize> {
@@ -412,6 +445,127 @@ impl AsyncOp<String> for Archive {
         SetSeen(self.0, true).call(s).await?;
         move_to(s, self.0, &folder).await?;
         Ok(folder)
+    }
+}
+
+/// Creates a folder; "already exists" is fine.
+async fn ensure_folder(s: &mut Session, folder: &str) -> Result<()> {
+    if let Err(e) = with_timeout(s.create(folder)).await {
+        let exists = with_timeout(s.list(Some(""), Some(folder))).await?.try_collect::<Vec<_>>().await?.iter().any(|n| n.name() == folder);
+        if !exists {
+            return Err(e).with_context(|| format!("Failed to create folder '{folder}'"));
+        }
+    }
+    Ok(())
+}
+
+struct MoveUid {
+    uid: u32,
+    folder: String,
+}
+impl AsyncOp<()> for MoveUid {
+    async fn call(&self, s: &mut Session) -> Result<()> {
+        ensure_folder(s, &self.folder).await?;
+        move_to(s, self.uid, &self.folder).await
+    }
+}
+
+struct FolderMails {
+    folder: String,
+    limit: usize,
+    account_id: String,
+    label: String,
+    mailbox: String,
+}
+impl AsyncOp<Vec<MailSummary>> for FolderMails {
+    async fn call(&self, s: &mut Session) -> Result<Vec<MailSummary>> {
+        let Ok(mb) = with_timeout(s.select(&self.folder)).await else {
+            with_timeout(s.select(&self.mailbox)).await?;
+            return Ok(vec![]);
+        };
+        let result = async {
+            let mut uids: Vec<u32> = with_timeout(s.uid_search("ALL")).await?.into_iter().collect();
+            uids.sort_unstable();
+            let newest: Vec<u32> = uids.iter().rev().take(self.limit).copied().collect();
+            let uv = mb.uid_validity.unwrap_or(0);
+            let origin = |uid| Origin { account_id: &self.account_id, account: &self.label, uid_validity: uv, uid };
+            let mut mails: Vec<MailSummary> = fetch_summaries(s, &newest, &origin).await?.into_values().collect();
+            mails.sort_by_key(|m| std::cmp::Reverse(m.uid));
+            Ok::<_, anyhow::Error>(mails)
+        }
+        .await;
+        with_timeout(s.select(&self.mailbox)).await?;
+        result
+    }
+}
+
+struct MoveById {
+    from: String,
+    message_id: String,
+    to: Option<String>,
+    mailbox: String,
+}
+impl AsyncOp<String> for MoveById {
+    async fn call(&self, s: &mut Session) -> Result<String> {
+        let target = match &self.to {
+            Some(f) => {
+                ensure_folder(s, f).await?;
+                f.clone()
+            }
+            None => find_folder(s, &[NameAttribute::Archive, NameAttribute::All], &["archive", "archiv", "archives"], &self.from)
+                .await?
+                .context("No archive folder found on the server – create a folder named \"Archive\"")?,
+        };
+        with_timeout(s.select(&self.from)).await.with_context(|| format!("Failed to open '{}'", self.from))?;
+        let result = async {
+            let id = self.message_id.trim_matches(['<', '>']).replace('"', "");
+            let uid = with_timeout(s.uid_search(format!("HEADER Message-ID \"{id}\""))).await?.into_iter().max().context("Mail not found in this folder")?;
+            if self.to.is_none() {
+                SetSeen(uid, true).call(s).await?;
+            }
+            move_to(s, uid, &target).await
+        }
+        .await;
+        with_timeout(s.select(&self.mailbox)).await?;
+        result.map(|_| target)
+    }
+}
+
+struct SetFlag(u32, &'static str, bool);
+impl AsyncOp<()> for SetFlag {
+    async fn call(&self, s: &mut Session) -> Result<()> {
+        let op = format!("{}FLAGS.SILENT ({})", if self.2 { "+" } else { "-" }, self.1);
+        let stream = with_timeout(s.uid_store(self.0.to_string(), &op)).await.context("STORE failed")?;
+        let _: Vec<_> = stream.try_collect().await?;
+        Ok(())
+    }
+}
+
+struct ContentById {
+    folders: Vec<String>,
+    message_id: String,
+    mailbox: String,
+}
+impl AsyncOp<MailContent> for ContentById {
+    async fn call(&self, s: &mut Session) -> Result<MailContent> {
+        let id = self.message_id.trim_matches(['<', '>']).replace('"', "");
+        let mut found = None;
+        for folder in &self.folders {
+            if with_timeout(s.select(folder)).await.is_err() {
+                continue;
+            }
+            let uids = with_timeout(s.uid_search(format!("HEADER Message-ID \"{id}\""))).await?;
+            if let Some(uid) = uids.into_iter().max() {
+                found = Some(fetch_raw(s, uid).await);
+                break;
+            }
+        }
+        // The command connection is expected to have the watched mailbox selected.
+        with_timeout(s.select(&self.mailbox)).await?;
+        match found {
+            Some(raw) => Ok(parse::parse_content(&raw?)),
+            None => bail!("Mail not found – it may have been deleted or moved"),
+        }
     }
 }
 
@@ -526,6 +680,62 @@ mod tests {
         assert!(!s.uid_search("ALL").await.unwrap().contains(&tom.uid));
         s.select("Trash").await.unwrap();
         assert_eq!(s.uid_search("ALL").await.unwrap().len(), 1);
+        s.logout().await.ok();
+    }
+
+    /// Needs the local Dovecot test server (see DEVELOPMENT.md):
+    /// `cargo test tasks_against -- --ignored`
+    #[tokio::test]
+    #[ignore]
+    async fn test_pin_and_tasks_against_dovecot() {
+        let account = AccountConfig {
+            id: "t".into(),
+            label: "Test".into(),
+            server: "127.0.0.1".into(),
+            port: 31993,
+            allow_invalid_certs: true,
+            user: "test@maillet.example".into(),
+            pass: "testpass".into(),
+            ..Default::default()
+        };
+        let mut s = connect(&account).await.unwrap();
+        let mb = s.select("INBOX").await.unwrap();
+        let all: Vec<u32> = s.uid_search("ALL").await.unwrap().into_iter().collect();
+        let origin = |uid| Origin { account_id: "t", account: "Test", uid_validity: mb.uid_validity.unwrap_or(0), uid };
+        let summaries = fetch_summaries(&mut s, &all, &origin).await.unwrap();
+        let malte = summaries.values().find(|m| m.from_addr.as_deref() == Some("m.mueller@nordwind.example")).unwrap().clone();
+        let mid = malte.message_id.clone().unwrap();
+        let cmds = Commands::default();
+
+        // Pin = \Flagged
+        cmds.set_flagged(&account, malte.uid, true).await.unwrap();
+        s.noop().await.unwrap();
+        assert!(s.uid_search("FLAGGED").await.unwrap().contains(&malte.uid));
+        cmds.set_flagged(&account, malte.uid, false).await.unwrap();
+        s.noop().await.unwrap();
+        assert!(!s.uid_search("FLAGGED").await.unwrap().contains(&malte.uid));
+
+        // Task: into the folder (created on demand), listed, readable there.
+        cmds.move_to_folder(&account, malte.uid, "Aufgaben").await.unwrap();
+        s.noop().await.unwrap();
+        assert!(!s.uid_search("ALL").await.unwrap().contains(&malte.uid));
+        let tasks = cmds.folder_mails(&account, "Aufgaben", 100).await.unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].message_id.as_deref(), Some(mid.as_str()));
+        let text = cmds.content_by_message_id(&account, vec!["Aufgaben".into(), "INBOX".into()], &mid).await.unwrap().text;
+        assert!(text.contains("drei Rückfragen"));
+
+        // Done → archive, undo → back into the task folder, then back to the inbox.
+        let folder = cmds.move_by_message_id(&account, "Aufgaben", &mid, None).await.unwrap();
+        assert_eq!(folder, "Archive");
+        assert!(cmds.folder_mails(&account, "Aufgaben", 100).await.unwrap().is_empty());
+        cmds.move_by_message_id(&account, &folder, &mid, Some("Aufgaben")).await.unwrap();
+        assert_eq!(cmds.folder_mails(&account, "Aufgaben", 100).await.unwrap().len(), 1);
+        cmds.move_by_message_id(&account, "Aufgaben", &mid, Some("INBOX")).await.unwrap();
+        s.noop().await.unwrap();
+        assert_eq!(s.uid_search(format!("HEADER Message-ID \"{}\"", mid.trim_matches(['<', '>']))).await.unwrap().len(), 1);
+        // A missing folder lists as empty, not as error.
+        assert!(cmds.folder_mails(&account, "GibtEsNicht", 10).await.unwrap().is_empty());
         s.logout().await.ok();
     }
 

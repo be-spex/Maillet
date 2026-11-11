@@ -15,6 +15,8 @@ pub struct AccountMails {
     pub unread_total: usize,
     /// Newest first.
     pub mails: Vec<MailSummary>,
+    /// Pinned (flagged) mails, read or not, newest first.
+    pub pinned: Vec<MailSummary>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -29,6 +31,7 @@ pub struct AccountInfo {
 pub struct Snapshot {
     pub accounts: Vec<AccountInfo>,
     pub mails: Vec<MailSummary>,
+    pub pinned: Vec<MailSummary>,
 }
 
 pub struct MailStore {
@@ -53,9 +56,10 @@ impl MailStore {
     }
 
     /// Replaces the unread list of an account after a mailbox check.
-    pub fn set_account(&self, account_id: &str, account: &str, unread_total: usize, mut mails: Vec<MailSummary>) {
+    pub fn set_account(&self, account_id: &str, account: &str, unread_total: usize, mut mails: Vec<MailSummary>, mut pinned: Vec<MailSummary>) {
         mails.sort_by_key(|m| std::cmp::Reverse(m.uid));
-        let entry = AccountMails { account_id: account_id.into(), account: account.into(), unread_total, mails };
+        pinned.sort_by_key(|m| std::cmp::Reverse(m.uid));
+        let entry = AccountMails { account_id: account_id.into(), account: account.into(), unread_total, mails, pinned };
         self.accounts.lock().unwrap().insert(account_id.into(), entry);
         self.changed();
     }
@@ -66,7 +70,7 @@ impl MailStore {
             .lock()
             .unwrap()
             .get(account_id)
-            .map(|a| a.mails.iter().map(|m| (m.uid, m.clone())).collect())
+            .map(|a| a.mails.iter().chain(a.pinned.iter()).map(|m| (m.uid, m.clone())).collect())
             .unwrap_or_default()
     }
 
@@ -87,7 +91,7 @@ impl MailStore {
     pub fn reclassify(&self, addr: &str, bulk: bool) {
         let mut accounts = self.accounts.lock().unwrap();
         let mut changed = false;
-        for m in accounts.values_mut().flat_map(|a| a.mails.iter_mut()) {
+        for m in accounts.values_mut().flat_map(|a| a.mails.iter_mut().chain(a.pinned.iter_mut())) {
             if m.from_addr.as_deref().is_some_and(|a| a.eq_ignore_ascii_case(addr)) && m.bulk != bulk {
                 m.bulk = bulk;
                 changed = true;
@@ -115,7 +119,7 @@ impl MailStore {
     }
 
     pub fn find(&self, id: &str) -> Option<MailSummary> {
-        self.accounts.lock().unwrap().values().flat_map(|a| a.mails.iter()).find(|m| m.id == id).cloned()
+        self.accounts.lock().unwrap().values().flat_map(|a| a.mails.iter().chain(a.pinned.iter())).find(|m| m.id == id).cloned()
     }
 
     pub fn unread_total(&self) -> usize {
@@ -131,7 +135,9 @@ impl MailStore {
         infos.sort_by(|a, b| a.account.cmp(&b.account));
         let mut mails: Vec<MailSummary> = accounts.values().flat_map(|a| a.mails.iter().cloned()).collect();
         mails.sort_by_key(|m| std::cmp::Reverse(m.date.unwrap_or(0)));
-        Snapshot { accounts: infos, mails }
+        let mut pinned: Vec<MailSummary> = accounts.values().flat_map(|a| a.pinned.iter().cloned()).collect();
+        pinned.sort_by_key(|m| std::cmp::Reverse(m.date.unwrap_or(0)));
+        Snapshot { accounts: infos, mails, pinned }
     }
 }
 
@@ -161,8 +167,10 @@ mod tests {
     fn test_counts_snapshot_and_remove() {
         let store = MailStore::default();
         let mut rx = store.subscribe();
-        store.set_account("a", "Arbeit", 5, vec![mail("a", 1, 100), mail("a", 3, 300)]);
-        store.set_account("p", "Privat", 1, vec![mail("p", 9, 200)]);
+        store.set_account("a", "Arbeit", 5, vec![mail("a", 1, 100), mail("a", 3, 300)], vec![]);
+        store.set_account("p", "Privat", 1, vec![mail("p", 9, 200)], vec![mail("p", 4, 50)]);
+        assert_eq!(store.snapshot().pinned.len(), 1);
+        assert!(store.find("p:1:4").is_some());
         assert!(rx.has_changed().unwrap());
         rx.mark_unchanged();
 
