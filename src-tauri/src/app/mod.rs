@@ -107,8 +107,14 @@ async fn archive_mail(state: State<'_, AppState>, id: String) -> Result<String, 
 
 // ---------------------------------------------------------------- Pinned & tasks
 
-/// Server folder holding mails that still need something done.
+/// Server folder holding mails that still need something done. The full name
+/// depends on the server, e.g. "Folders/Aufgaben" on Proton.
 const TASK_FOLDER: &str = "Aufgaben";
+
+/// The account's task folder; `create` makes it on first use.
+async fn task_folder(state: &AppState, account: &AccountConfig, create: bool) -> Result<String, String> {
+    state.commands.resolve_folder(account, TASK_FOLDER, create).await.map_err(err)?.ok_or_else(|| "No task folder on this account".into())
+}
 
 fn account_by_id(id: &str) -> Result<AccountConfig, String> {
     config::load_accounts_with_passwords().map_err(err)?.into_iter().find(|a| a.id == id).ok_or_else(|| "Account not found".into())
@@ -135,7 +141,8 @@ struct TaskRef {
 async fn make_task(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<TaskRef, String> {
     let message_id = state.store.find(&id).and_then(|m| m.message_id);
     let (account, uid) = locate(&state, &id)?;
-    state.commands.move_to_folder(&account, uid, TASK_FOLDER).await.map_err(err)?;
+    let folder = task_folder(&state, &account, true).await?;
+    state.commands.move_to_folder(&account, uid, &folder).await.map_err(err)?;
     state.store.remove(&account.id, uid);
     let _ = app.emit("tasks-changed", ());
     Ok(TaskRef { account_id: account.id, message_id })
@@ -149,7 +156,15 @@ async fn list_tasks(state: State<'_, AppState>) -> Result<Vec<MailSummary>, Stri
         if account.server.is_empty() || account.pass.is_empty() {
             continue;
         }
-        match state.commands.folder_mails(&account, TASK_FOLDER, 100).await {
+        let folder = match state.commands.resolve_folder(&account, TASK_FOLDER, false).await {
+            Ok(Some(f)) => f,
+            Ok(None) => continue,
+            Err(e) => {
+                tracing::warn!("[{}] task folder: {e:#}", account.label);
+                continue;
+            }
+        };
+        match state.commands.folder_mails(&account, &folder, 100).await {
             Ok(mails) => all.extend(mails),
             Err(e) => tracing::warn!("[{}] task folder: {e:#}", account.label),
         }
@@ -162,7 +177,8 @@ async fn list_tasks(state: State<'_, AppState>) -> Result<Vec<MailSummary>, Stri
 #[tauri::command]
 async fn task_done(app: AppHandle, state: State<'_, AppState>, account_id: String, message_id: String) -> Result<String, String> {
     let account = account_by_id(&account_id)?;
-    let folder = state.commands.move_by_message_id(&account, TASK_FOLDER, &message_id, None).await.map_err(err)?;
+    let tasks = task_folder(&state, &account, false).await?;
+    let folder = state.commands.move_by_message_id(&account, &tasks, &message_id, None).await.map_err(err)?;
     let _ = app.emit("tasks-changed", ());
     Ok(folder)
 }
@@ -172,7 +188,8 @@ async fn task_done(app: AppHandle, state: State<'_, AppState>, account_id: Strin
 async fn task_back(app: AppHandle, state: State<'_, AppState>, account_id: String, message_id: String) -> Result<(), String> {
     let account = account_by_id(&account_id)?;
     let inbox = account.mailbox.clone();
-    state.commands.move_by_message_id(&account, TASK_FOLDER, &message_id, Some(&inbox)).await.map_err(err)?;
+    let tasks = task_folder(&state, &account, false).await?;
+    state.commands.move_by_message_id(&account, &tasks, &message_id, Some(&inbox)).await.map_err(err)?;
     state.check_now.notify_waiters();
     let _ = app.emit("tasks-changed", ());
     Ok(())
@@ -182,7 +199,8 @@ async fn task_back(app: AppHandle, state: State<'_, AppState>, account_id: Strin
 #[tauri::command]
 async fn task_reopen(app: AppHandle, state: State<'_, AppState>, account_id: String, message_id: String, folder: String) -> Result<(), String> {
     let account = account_by_id(&account_id)?;
-    state.commands.move_by_message_id(&account, &folder, &message_id, Some(TASK_FOLDER)).await.map_err(err)?;
+    let tasks = task_folder(&state, &account, true).await?;
+    state.commands.move_by_message_id(&account, &folder, &message_id, Some(&tasks)).await.map_err(err)?;
     let _ = app.emit("tasks-changed", ());
     Ok(())
 }
@@ -191,7 +209,7 @@ async fn task_reopen(app: AppHandle, state: State<'_, AppState>, account_id: Str
 #[tauri::command]
 async fn get_task_mail(state: State<'_, AppState>, account_id: String, message_id: String) -> Result<MailContent, String> {
     let account = account_by_id(&account_id)?;
-    let folders = vec![TASK_FOLDER.to_string(), account.mailbox.clone()];
+    let folders = vec![task_folder(&state, &account, false).await?, account.mailbox.clone()];
     state.commands.content_by_message_id(&account, folders, &message_id).await.map_err(err)
 }
 

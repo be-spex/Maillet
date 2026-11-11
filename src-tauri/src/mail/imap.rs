@@ -291,6 +291,8 @@ async fn fetch_body(session: &mut Session, uid: u32) -> Result<MailBody> {
 #[derive(Default)]
 pub struct Commands {
     sessions: Mutex<HashMap<String, (Session, Instant)>>,
+    /// Resolved folder names per account, e.g. "Aufgaben" → "Folders/Aufgaben" on Proton.
+    folders: Mutex<HashMap<(String, String), String>>,
 }
 
 impl Commands {
@@ -348,6 +350,21 @@ impl Commands {
     /// Reads a mail found by Message-ID in one of `folders` (e.g. after it was archived).
     pub async fn content_by_message_id(&self, account: &AccountConfig, folders: Vec<String>, message_id: &str) -> Result<MailContent> {
         self.run(account, ContentById { folders, message_id: message_id.to_string(), mailbox: account.mailbox.clone() }).await
+    }
+
+    /// Finds a folder by its last name part ("Aufgaben" matches "Folders/Aufgaben");
+    /// with `create`, creates it if missing – at the top level, or below a
+    /// "Folders" parent where the server allows no own top-level folders (Proton).
+    pub async fn resolve_folder(&self, account: &AccountConfig, name: &str, create: bool) -> Result<Option<String>> {
+        let key = (account.id.clone(), name.to_string());
+        if let Some(found) = self.folders.lock().await.get(&key) {
+            return Ok(Some(found.clone()));
+        }
+        let found = self.run(account, ResolveFolder { name: name.to_string(), create }).await?;
+        if let Some(f) = &found {
+            self.folders.lock().await.insert(key, f.clone());
+        }
+        Ok(found)
     }
 
     /// Moves a mail of the watched mailbox to `folder`, creating the folder if needed.
@@ -465,8 +482,39 @@ struct MoveUid {
 }
 impl AsyncOp<()> for MoveUid {
     async fn call(&self, s: &mut Session) -> Result<()> {
-        ensure_folder(s, &self.folder).await?;
         move_to(s, self.uid, &self.folder).await
+    }
+}
+
+struct ResolveFolder {
+    name: String,
+    create: bool,
+}
+impl AsyncOp<Option<String>> for ResolveFolder {
+    async fn call(&self, s: &mut Session) -> Result<Option<String>> {
+        let list: Vec<_> = with_timeout(s.list(Some(""), Some("*"))).await?.try_collect().await?;
+        let wanted = self.name.to_lowercase();
+        let leaf = |n: &async_imap::types::Name| {
+            let d = n.delimiter().unwrap_or("/");
+            n.name().rsplit(d).next().unwrap_or("").to_lowercase()
+        };
+        if let Some(n) = list.iter().find(|n| leaf(n) == wanted && !n.attributes().contains(&NameAttribute::NoSelect)) {
+            return Ok(Some(n.name().to_string()));
+        }
+        if !self.create {
+            return Ok(None);
+        }
+        let top_level = with_timeout(s.create(&self.name)).await;
+        if top_level.is_ok() {
+            return Ok(Some(self.name.clone()));
+        }
+        // Proton Mail Bridge: own folders only below "Folders/".
+        if let Some(parent) = list.iter().find(|n| n.name().eq_ignore_ascii_case("Folders")) {
+            let full = format!("{}{}{}", parent.name(), parent.delimiter().unwrap_or("/"), self.name);
+            with_timeout(s.create(&full)).await.with_context(|| format!("Failed to create folder '{full}'"))?;
+            return Ok(Some(full));
+        }
+        top_level.map(|_| None).with_context(|| format!("Failed to create folder '{}'", self.name))
     }
 }
 
@@ -716,7 +764,10 @@ mod tests {
         assert!(!s.uid_search("FLAGGED").await.unwrap().contains(&malte.uid));
 
         // Task: into the folder (created on demand), listed, readable there.
-        cmds.move_to_folder(&account, malte.uid, "Aufgaben").await.unwrap();
+        assert_eq!(cmds.resolve_folder(&account, "Aufgaben", false).await.unwrap(), None);
+        let folder = cmds.resolve_folder(&account, "Aufgaben", true).await.unwrap().unwrap();
+        assert_eq!(folder, "Aufgaben");
+        cmds.move_to_folder(&account, malte.uid, &folder).await.unwrap();
         s.noop().await.unwrap();
         assert!(!s.uid_search("ALL").await.unwrap().contains(&malte.uid));
         let tasks = cmds.folder_mails(&account, "Aufgaben", 100).await.unwrap();
