@@ -56,7 +56,6 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .tcol-head .link{text-transform:none;letter-spacing:0}
 .tcol-head .grow{flex:1}
 .sdot{width:9px;height:9px;border-radius:50%;background:var(--sc);flex:none}
-.tcard::before{background:var(--sc)!important}
 .tcard.st-done .mc-subj{text-decoration:line-through;color:var(--muted)}
 .tcard.st-done{opacity:.8}
 .col-empty{padding:14px;text-align:center;font-size:12px;color:var(--faint);border:1px dashed var(--line);border-radius:12px}
@@ -119,10 +118,12 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .cards{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
 .mcard{position:relative;display:flex;flex-direction:column;gap:5px;padding:11px 12px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--line);cursor:pointer;text-align:left;width:100%;transition:border-color .15s,box-shadow .15s,transform .15s}
 .mcard.fresh{animation:pop .25s ease both}
-.mcard:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:var(--shadow);transform:translateY(-1px)}
-.mcard::before{content:"";position:absolute;left:-1px;top:12px;bottom:12px;width:3px;border-radius:3px;background:var(--accent)}
+.mcard:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:inset 3px 0 0 var(--bar),var(--shadow);transform:translateY(-1px)}
+/* Farbmarkierung als Innenschatten links: folgt der Rundung der Karte. */
+.mcard{--bar:var(--accent);box-shadow:inset 3px 0 0 var(--bar)}
+.mcard.bulk{--bar:var(--faint)}
+.tcard{--bar:var(--sc)}
 .mcard.bulk{opacity:.72}
-.mcard.bulk::before{background:var(--faint)}
 .mc-head{display:flex;gap:10px;align-items:center}
 .mc-from{flex:1;min-width:0;line-height:1.25}
 .mc-from b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
