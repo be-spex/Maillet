@@ -36,6 +36,16 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .nav:hover{background:var(--hover);color:var(--text)}
 .nav.on{background:var(--accent-soft);color:var(--accent)}
 .nav .badge{position:absolute;top:1px;right:0}
+/* Einträge mit Beschriftung (Konten, Aufgaben); Übersicht und Einstellungen ohne. */
+.nav.lab{height:auto;min-height:46px;width:54px;padding:6px 0 4px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.nav-lab{font-size:9.5px;line-height:1.1;font-weight:600;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav.home{margin-bottom:10px}
+.nav-group{display:flex;flex-direction:column;align-items:center;gap:4px}
+.inbox-head{display:flex;align-items:flex-start;gap:10px}
+.inbox-head .hero{flex:1;min-width:0}
+.folder-pick{display:flex;align-items:center;gap:6px;margin-top:4px}
+.folder-pick select{max-width:190px;padding:6px 8px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-size:12.5px}
+.folder-note{font-size:12px;color:var(--muted);margin:-6px 0 10px}
 .nav[hidden]{display:none}
 .i.filled{fill:currentColor}
 .ib.on{color:var(--warn)}
@@ -258,9 +268,9 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 <div id="app">
   <nav class="rail">
     <img class="logo" src="icon.png" alt="Maillet" title="Maillet">
-    <button class="nav on" id="navHome" data-act="home" data-t-title="app.overview"><svg class="i"><use href="#i-home"/></svg><span class="badge" id="navBadge" hidden></span></button>
-    <button class="nav" id="navInbox" data-act="inbox" data-t-title="app.inbox"><svg class="i"><use href="#i-inbox"/></svg></button>
-    <button class="nav" id="navTasks" data-act="tasks" data-t-title="app.tasks" hidden><svg class="i"><use href="#i-task"/></svg><span class="badge" id="taskBadge" hidden></span></button>
+    <button class="nav home" id="navHome" data-act="home" data-t-title="app.overview"><svg class="i"><use href="#i-home"/></svg><span class="badge" id="navBadge" hidden></span></button>
+    <div id="navInboxes" class="nav-group"></div>
+    <button class="nav lab" id="navTasks" data-act="tasks" data-t-title="app.tasks" hidden><svg class="i"><use href="#i-task"/></svg><span class="nav-lab" data-t="app.tasks"></span><span class="badge" id="taskBadge" hidden></span></button>
     <div class="spacer"></div>
     <button class="nav" data-act="settings" data-t-title="app.settings"><svg class="i"><use href="#i-gear"/></svg></button>
   </nav>
@@ -349,7 +359,9 @@ async function loadI18n() {
   document.querySelectorAll('[data-t-title]').forEach(el => { el.title = t(el.dataset.tTitle); });
 }
 
-const S = { data: null, accounts: null, filter: 'all', group: 'all', view: 'home', tasks: null, inbox: null, inboxBase: null, inboxDays: null, open: null, content: null, codes: [], loading: true };
+const S = { data: null, accounts: null, filter: 'all', group: 'all', view: 'home', tasks: null, inbox: null, inboxBase: null, inboxDays: null,
+  // Inbox je Konto; der gewählte Ordner gilt, solange die App läuft (nicht gespeichert).
+  inboxAccount: null, inboxFolder: {}, folders: {}, open: null, content: null, codes: [], loading: true };
 
 function when(ts, long) {
   if (!ts) return '';
@@ -382,7 +394,8 @@ function render() {
   tb.hidden = !nTasks; tb.textContent = nTasks;
   $('#navHome').classList.toggle('on', S.view === 'home');
   $('#navTasks').classList.toggle('on', S.view === 'tasks');
-  $('#navInbox').classList.toggle('on', S.view === 'inbox');
+  $('#navInboxes').innerHTML = d.accounts.map(a => `<button class="nav lab ${S.view === 'inbox' && S.inboxAccount === a.account_id ? 'on' : ''}" data-act="inbox" data-acc="${esc(a.account_id)}" title="${esc(t('app.inbox') + ' – ' + a.account)}">${ic('inbox')}<span class="nav-lab">${esc(a.account)}</span>${a.unread_total ? `<span class="badge">${a.unread_total > 99 ? '99+' : a.unread_total}</span>` : ''}</button>`).join('');
+  $('#navTasks .nav-lab').textContent = t('app.tasks');
   $('#view').innerHTML = S.accounts && !S.accounts.length ? onboarding() : S.view === 'tasks' ? tasksView() : S.view === 'inbox' ? inboxView(d) : home(d, total);
   tickCodes();
 }
@@ -456,14 +469,35 @@ const taskCard = it => { const m = it.mail; return `<div class="mcard tcard st-$
     <div class="task-acts">${taskButtons(it, true)}</div>
   </div>`; };
 /* ---- Ganzer Posteingang: gelesen und ungelesen ---- */
+const folderOf = acc => S.inboxFolder[acc] || '';
 function inboxView(d) {
-  if (!S.inbox) return `<div class="hero"><h1>${t('app.inbox')}</h1><p>${t('tasks.loading')}</p></div>${skeleton()}`;
-  const list = S.inbox.filter(m => S.filter === 'all' || m.account_id === S.filter);
-  const multi = d.accounts.length > 1;
-  return `<div class="hero"><h1>${t('app.inbox')}</h1><p>${t('inbox.summary', { n: list.length, u: list.filter(m => !m.seen).length, d: S.inboxDays })}</p></div>
-    ${multi ? `<div class="chips"><button class="chip ${S.filter === 'all' ? 'on' : ''}" data-act="filter" data-f="all">${t('home.all_accounts')}</button>${d.accounts.map(a => `<button class="chip ${S.filter === a.account_id ? 'on' : ''}" data-act="filter" data-f="${esc(a.account_id)}">${esc(a.account)}</button>`).join('')}</div>` : ''}
+  const acc = d.accounts.find(a => a.account_id === S.inboxAccount);
+  const folder = folderOf(S.inboxAccount);
+  const folders = (S.folders[S.inboxAccount] || []).filter(f => !/^inbox$/i.test(f));
+  const pick = `<div class="folder-pick">
+      <select data-act-change="folder" title="${t('inbox.folder')}"><option value="">${t('app.inbox')}</option>${folders.map(f => `<option value="${esc(f)}" ${f === folder ? 'selected' : ''}>${esc(f)}</option>`).join('')}${folder && !folders.includes(folder) ? `<option selected>${esc(folder)}</option>` : ''}</select>
+      <button class="ib sm" data-act="inboxHome" title="${t('inbox.back')}" ${folder ? '' : 'disabled'}>${ic('inbox', 'sm')}</button>
+    </div>`;
+  const title = acc ? acc.account : t('app.inbox');
+  if (!S.inbox) return `<div class="inbox-head"><div class="hero"><h1>${esc(title)}</h1><p>${t('tasks.loading')}</p></div>${pick}</div>${skeleton()}`;
+  const list = S.inbox;
+  return `<div class="inbox-head"><div class="hero"><h1>${esc(title)}</h1><p>${folder ? esc(folder) + ' · ' : ''}${t('inbox.summary', { n: list.length, u: list.filter(m => !m.seen).length, d: S.inboxDays })}</p></div>${pick}</div>
+    ${folder ? `<div class="folder-note">${t('inbox.folder_note')}</div>` : ''}
     <div class="cards">${list.map(card).join('') || empty(t('inbox.empty', { d: S.inboxDays }))}</div>
     ${S.inboxMore ? `<div class="more"><button class="btn" data-act="inboxMore">${t('inbox.load_more', { d: S.inboxBase })}</button></div>` : ''}`;
+}
+async function loadFolders(acc) {
+  if (!acc || S.folders[acc]) return;
+  try { S.folders[acc] = await invoke('list_account_folders', { accountId: acc }); } catch (e) { S.folders[acc] = []; }
+  if (S.view === 'inbox' && S.inboxAccount === acc) render();
+}
+function openInbox(acc, folder) {
+  closeReader();
+  const changed = S.view !== 'inbox' || S.inboxAccount !== acc || (folder !== undefined && folder !== folderOf(acc));
+  S.view = 'inbox'; S.inboxAccount = acc;
+  if (folder !== undefined) S.inboxFolder[acc] = folder;
+  if (changed) { S.inbox = null; S.inboxDays = S.inboxBase; }
+  render(); refreshInbox(); loadFolders(acc);
 }
 let inboxTimer = null;
 // Nur die letzten Tage laden (Filter auf dem Server); Ältere auf Wunsch nachladen.
@@ -474,8 +508,13 @@ async function refreshInbox() {
       S.inboxBase = st.inbox_days || 7;
       S.inboxDays = S.inboxBase;
     }
-    const page = await invoke('list_inbox', { days: S.inboxDays });
-    S.inbox = page.mails;
+    if (!S.inboxAccount && S.data && S.data.accounts.length) S.inboxAccount = S.data.accounts[0].account_id;
+    const acc = S.inboxAccount, folder = folderOf(acc);
+    const page = await invoke('list_inbox', { days: S.inboxDays, accountId: acc, folder: folder || null });
+    // Inzwischen anderes Konto oder anderer Ordner gewählt: verwerfen.
+    if (acc !== S.inboxAccount || folder !== folderOf(acc)) return;
+    // Mails aus anderen Ordnern: nur lesen (ihre UID gehört nicht zum Posteingang).
+    S.inbox = folder ? page.mails.map(m => ({ ...m, folder })) : page.mails;
     S.inboxMore = page.has_older;
   } catch (e) { toast(String(e), true); }
   if (S.view === 'inbox') render();
@@ -525,14 +564,14 @@ function cardActs(m) {
 }
 function card(m) {
   const codes = (m.findings || []).filter(f => f.feature === 'otp');
-  return `<div class="mcard has-acts ${m.bulk ? 'bulk' : ''} ${m.seen ? 'read' : ''} ${fresh(m.id)}" data-act="open" data-id="${esc(m.id)}" tabindex="0">
+  return `<div class="mcard ${m.folder ? '' : 'has-acts'} ${m.bulk ? 'bulk' : ''} ${m.seen ? 'read' : ''} ${fresh(m.id)}" data-act="open" data-id="${esc(m.id)}" tabindex="0">
     <div class="mc-head">${statusAvatar(m)}<div class="mc-from"><b>${esc(sender(m))}</b><small>${esc(m.account)} · ${esc(when(m.date))}${m.has_attachments ? ' · 📎' : ''}</small></div></div>
     <div class="mc-subj">${esc(m.subject || t('mail.no_subject'))}</div>
     ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
     ${codes.length || m.bulk ? `<div class="mc-tags">${codes.map(f => `<span class="tag code">${f.kind === 'link' ? t('mail.login_link') : esc(f.value)}</span>`).join('')}${m.bulk ? `<span class="tag">${t('mail.newsletter')}</span>` : ''}</div>` : ''}
-    <div class="mc-acts">
+    ${m.folder ? '' : `<div class="mc-acts">
 ${cardActs(m)}
-    </div>
+    </div>`}
   </div>`;
 }
 
@@ -620,12 +659,16 @@ async function openMail(id) {
   const m = S.data.mails.find(x => x.id === id) || (S.data.pinned || []).find(x => x.id === id) || (S.inbox || []).find(x => x.id === id);
   if (!m) return;
   // Öffnen setzt auf gelesen, außer der Nutzer will das selbst entscheiden (Einstellungen → Actions).
-  const markRead = !S.status || S.status.mark_read_on_open !== false;
+  // Mails aus anderen Ordnern nur lesen: nichts markieren, Inhalt über die Message-ID.
+  const markRead = !m.folder && (!S.status || S.status.mark_read_on_open !== false);
   if (markRead) (S.inbox || []).forEach(x => { if (x.id === id) x.seen = true; });
   S.open = markRead ? { ...m, seen: true } : m; S.content = null; S.htmlMode = true; S.loadImages = false;
   renderReader();
   try {
-    S.content = await invoke('get_mail', { id });
+    if (m.folder && !m.message_id) throw new Error(t('inbox.no_mid'));
+    S.content = m.folder
+      ? await invoke('get_folder_mail', { accountId: m.account_id, folder: m.folder, messageId: m.message_id })
+      : await invoke('get_mail', { id });
     if (S.open && S.open.id === id) renderReader();
     if (markRead && !m.seen) invoke('set_seen', { id, seen: true }).catch(e => toast(String(e), true));
   } catch (e) {
@@ -644,6 +687,7 @@ async function openTask(key) {
   if (S.open && S.open.key === key) renderReader();
 }
 function readerActs(m) {
+  if (m.folder) return `<span class="muted" style="font-size:12.5px">${esc(m.folder)}</span>`;
   const id = esc(m.id), out = [];
   if (can('archive')) out.push(`<button class="ab main" data-act="archive" data-id="${id}" title="${keyTip(t('card.archive'), 'archive')}">${ic('check', 'sm')}${t('reader.done')}</button>`);
   if (can('task')) out.push(`<button class="ab" data-act="task" data-id="${id}" title="${keyTip(t('card.task'), 'task')}">${ic('task', 'sm')}${t('reader.task')}</button>`);
@@ -811,7 +855,7 @@ async function refreshTasks() {
 const mailById = id => (S.data && S.data.mails.find(m => m.id === id)) || (S.data && (S.data.pinned || []).find(m => m.id === id)) || (S.inbox || []).find(m => m.id === id);
 async function fileMail(id, catId) {
   const cat = cats().find(c => c.id === catId);
-  if (!cat) return;
+  if (!cat || (mailById(id) || {}).folder) return;
   const mid = (mailById(id) || {}).message_id;
   const card = document.querySelector(`.mcard[data-id="${CSS.escape(id)}"]`);
   if (card) card.style.opacity = .4;
@@ -911,7 +955,7 @@ function openMore(id, actions, anchor) {
 // Eine Aktion auf eine Mail anwenden (Tastatur und Überlaufmenü).
 function runAction(a, id, anchor) {
   const m = mailById(id) || (S.open && S.open.id === id ? S.open : null);
-  if (!m || !can(a)) return;
+  if (!m || m.folder || !can(a)) return;
   if (a === 'archive') archive(id);
   else if (a === 'task') makeTask(id);
   else if (a === 'file') openPicker(id, anchor);
@@ -999,6 +1043,9 @@ async function setKind(addr, bulk) {
   } catch (e) { toast(String(e), true); }
 }
 
+document.addEventListener('change', e => {
+  if (e.target.dataset && e.target.dataset.actChange === 'folder') openInbox(S.inboxAccount, e.target.value);
+});
 document.addEventListener('click', e => {
   if (!e.target.closest('#statusPop') && !e.target.closest('#statusBtn')) toggleStatus(false);
   if (!e.target.closest('.float')) closeFloat();
@@ -1013,7 +1060,8 @@ document.addEventListener('click', e => {
     case 'loadImages': S.loadImages = true; renderReader(); break;
     case 'home': closeReader(); S.view = 'home'; render(); break;
     case 'tasks': closeReader(); S.view = 'tasks'; render(); refreshTasks(); break;
-    case 'inbox': closeReader(); S.view = 'inbox'; render(); refreshInbox(); break;
+    case 'inbox': openInbox(el.dataset.acc || S.inboxAccount || (S.data && S.data.accounts[0] && S.data.accounts[0].account_id)); break;
+    case 'inboxHome': openInbox(S.inboxAccount, ''); break;
     case 'inboxMore': S.inboxDays += S.inboxBase; refreshInbox(); break;
     case 'pin': togglePin(id); break;
     case 'task': makeTask(id); break;

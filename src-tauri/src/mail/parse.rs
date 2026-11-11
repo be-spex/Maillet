@@ -126,6 +126,28 @@ pub fn parse_body(raw: &[u8]) -> MailBody {
 }
 
 /// Text and attachment names for the reader.
+/// Text for reading: HTML mails turned into text leave many empty lines
+/// (and lines of spaces or invisible characters). Several become one.
+pub fn tidy_text(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut blank = false;
+    for line in text.lines() {
+        let line = line.trim_end();
+        let empty = line.chars().all(|c| c.is_whitespace() || matches!(c, '\u{200B}'..='\u{200F}' | '\u{034F}' | '\u{00AD}' | '\u{2060}' | '\u{FEFF}'));
+        if empty {
+            blank = !out.is_empty();
+            continue;
+        }
+        if blank {
+            out.push('\n');
+            blank = false;
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    out.trim_end().to_string()
+}
+
 pub fn parse_content(raw: &[u8]) -> MailContent {
     let body = parse_body(raw);
     let parsed = MessageParser::default().parse(raw);
@@ -135,7 +157,7 @@ pub fn parse_content(raw: &[u8]) -> MailContent {
         .unwrap_or_default();
     let safe = parsed.as_ref().filter(|_| !body.html.trim().is_empty()).map(|m| super::sanitize::sanitize(&body.html, &super::sanitize::inline_images(m)));
     MailContent {
-        text: body.text,
+        text: tidy_text(&body.text),
         remote_images: safe.as_ref().map_or(0, |s| s.remote_images),
         html: safe.map(|s| s.html),
         attachments,
@@ -242,4 +264,12 @@ Content-Type: text/html; charset=utf-8\r\n\r\n";
         let header = b"From: jira@firma.example\r\nSubject: [ATLAS-1] Update\r\nAuto-Submitted: auto-generated\r\n\r\n";
         assert!(summarize(&ORIGIN, header, b"x").bulk);
     }
+
+    #[test]
+    fn test_tidy_text_collapses_empty_lines() {
+        let t = "Hello\n\n\n   \n\u{00A0}\n\u{200B}\nWorld  \n\n\nBye\n\n";
+        assert_eq!(tidy_text(t), "Hello\n\nWorld\n\nBye");
+        assert_eq!(tidy_text("\n\n  \nStart"), "Start");
+    }
+
 }

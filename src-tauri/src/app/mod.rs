@@ -204,6 +204,21 @@ async fn set_categories(app: AppHandle, categories: Vec<config::Category>) -> Re
     Ok(())
 }
 
+/// Folders of one account, for switching the inbox view.
+#[tauri::command]
+async fn list_account_folders(state: State<'_, AppState>, account_id: String) -> Result<Vec<String>, String> {
+    let account = account_by_id(&account_id)?;
+    state.commands.list_folders(&account).await.map_err(err)
+}
+
+/// A mail from another folder, found by its Message-ID (its uid belongs to
+/// that folder, not to the watched inbox).
+#[tauri::command]
+async fn get_folder_mail(state: State<'_, AppState>, account_id: String, folder: String, message_id: String) -> Result<MailContent, String> {
+    let account = account_by_id(&account_id)?;
+    state.commands.content_by_message_id(&account, vec![folder], &message_id).await.map_err(err)
+}
+
 /// Folder names of all accounts, for choosing an existing folder as target.
 #[tauri::command]
 async fn list_folders(state: State<'_, AppState>) -> Result<Vec<String>, String> {
@@ -324,15 +339,21 @@ struct InboxPage {
 
 /// The whole inbox (read and unread) of the last `days` days, newest first.
 #[tauri::command]
-async fn list_inbox(state: State<'_, AppState>, days: u32) -> Result<InboxPage, String> {
+async fn list_inbox(state: State<'_, AppState>, days: u32, account_id: Option<String>, folder: Option<String>) -> Result<InboxPage, String> {
     let days = days.clamp(1, 3650);
     let started = Instant::now();
-    let accounts: Vec<_> = config::load_accounts_with_passwords().map_err(err)?.into_iter().filter(|a| !a.server.is_empty() && !a.pass.is_empty()).collect();
+    let accounts: Vec<_> = config::load_accounts_with_passwords()
+        .map_err(err)?
+        .into_iter()
+        .filter(|a| !a.server.is_empty() && !a.pass.is_empty() && account_id.as_ref().is_none_or(|id| *id == a.id))
+        .collect();
+    let folder = folder.filter(|f| !f.is_empty());
+    let folder = &folder;
     // All accounts at once: the slowest one sets the waiting time, not the sum.
     let commands = &state.commands;
     let pages = futures_util::future::join_all(accounts.iter().map(|a| async move {
         let t = Instant::now();
-        let page = commands.folder_mails_since(a, &a.mailbox, Some(days), INBOX_CAP).await;
+        let page = commands.folder_mails_since(a, folder.as_deref().unwrap_or(&a.mailbox), Some(days), INBOX_CAP).await;
         tracing::info!("[{}] inbox ({days} days) loaded in {} ms", a.label, t.elapsed().as_millis());
         page
     }))
@@ -982,7 +1003,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_mail, unfile_mail, set_categories, list_folders, set_mark_read_on_open, trash_mail, set_actions, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_mail, unfile_mail, set_categories, list_folders, list_account_folders, get_folder_mail, set_mark_read_on_open, trash_mail, set_actions, get_task_mail,
             get_accounts, add_account, update_account, remove_account, graph_sign_in_start, graph_sign_in_finish, graph_sign_in_cancel, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,
