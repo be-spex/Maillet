@@ -111,6 +111,34 @@ async fn delete_mail(state: State<'_, AppState>, account_id: String, uid: u32) -
     Ok(())
 }
 
+/// Version, accounts with connection status and the local API, for the status panel.
+#[tauri::command]
+fn get_app_status(app: AppHandle, state: State<AppState>, statuses: State<status::StatusStore>, api: State<api::ApiServer>) -> serde_json::Value {
+    let all = statuses.all();
+    let unread = state.store.snapshot().accounts;
+    let accounts: Vec<_> = config::get_accounts(&state.config)
+        .into_iter()
+        .map(|a| {
+            let st = all.iter().find(|s| s.account_id == a.id);
+            serde_json::json!({
+                "id": a.id,
+                "label": a.label,
+                "server": format!("{}:{}", a.server, a.port),
+                "mailbox": a.mailbox,
+                "state": st.map_or("connecting", |s| s.state),
+                "message": st.map(|s| s.message.clone()).unwrap_or_default(),
+                "timestamp": st.map(|s| s.timestamp),
+                "unread": unread.iter().find(|u| u.account_id == a.id).map(|u| u.unread_total),
+            })
+        })
+        .collect();
+    serde_json::json!({
+        "version": app.package_info().version.to_string(),
+        "accounts": accounts,
+        "api": api.status(),
+    })
+}
+
 #[tauri::command]
 fn check_now(state: State<AppState>) {
     state.check_now.notify_waiters();
@@ -459,7 +487,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,

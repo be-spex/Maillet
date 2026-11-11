@@ -128,6 +128,22 @@ pub fn show_main(app: &AppHandle, at: Option<(i32, i32)>) {
 /// On Wayland the GDK window is no X11 window and nothing happens.
 #[cfg(target_os = "linux")]
 fn activate_x11(w: &WebviewWindow) {
+    request_activation(w);
+    // On the very first show the window may not be mapped yet and the
+    // request is ignored; ask again shortly after unless it worked.
+    let w = w.clone();
+    std::thread::spawn(move || {
+        for delay in [150, 250, 400, 700] {
+            std::thread::sleep(Duration::from_millis(delay));
+            if w.is_visible().unwrap_or(false) && !w.is_focused().unwrap_or(false) {
+                request_activation(&w);
+            }
+        }
+    });
+}
+
+#[cfg(target_os = "linux")]
+fn request_activation(w: &WebviewWindow) {
     let window = w.clone();
     let _ = w.run_on_main_thread(move || {
         use gtk::prelude::{Cast, WidgetExt};

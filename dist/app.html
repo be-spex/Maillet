@@ -37,6 +37,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .nav.on{background:var(--accent-soft);color:var(--accent)}
 .nav .badge{position:absolute;top:1px;right:0}
 .spacer{flex:1}
+.badge[hidden]{display:none}
 .badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;display:inline-grid;place-items:center}
 
 /* Kopf */
@@ -47,6 +48,23 @@ main{display:flex;flex-direction:column;min-width:0;height:100vh}
 .ib:hover{background:var(--hover);color:var(--text)}
 .ib.sm{width:28px;height:28px;border-radius:8px}
 .spin svg{animation:spin .8s linear infinite}
+#statusBtn{position:relative}
+#statusBtn.warn{color:var(--danger)}
+#statusBtn .sdot{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--warn);animation:blink 1.2s ease infinite}
+#statusPop{position:absolute;top:54px;right:10px;width:min(340px,calc(100% - var(--railw) - 20px));max-height:calc(100% - 70px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);z-index:30;padding:12px;display:none;animation:pop .15s ease}
+#statusPop.show{display:block}
+.sp-head{display:flex;gap:10px;align-items:center;padding:0 2px 10px;border-bottom:1px solid var(--line)}
+.sp-head img{width:34px;height:34px}
+.sp-head small{color:var(--muted)}
+.sp-title{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 2px 4px}
+.sp-row{display:flex;gap:10px;align-items:flex-start;padding:6px 4px}
+.sp-row .dot{margin-top:6px}
+.sp-row .grow{flex:1;min-width:0}
+.sp-row b{font-size:13px}
+.sp-row small{display:block;color:var(--muted);font-size:11.5px;overflow-wrap:anywhere}
+.sp-row .msg.error{color:var(--danger)}
+.sp-foot{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.sp-foot .btn{flex:1;justify-content:center;padding:7px 10px}
 #view{flex:1;overflow:auto;padding:16px 14px 40px}
 
 /* Übersicht */
@@ -103,6 +121,8 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .dot.ok{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent)}
 .dot.connecting{background:var(--warn)}
 .dot.error{background:var(--danger)}
+.dot.listening{background:var(--ok)}
+.dot.off{background:var(--faint)}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-weight:600;font-size:13px}
 .btn:hover{border-color:var(--faint)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 35%,transparent)}
@@ -141,6 +161,7 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 @keyframes pop{from{opacity:0;transform:scale(.98) translateY(3px)}to{opacity:1;transform:none}}
 @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{50%{opacity:.3}}
 @keyframes shimmer{to{background-position:-200% 0}}
 </style>
 </head>
@@ -155,6 +176,7 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
   <main>
     <header class="top">
       <div class="grow" data-tauri-drag-region></div>
+      <button class="ib" id="statusBtn" data-act="status" title="Status"><svg class="i"><use href="#i-activity"/></svg></button>
       <button class="ib" id="checkBtn" data-act="check" title="Jetzt prüfen"><svg class="i"><use href="#i-refresh"/></svg></button>
       <button class="ib" data-act="theme" title="Hell / Dunkel"><svg class="i"><use href="#i-moon"/></svg></button>
       <button class="ib" data-act="hide" title="Schließen (Esc)"><svg class="i"><use href="#i-x"/></svg></button>
@@ -163,6 +185,7 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
   </main>
   <aside id="reader"></aside>
   <div id="toasts"></div>
+  <div id="statusPop"></div>
 </div>
 
 <svg width="0" height="0" style="position:absolute">
@@ -171,6 +194,8 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.6-4.5L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.6 4.5L20 16"/><path d="M20 21v-5h-5"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
@@ -250,7 +275,7 @@ function home(d, total) {
     ${multi ? `<div class="chips"><button class="chip ${S.filter === 'all' ? 'on' : ''}" data-act="filter" data-f="all">Alle</button>${d.accounts.map(a => `<button class="chip ${S.filter === a.account_id ? 'on' : ''}" data-act="filter" data-f="${esc(a.account_id)}">${esc(a.account)} <span class="faint">${a.unread_total}</span></button>`).join('')}</div>` : ''}
     <div class="cards">${mails.map(card).join('') || (S.loading ? skeleton() : `<div class="empty"><div class="big">🌿</div>Nichts Neues. Genieß die Ruhe.</div>`)}</div>
     ${shown > mails.length ? `<div class="more">Die neuesten ${mails.length} von ${shown} ungelesenen Mails</div>` : ''}
-    ${statusLines(d)}`;
+    `;
 }
 
 const skeleton = () => [1, 2, 3].map(() => `<div class="mcard" style="cursor:default"><div class="skel" style="width:40%"></div><div class="skel" style="width:85%"></div><div class="skel" style="width:70%"></div></div>`).join('');
@@ -269,17 +294,45 @@ function card(m) {
   </div>`;
 }
 
-function statusLines(d) {
-  if (!d.status.length) return '';
-  const names = Object.fromEntries((S.accounts || []).map(a => [a.id, a.label]));
-  return `<div class="status">${d.status.sort((a, b) => (names[a.account_id] || '').localeCompare(names[b.account_id] || '')).map(s => `
-    <button class="st ${s.state === 'error' ? 'error' : ''}" ${s.state === 'error' ? 'data-act="settings" title="Kontoeinstellungen öffnen"' : ''}>
-      <span class="dot ${s.state}"></span><b>${esc(names[s.account_id] || 'Konto')}</b><span class="msg">${esc(statusText(s))}</span></button>`).join('')}</div>`;
+/* ---- Status (Kopfzeile) ---- */
+async function refreshStatus() {
+  try { S.status = await invoke('get_app_status'); } catch (e) { return; }
+  renderStatusBtn();
+  if ($('#statusPop').classList.contains('show')) renderStatusPop();
 }
-function statusText(s) {
-  if (s.state === 'ok') return 'verbunden';
-  if (s.state === 'connecting') return 'verbindet …';
-  return s.message;
+function problems() {
+  const st = S.status;
+  if (!st) return { errors: 0, connecting: false };
+  return { errors: st.accounts.filter(a => a.state === 'error').length + (st.api.state === 'error' ? 1 : 0), connecting: st.accounts.some(a => a.state === 'connecting') };
+}
+function renderStatusBtn() {
+  const b = $('#statusBtn'), p = problems();
+  b.classList.toggle('warn', p.errors > 0);
+  b.innerHTML = p.errors ? ic('alert') : ic('activity') + (p.connecting ? '<span class="sdot"></span>' : '');
+  b.title = p.errors ? `Status: ${p.errors} Problem${p.errors > 1 ? 'e' : ''}` : p.connecting ? 'Status: verbindet …' : 'Status: alles in Ordnung';
+}
+const hhmm = ts => ts ? new Date(ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+function accountLine(a) {
+  if (a.state === 'ok') return `<small>Verbunden · ${a.unread ?? 0} ungelesen${a.timestamp ? ' · geprüft ' + hhmm(a.timestamp) : ''}</small>`;
+  if (a.state === 'connecting') return '<small>Verbindet …</small>';
+  return `<small class="msg error">${esc(a.message)}</small>${a.timestamp ? `<small>seit ${hhmm(a.timestamp)}</small>` : ''}`;
+}
+function renderStatusPop() {
+  const st = S.status, pop = $('#statusPop');
+  if (!st) { pop.innerHTML = '<div class="loading">Status wird geladen …</div>'; return; }
+  const api = st.api;
+  pop.innerHTML = `
+    <div class="sp-head"><img src="icon.png" alt=""><div><b>Maillet ${esc(st.version)}</b><br><small>neue Mails im Blick, direkt im Tray</small></div></div>
+    <div class="sp-title">Konten</div>
+    ${st.accounts.map(a => `<div class="sp-row"><span class="dot ${a.state}"></span><div class="grow"><b>${esc(a.label)}</b> <small style="display:inline">${esc(a.server)} · ${esc(a.mailbox)}</small>${accountLine(a)}</div></div>`).join('') || '<div class="sp-row"><small>Noch kein Konto eingerichtet.</small></div>'}
+    ${api.state !== 'off' ? `<div class="sp-title">Lokale API (Codes)</div>
+      <div class="sp-row"><span class="dot ${api.state}"></span><div class="grow"><b>${api.state === 'listening' ? 'Läuft' : 'Fehler'}</b><small class="msg ${api.state === 'error' ? 'error' : ''}">${esc(api.message)}</small>${api.last_request ? `<small>letzte Anfrage ${hhmm(api.last_request)}</small>` : ''}</div></div>` : ''}
+    <div class="sp-foot"><button class="btn" data-act="check">${ic('refresh', 'sm')}Jetzt prüfen</button><button class="btn" data-act="settings">${ic('gear', 'sm')}Einstellungen</button></div>`;
+}
+function toggleStatus(force) {
+  const pop = $('#statusPop'), show = force ?? !pop.classList.contains('show');
+  pop.classList.toggle('show', show);
+  if (show) { renderStatusPop(); refreshStatus(); }
 }
 
 /* ---- Codes (OTP-Funktion) ---- */
@@ -389,6 +442,7 @@ function toast(text, error) {
 }
 
 document.addEventListener('click', e => {
+  if (!e.target.closest('#statusPop') && !e.target.closest('#statusBtn')) toggleStatus(false);
   const el = e.target.closest('[data-act]');
   if (!el) return;
   e.stopPropagation();
@@ -402,6 +456,7 @@ document.addEventListener('click', e => {
     case 'unread': setSeen(id, false); break;
     case 'filter': S.filter = el.dataset.f; render(); break;
     case 'check': check(); break;
+    case 'status': toggleStatus(); break;
     case 'theme': toggleTheme(); break;
     case 'hide': invoke('hide_main'); break;
     case 'settings': invoke('open_window', { label: 'settings' }); break;
@@ -415,19 +470,21 @@ document.addEventListener('click', e => {
   }
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if (S.open) closeReader(); else invoke('hide_main'); }
+  if (e.key === 'Escape') { if ($('#statusPop').classList.contains('show')) toggleStatus(false); else if (S.open) closeReader(); else invoke('hide_main'); }
   if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('mcard')) openMail(e.target.dataset.id);
   if (S.open && (e.key === 'e' || e.key === 'E')) archive(S.open.id);
 });
 
 const saved = localStorage.getItem('theme');
 if (saved) document.documentElement.dataset.theme = saved;
-listen('mails-changed', refresh);
-listen('account-status', refresh);
+listen('mails-changed', () => { refresh(); refreshStatus(); });
+listen('account-status', () => { refresh(); refreshStatus(); });
+listen('api-status', refreshStatus);
 listen('auth-code', ev => addCode(ev.payload));
 invoke('get_last_code').then(p => { if (p) { const c = JSON.parse(p); if (Date.now() / 1000 - c.timestamp < CODE_TTL / 1000) addCode(c); } }).catch(() => {});
 render();
 refresh();
+refreshStatus();
 </script>
 </body>
 </html>
