@@ -247,12 +247,20 @@ struct InboxPage {
 #[tauri::command]
 async fn list_inbox(state: State<'_, AppState>, days: u32) -> Result<InboxPage, String> {
     let days = days.clamp(1, 3650);
+    let started = Instant::now();
+    let accounts: Vec<_> = config::load_accounts_with_passwords().map_err(err)?.into_iter().filter(|a| !a.server.is_empty() && !a.pass.is_empty()).collect();
+    // All accounts at once: the slowest one sets the waiting time, not the sum.
+    let commands = &state.commands;
+    let pages = futures_util::future::join_all(accounts.iter().map(|a| async move {
+        let t = Instant::now();
+        let page = commands.folder_mails_since(a, &a.mailbox, Some(days), INBOX_CAP).await;
+        tracing::info!("[{}] inbox ({days} days) loaded in {} ms", a.label, t.elapsed().as_millis());
+        page
+    }))
+    .await;
     let (mut all, mut has_older) = (vec![], false);
-    for account in config::load_accounts_with_passwords().map_err(err)? {
-        if account.server.is_empty() || account.pass.is_empty() {
-            continue;
-        }
-        let (mut mails, older) = state.commands.folder_mails_since(&account, &account.mailbox, Some(days), INBOX_CAP).await.map_err(err)?;
+    for page in pages {
+        let (mut mails, older) = page.map_err(err)?;
         has_older |= older;
         for m in &mut mails {
             if let Some(bulk) = m.from_addr.as_deref().and_then(|a| state.kinds.get(a)) {
@@ -262,6 +270,7 @@ async fn list_inbox(state: State<'_, AppState>, days: u32) -> Result<InboxPage, 
         all.extend(mails);
     }
     all.sort_by_key(|m| std::cmp::Reverse(m.date.unwrap_or(0)));
+    tracing::info!("inbox: {} mails in {} ms", all.len(), started.elapsed().as_millis());
     Ok(InboxPage { mails: all, has_older })
 }
 
@@ -684,6 +693,7 @@ async fn spawn_watchers(app: &AppHandle, accounts: Vec<AccountConfig>) {
             continue;
         }
         let label = account.label.clone();
+        let (commands, warm_account) = (state.commands.clone(), account.clone());
         let watch = Watch {
             app: app.clone(),
             account,
@@ -697,6 +707,7 @@ async fn spawn_watchers(app: &AppHandle, accounts: Vec<AccountConfig>) {
         async_runtime::spawn(async move {
             tokio::select! {
                 _ = run_with_reconnect(watch) => {}
+                _ = keep_warm(commands, warm_account) => {}
                 _ = stop_rx => tracing::info!("[{label}] watcher stopped"),
             }
         });
@@ -707,6 +718,18 @@ async fn spawn_watchers(app: &AppHandle, accounts: Vec<AccountConfig>) {
 /// Runs the watcher forever, reconnecting with exponential backoff.
 /// A manual check skips the remaining wait. Notifies only on the first
 /// failure of a streak to avoid notification spam.
+/// Keeps the command connection open (login right after start, then a NOOP
+/// before the server or the idle limit drops it), so the window answers at once.
+async fn keep_warm(commands: Arc<Commands>, account: config::AccountConfig) {
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    loop {
+        if let Err(e) = commands.keep_warm(&account).await {
+            tracing::debug!("[{}] keep-warm failed: {e:#}", account.label);
+        }
+        tokio::time::sleep(Duration::from_secs(150)).await;
+    }
+}
+
 async fn run_with_reconnect(watch: Watch) {
     let (app, label, id) = (watch.app.clone(), watch.account.label.clone(), watch.account.id.clone());
     let mut delay = RETRY_MIN;

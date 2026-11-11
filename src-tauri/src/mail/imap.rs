@@ -418,6 +418,12 @@ impl Commands {
         self.run(account, MoveById { from: from.to_vec(), message_id: message_id.to_string(), to: to.map(str::to_string), mailbox: account.mailbox.clone() }).await
     }
 
+    /// Opens the command connection ahead of time, or keeps it alive with a
+    /// NOOP, so that the first click in the window does not wait for a login.
+    pub async fn keep_warm(&self, account: &AccountConfig) -> Result<()> {
+        self.run(account, Noop).await
+    }
+
     /// Moves archived mails (found by Message-ID) back to the watched mailbox
     /// as unread. Returns how many were found and moved.
     pub async fn unarchive(&self, account: &AccountConfig, folder: &str, message_ids: &[String]) -> Result<usize> {
@@ -617,17 +623,21 @@ struct FolderMails {
 }
 impl AsyncOp<(Vec<MailSummary>, bool)> for FolderMails {
     async fn call(&self, s: &mut Session) -> Result<(Vec<MailSummary>, bool)> {
+        // The watched mailbox is already selected on a command connection, but a
+        // fresh SELECT is still needed for current UIDVALIDITY and EXISTS.
+        let other = self.folder != self.mailbox;
         let Ok(mb) = with_timeout(s.select(&self.folder)).await else {
-            with_timeout(s.select(&self.mailbox)).await?;
+            if other {
+                with_timeout(s.select(&self.mailbox)).await?;
+            }
             return Ok((vec![], false));
         };
         let result = async {
             let query = self.since.as_ref().map_or("ALL".to_string(), |d| format!("SINCE {d}"));
             let mut uids: Vec<u32> = with_timeout(s.uid_search(&query)).await?.into_iter().collect();
-            let older = match &self.since {
-                Some(d) => !with_timeout(s.uid_search(format!("BEFORE {d}"))).await?.is_empty(),
-                None => uids.len() > self.limit,
-            };
+            // More mails in the folder than found since the date: older ones exist.
+            // Saves a second SEARCH round trip.
+            let older = (mb.exists as usize) > uids.len();
             uids.sort_unstable();
             let newest: Vec<u32> = uids.iter().rev().take(self.limit).copied().collect();
             let uv = mb.uid_validity.unwrap_or(0);
@@ -637,8 +647,18 @@ impl AsyncOp<(Vec<MailSummary>, bool)> for FolderMails {
             Ok::<_, anyhow::Error>((mails, older || uids.len() > self.limit))
         }
         .await;
-        with_timeout(s.select(&self.mailbox)).await?;
+        if other {
+            with_timeout(s.select(&self.mailbox)).await?;
+        }
         result
+    }
+}
+
+struct Noop;
+impl AsyncOp<()> for Noop {
+    async fn call(&self, s: &mut Session) -> Result<()> {
+        with_timeout(s.noop()).await?;
+        Ok(())
     }
 }
 
