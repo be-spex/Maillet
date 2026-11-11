@@ -437,6 +437,12 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
     <select id="lang-select" style="margin-top:10px;max-width:260px" onchange="setLanguage(this.value)"></select>
   </div>
   <div class="card">
+    <h3 class="card-title">Inbox</h3>
+    <div class="hint">The inbox view shows the mails of the last days; older ones are loaded on request.</div>
+    <div class="shortcut-row"><input type="number" id="inbox-days" min="1" max="365" style="max-width:110px"> <span class="hint" style="align-self:center">days</span>
+      <button class="btn-primary" onclick="saveInboxDays()">Save</button></div>
+  </div>
+  <div class="card">
     <h3 class="card-title">Global shortcut</h3>
     <div class="hint">Opens Maillet as a sidebar from anywhere and closes it again. Click the field and press the keys you want; Backspace clears, Esc cancels.</div>
     <div class="shortcut-row">
@@ -1564,6 +1570,12 @@ async function loadPreferences() {
   document.getElementById('nt-enabled').checked = st.notifications
   document.getElementById('nt-people').checked = st.tray_people_only
   showShortcut(st.shortcut)
+  document.getElementById('inbox-days').value = st.inbox_days || 7
+}
+async function saveInboxDays() {
+  const days = parseInt(document.getElementById('inbox-days').value, 10)
+  if (!(days >= 1 && days <= 365)) { showToast('Enter 1 to 365 days', 'error'); return }
+  try { await invoke('set_inbox_days', { days }); showToast(`Inbox shows the last ${days} days`, 'success') } catch (e) { showToast(String(e), 'error') }
 }
 function showShortcut(sc) {
   pendingShortcut = null

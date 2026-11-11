@@ -271,6 +271,8 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
     <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
     <symbol id="i-box" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v12h16V8M10 12h4"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
@@ -306,7 +308,7 @@ async function loadI18n() {
   document.querySelectorAll('[data-t-title]').forEach(el => { el.title = t(el.dataset.tTitle); });
 }
 
-const S = { data: null, accounts: null, filter: 'all', group: 'all', view: 'home', tasks: null, inbox: null, inboxLimit: 100, open: null, content: null, codes: [], loading: true };
+const S = { data: null, accounts: null, filter: 'all', group: 'all', view: 'home', tasks: null, inbox: null, inboxBase: null, inboxDays: null, open: null, content: null, codes: [], loading: true };
 
 function when(ts, long) {
   if (!ts) return '';
@@ -418,19 +420,23 @@ function inboxView(d) {
   if (!S.inbox) return `<div class="hero"><h1>${t('app.inbox')}</h1><p>${t('tasks.loading')}</p></div>${skeleton()}`;
   const list = S.inbox.filter(m => S.filter === 'all' || m.account_id === S.filter);
   const multi = d.accounts.length > 1;
-  return `<div class="hero"><h1>${t('app.inbox')}</h1><p>${t('inbox.summary', { n: list.length, u: list.filter(m => !m.seen).length })}</p></div>
+  return `<div class="hero"><h1>${t('app.inbox')}</h1><p>${t('inbox.summary', { n: list.length, u: list.filter(m => !m.seen).length, d: S.inboxDays })}</p></div>
     ${multi ? `<div class="chips"><button class="chip ${S.filter === 'all' ? 'on' : ''}" data-act="filter" data-f="all">${t('home.all_accounts')}</button>${d.accounts.map(a => `<button class="chip ${S.filter === a.account_id ? 'on' : ''}" data-act="filter" data-f="${esc(a.account_id)}">${esc(a.account)}</button>`).join('')}</div>` : ''}
-    <div class="cards">${list.map(card).join('') || empty(t('inbox.empty'))}</div>
-    ${S.inboxMore ? `<div class="more"><button class="btn" data-act="inboxMore">${t('inbox.load_more')}</button></div>` : ''}`;
+    <div class="cards">${list.map(card).join('') || empty(t('inbox.empty', { d: S.inboxDays }))}</div>
+    ${S.inboxMore ? `<div class="more"><button class="btn" data-act="inboxMore">${t('inbox.load_more', { d: S.inboxBase })}</button></div>` : ''}`;
 }
 let inboxTimer = null;
+// Nur die letzten Tage laden (Filter auf dem Server); Ältere auf Wunsch nachladen.
 async function refreshInbox() {
   try {
-    const list = await invoke('list_inbox', { limit: S.inboxLimit });
-    const perAccount = {};
-    list.forEach(m => { perAccount[m.account_id] = (perAccount[m.account_id] || 0) + 1; });
-    S.inboxMore = Object.values(perAccount).some(n => n >= S.inboxLimit);
-    S.inbox = list;
+    if (!S.inboxBase) {
+      const st = await invoke('get_app_status');
+      S.inboxBase = st.inbox_days || 7;
+      S.inboxDays = S.inboxBase;
+    }
+    const page = await invoke('list_inbox', { days: S.inboxDays });
+    S.inbox = page.mails;
+    S.inboxMore = page.has_older;
   } catch (e) { toast(String(e), true); }
   if (S.view === 'inbox') render();
 }
@@ -459,8 +465,8 @@ function card(m) {
         <button class="ib sm ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}" title="${isPinned(m.id) ? t('card.unpin') : t('card.pin')}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}</button>
         <button class="ib sm" data-act="archive" data-id="${esc(m.id)}" title="${t('card.archive')}">${ic('check', 'sm')}</button>
         ${m.seen
-          ? `<button class="ib sm" data-act="unread" data-id="${esc(m.id)}" title="${t('card.unread')}">${ic('dot', 'sm filled')}</button>`
-          : `<button class="ib sm" data-act="read" data-id="${esc(m.id)}" title="${t('card.read')}">${ic('dot', 'sm')}</button>`}
+          ? `<button class="ib sm" data-act="unread" data-id="${esc(m.id)}" title="${t('card.unread')}">${ic('eye-off', 'sm')}</button>`
+          : `<button class="ib sm" data-act="read" data-id="${esc(m.id)}" title="${t('card.read')}">${ic('eye', 'sm')}</button>`}
         ${m.from_addr ? (m.bulk
           ? `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="0" title="${t('card.is_person')}">${ic('user', 'sm')}</button>`
           : `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="1" title="${t('card.is_noise')}">${ic('mute', 'sm')}</button>`) : ''}
@@ -610,7 +616,7 @@ function renderReader() {
         : `<button class="ab main" data-act="archive" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('reader.done')}</button>
            <button class="ab" data-act="task" data-id="${esc(m.id)}">${ic('task', 'sm')}${t('reader.task')}</button>
            <button class="ab ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}${isPinned(m.id) ? t('reader.pinned') : t('reader.pin')}</button>
-           <button class="ab" data-act="unread" data-id="${esc(m.id)}">${ic('dot', 'sm')}${t('reader.unread')}</button>`}
+           <button class="ab" data-act="unread" data-id="${esc(m.id)}">${ic('eye-off', 'sm')}${t('reader.unread')}</button>`}
       </div>
       ${!c ? `<div class="loading"><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`
         : c.error ? `<div class="loading" style="color:var(--danger)">${t('reader.load_error', { e: esc(c.error) })}</div>`
@@ -822,7 +828,7 @@ document.addEventListener('click', e => {
     case 'home': closeReader(); S.view = 'home'; render(); break;
     case 'tasks': closeReader(); S.view = 'tasks'; render(); refreshTasks(); break;
     case 'inbox': closeReader(); S.view = 'inbox'; render(); refreshInbox(); break;
-    case 'inboxMore': S.inboxLimit += 100; refreshInbox(); break;
+    case 'inboxMore': S.inboxDays += S.inboxBase; refreshInbox(); break;
     case 'pin': togglePin(id); break;
     case 'task': makeTask(id); break;
     case 'openTask': openTask(el.dataset.key); break;
@@ -866,7 +872,7 @@ setInterval(refreshTasks, 120000);
 listen('open-mail', async ev => { await refresh(); toggleStatus(false); openMail(ev.payload); });
 listen('auth-code', ev => addCode(ev.payload));
 invoke('get_last_code').then(p => { if (p) { const c = JSON.parse(p); if (Date.now() / 1000 - c.timestamp < CODE_TTL / 1000) addCode(c); } }).catch(() => {});
-listen('settings-changed', async () => { await loadI18n(); render(); renderReader(); refreshStatus(); });
+listen('settings-changed', async () => { await loadI18n(); S.inboxBase = null; render(); renderReader(); refreshStatus(); if (S.view === 'inbox') refreshInbox(); });
 loadI18n().then(() => { render(); refresh(); refreshStatus(); refreshTasks(); });
 </script>
 </body>

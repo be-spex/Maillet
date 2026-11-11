@@ -394,7 +394,14 @@ impl Commands {
 
     /// Mails in another folder (e.g. the task folder); empty if it does not exist.
     pub async fn folder_mails(&self, account: &AccountConfig, folder: &str, limit: usize) -> Result<Vec<MailSummary>> {
-        self.run(account, FolderMails { folder: folder.to_string(), limit, account_id: account.id.clone(), label: account.label.clone(), mailbox: account.mailbox.clone() }).await
+        Ok(self.folder_mails_since(account, folder, None, limit).await?.0)
+    }
+
+    /// Mails received in the last `days` days (newest `limit` at most), filtered
+    /// on the server. Also tells whether older mails exist.
+    pub async fn folder_mails_since(&self, account: &AccountConfig, folder: &str, days: Option<u32>, limit: usize) -> Result<(Vec<MailSummary>, bool)> {
+        let since = days.map(imap_date_days_ago);
+        self.run(account, FolderMails { folder: folder.to_string(), limit, since, account_id: account.id.clone(), label: account.label.clone(), mailbox: account.mailbox.clone() }).await
     }
 
     /// Moves a mail found by Message-ID from `from` to `to` (`None` = the archive
@@ -578,28 +585,56 @@ impl AsyncOp<Option<String>> for ResolveFolder {
     }
 }
 
+/// IMAP date (`10-Nov-2026`) of the day `days` days ago (UTC).
+pub fn imap_date_days_ago(days: u32) -> String {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+    imap_date(now / 86_400 - days as i64)
+}
+
+/// Days since 1970-01-01 → `DD-Mon-YYYY` (civil calendar, H. Hinnant's algorithm).
+fn imap_date(days_since_epoch: i64) -> String {
+    let z = days_since_epoch + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    format!("{day:02}-{}-{year}", MONTHS[(month - 1) as usize])
+}
+
 struct FolderMails {
     folder: String,
     limit: usize,
+    /// IMAP date: only mails received since then.
+    since: Option<String>,
     account_id: String,
     label: String,
     mailbox: String,
 }
-impl AsyncOp<Vec<MailSummary>> for FolderMails {
-    async fn call(&self, s: &mut Session) -> Result<Vec<MailSummary>> {
+impl AsyncOp<(Vec<MailSummary>, bool)> for FolderMails {
+    async fn call(&self, s: &mut Session) -> Result<(Vec<MailSummary>, bool)> {
         let Ok(mb) = with_timeout(s.select(&self.folder)).await else {
             with_timeout(s.select(&self.mailbox)).await?;
-            return Ok(vec![]);
+            return Ok((vec![], false));
         };
         let result = async {
-            let mut uids: Vec<u32> = with_timeout(s.uid_search("ALL")).await?.into_iter().collect();
+            let query = self.since.as_ref().map_or("ALL".to_string(), |d| format!("SINCE {d}"));
+            let mut uids: Vec<u32> = with_timeout(s.uid_search(&query)).await?.into_iter().collect();
+            let older = match &self.since {
+                Some(d) => !with_timeout(s.uid_search(format!("BEFORE {d}"))).await?.is_empty(),
+                None => uids.len() > self.limit,
+            };
             uids.sort_unstable();
             let newest: Vec<u32> = uids.iter().rev().take(self.limit).copied().collect();
             let uv = mb.uid_validity.unwrap_or(0);
             let origin = |uid| Origin { account_id: &self.account_id, account: &self.label, uid_validity: uv, uid };
             let mut mails: Vec<MailSummary> = fetch_summaries(s, &newest, &origin).await?.into_values().collect();
             mails.sort_by_key(|m| std::cmp::Reverse(m.uid));
-            Ok::<_, anyhow::Error>(mails)
+            Ok::<_, anyhow::Error>((mails, older || uids.len() > self.limit))
         }
         .await;
         with_timeout(s.select(&self.mailbox)).await?;
@@ -768,6 +803,10 @@ mod tests {
         assert_eq!(s.uid_search("UNSEEN").await.unwrap().len(), unseen.len());
 
         let cmds = Commands::default();
+        // Period filter on the server: all seed mails are from today, nothing older.
+        let (recent, older) = cmds.folder_mails_since(&account, "INBOX", Some(7), 500).await.unwrap();
+        assert_eq!(recent.len(), all.len());
+        assert!(!older);
         let content = cmds.content(&account, jana.uid).await.unwrap();
         assert!(content.text.contains("Login-Flow (v0.9)"));
         assert_eq!(content.attachments, vec!["Atlas-Spec-v0.9.pdf".to_string()]);
@@ -874,6 +913,14 @@ mod tests {
         // A missing folder lists as empty, not as error.
         assert!(cmds.folder_mails(&account, "GibtEsNicht", 10).await.unwrap().is_empty());
         s.logout().await.ok();
+    }
+
+    #[test]
+    fn test_imap_date() {
+        assert_eq!(imap_date(0), "01-Jan-1970");
+        assert_eq!(imap_date(20_402), "10-Nov-2025");
+        assert_eq!(imap_date(19_782), "29-Feb-2024");
+        assert_eq!(imap_date(20_768), "11-Nov-2026");
     }
 
     /// Needs a running Proton Mail Bridge: `cargo test -- --ignored`

@@ -83,6 +83,9 @@ pub struct AppConfig {
     /// UI language code (`en`, `de`); missing means English.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
+    /// The inbox view shows mails of the last N days; missing means 7.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inbox_days: Option<u32>,
     /// Tray counts only mails from people (no bulk mail); missing means all.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tray_people_only: Option<bool>,
@@ -347,6 +350,12 @@ pub fn set_api_config(config: &SharedConfig, api: ApiConfig) -> Result<()> {
 pub fn set_shortcut(config: &SharedConfig, keys: &str) -> Result<()> {
     let mut cfg = config.blocking_lock();
     cfg.shortcut = Some(keys.trim().to_string());
+    save_config(&cfg)
+}
+
+pub fn set_inbox_days(config: &SharedConfig, days: u32) -> Result<()> {
+    let mut cfg = config.blocking_lock();
+    cfg.inbox_days = Some(days);
     save_config(&cfg)
 }
 

@@ -231,16 +231,29 @@ async fn move_task(app: AppHandle, state: State<'_, AppState>, account_id: Strin
     Ok(moved)
 }
 
-/// The whole inbox (read and unread), newest first: `limit` per account.
+/// Days the inbox view shows by default.
+const INBOX_DAYS: u32 = 7;
+/// At most this many mails per account and load, whatever the period.
+const INBOX_CAP: usize = 500;
+
+#[derive(serde::Serialize)]
+struct InboxPage {
+    mails: Vec<MailSummary>,
+    /// Older mails exist on at least one account.
+    has_older: bool,
+}
+
+/// The whole inbox (read and unread) of the last `days` days, newest first.
 #[tauri::command]
-async fn list_inbox(state: State<'_, AppState>, limit: usize) -> Result<Vec<MailSummary>, String> {
-    let limit = limit.clamp(20, 1000);
-    let mut all = vec![];
+async fn list_inbox(state: State<'_, AppState>, days: u32) -> Result<InboxPage, String> {
+    let days = days.clamp(1, 3650);
+    let (mut all, mut has_older) = (vec![], false);
     for account in config::load_accounts_with_passwords().map_err(err)? {
         if account.server.is_empty() || account.pass.is_empty() {
             continue;
         }
-        let mut mails = state.commands.folder_mails(&account, &account.mailbox, limit).await.map_err(err)?;
+        let (mut mails, older) = state.commands.folder_mails_since(&account, &account.mailbox, Some(days), INBOX_CAP).await.map_err(err)?;
+        has_older |= older;
         for m in &mut mails {
             if let Some(bulk) = m.from_addr.as_deref().and_then(|a| state.kinds.get(a)) {
                 m.bulk = bulk;
@@ -249,7 +262,16 @@ async fn list_inbox(state: State<'_, AppState>, limit: usize) -> Result<Vec<Mail
         all.extend(mails);
     }
     all.sort_by_key(|m| std::cmp::Reverse(m.date.unwrap_or(0)));
-    Ok(all)
+    Ok(InboxPage { mails: all, has_older })
+}
+
+#[tauri::command]
+async fn set_inbox_days(app: AppHandle, days: u32) -> Result<(), String> {
+    let days = days.clamp(1, 365);
+    let shared = app.state::<AppState>().config.clone();
+    async_runtime::spawn_blocking(move || config::set_inbox_days(&shared, days)).await.map_err(|e| e.to_string())?.map_err(err)?;
+    let _ = app.emit("settings-changed", ());
+    Ok(())
 }
 
 /// Text of a task mail (it lives in one of the task folders).
@@ -307,6 +329,7 @@ fn get_app_status(app: AppHandle, state: State<AppState>, statuses: State<status
         "shortcut": app.state::<shortcut::ShortcutStatus>().get(),
         "notifications": state.notifications.load(std::sync::atomic::Ordering::Relaxed),
         "tray_people_only": state.tray_people_only.load(std::sync::atomic::Ordering::Relaxed),
+        "inbox_days": state.config.try_lock().ok().and_then(|c| c.inbox_days).unwrap_or(INBOX_DAYS),
     })
 }
 
@@ -794,7 +817,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, move_task, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, get_task_mail,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,
