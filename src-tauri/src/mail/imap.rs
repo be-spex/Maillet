@@ -33,7 +33,7 @@ const LIST_LIMIT: usize = 200;
 /// Pinned (flagged) mails shown per account.
 const PIN_LIMIT: usize = 50;
 /// Bytes of the body fetched for the preview.
-const PREVIEW_BYTES: u32 = 4096;
+const PREVIEW_BYTES: u32 = 8192;
 /// UIDs per FETCH command.
 const FETCH_CHUNK: usize = 50;
 /// A command connection unused for this long is replaced by a new one.

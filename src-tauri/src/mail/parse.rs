@@ -72,7 +72,11 @@ fn preview(msg: &Message) -> String {
         .filter(|l| !l.is_empty() && !l.starts_with('>'))
         .collect::<Vec<_>>()
         .join(" ");
-    let mut out: String = joined.split_whitespace().collect::<Vec<_>>().join(" ");
+    // Newsletters pad the preview line with invisible characters; a multi-byte
+    // character cut off by the fetch limit decodes to U+FFFD.
+    let visible: String = joined.chars().filter(|c| !matches!(c, '\u{034F}' | '\u{00AD}' | '\u{200B}'..='\u{200F}' | '\u{2060}' | '\u{FEFF}')).collect();
+    let visible = visible.trim_end_matches('\u{FFFD}');
+    let mut out: String = visible.split_whitespace().collect::<Vec<_>>().join(" ");
     if out.chars().count() > PREVIEW_LEN {
         out = out.chars().take(PREVIEW_LEN).collect::<String>() + "…";
     }

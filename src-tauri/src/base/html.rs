@@ -1,7 +1,20 @@
 use regex::Regex;
+use std::sync::LazyLock;
+
+/// Parts that carry no readable text: head, style, script and comments
+/// (Outlook hides its VML styles in comments and conditional comments).
+/// The preview only fetches the first bytes of a mail, so a block may be cut
+/// off without its end: everything from its start is dropped then.
+static INVISIBLE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<!--.*?(-->|\z)|<(head|style|script|title|xml)\b.*?(</(head|style|script|title|xml)\s*>|\z)").unwrap()
+});
+static BLOCK_TAGS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"</?(p|div|tr|li|h[1-6]|table|thead|tbody|td|th|hr|pre|blockquote|section|article|header|footer|nav|main|aside|ul|ol|dl)[^>]*/?>").unwrap()
+});
+static ANY_TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<[^>]*>").unwrap());
 
 pub fn strip_html(input: &str) -> String {
-    let mut out = input.to_string();
+    let mut out = INVISIBLE.replace_all(input, "").to_string();
 
     out = out.replace("<br>", "\n");
     out = out.replace("<br/>", "\n");
@@ -9,11 +22,12 @@ pub fn strip_html(input: &str) -> String {
     out = out.replace("<BR>", "\n");
     out = out.replace("<BR/>", "\n");
 
-    let block_tags = Regex::new(r"</?(p|div|tr|li|h[1-6]|table|thead|tbody|td|th|hr|pre|blockquote|section|article|header|footer|nav|main|aside|ul|ol|dl)[^>]*/?>").unwrap();
-    out = block_tags.replace_all(&out, "\n").to_string();
-
-    let any_tag = Regex::new(r"<[^>]*>").unwrap();
-    out = any_tag.replace_all(&out, "").to_string();
+    out = BLOCK_TAGS.replace_all(&out, "\n").to_string();
+    out = ANY_TAG.replace_all(&out, "").to_string();
+    // A tag cut off by the end of the fetched bytes.
+    if let Some(i) = out.rfind('<').filter(|&i| !out[i..].contains('>')) {
+        out.truncate(i);
+    }
 
     out = out.replace("&amp;", "&");
     out = out.replace("&lt;", "<");
@@ -52,6 +66,21 @@ pub fn strip_html(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_strip_outlook_styles() {
+        let html = r#"<html xmlns:v="urn:schemas-microsoft-com:vml"><head><meta charset="utf-8"><!--[if !mso]><style>v\:* {behavior:url(#default#VML);}
+o\:* {behavior:url(#default#VML);}</style><![endif]--><style><!-- p.MsoNormal {margin:0cm;} --></style></head>
+<body><div class="WordSection1"><p class="MsoNormal">Hallo Anna,</p><p>die Zulassung ist da.</p></div></body></html>"#;
+        assert_eq!(strip_html(html), "Hallo Anna,\n\ndie Zulassung ist da.");
+    }
+
+    #[test]
+    fn test_strip_cut_off_style() {
+        // Only the first bytes were fetched: the style block has no end.
+        assert_eq!(strip_html("<html><head><style>p {margin:0} v\\:* {behavior:url(#default#VML);"), "");
+        assert_eq!(strip_html("<p>Text</p><!-- [if mso]> o\\:* {x}"), "Text");
+    }
 
     #[test]
     fn test_strip_basic_tags() {
