@@ -117,11 +117,16 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .mc-tags{display:flex;gap:6px;flex-wrap:wrap}
 .tag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
 .tag.code{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-family:var(--mono)}
-.mc-acts{position:absolute;right:6px;top:6px;opacity:0;pointer-events:none;transition:opacity .15s;z-index:2}
-.mcard:hover .mc-acts,.mcard:focus-within .mc-acts{opacity:1;pointer-events:auto}
-.acts-v,.acts-h{position:absolute;top:0;display:flex;gap:2px;padding:2px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
-.acts-v{right:0;flex-direction:column}
-.acts-h{right:36px;flex-direction:row-reverse}
+/* Aktionsleiste als Teil der Karte: ein L aus einem Stück in der Ecke oben rechts.
+   Senkrecht am rechten Rand die Standardaktionen (Stern in der Ecke), waagerecht
+   nach links die Sonderaktionen. Die Karte hält rechts Platz frei. */
+.mcard.has-acts{padding-right:44px;min-height:116px}
+.mc-acts{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .15s}
+.mcard:hover .mc-acts,.mcard:focus-within .mc-acts{opacity:1}
+.acts-v,.acts-h{position:absolute;top:0;display:flex;align-items:center;background:var(--panel2);pointer-events:auto}
+.acts-v{right:0;bottom:0;width:36px;flex-direction:column;padding:4px 0;border-left:1px solid var(--line);border-radius:0 11px 11px 0}
+.acts-h{right:35px;height:36px;flex-direction:row-reverse;padding:0 3px 0 5px;border-bottom:1px solid var(--line);border-left:1px solid var(--line);border-bottom-left-radius:11px;z-index:1}
+.acts-v .ib,.acts-h .ib{width:28px;height:27px}
 .av{--h:250;width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;font-weight:700;font-size:12px;flex:none;background:hsl(var(--h) 70% 92%);color:hsl(var(--h) 45% 35%)}
 :root[data-theme=dark] .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .av{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}}
@@ -363,7 +368,7 @@ const seenCards = new Set();
 const fresh = id => { if (seenCards.has(id)) return ''; seenCards.add(id); return 'fresh'; };
 function card(m) {
   const codes = (m.findings || []).filter(f => f.feature === 'otp');
-  return `<div class="mcard ${m.bulk ? 'bulk' : ''} ${fresh(m.id)}" data-act="open" data-id="${esc(m.id)}" tabindex="0">
+  return `<div class="mcard has-acts ${m.bulk ? 'bulk' : ''} ${fresh(m.id)}" data-act="open" data-id="${esc(m.id)}" tabindex="0">
     <div class="mc-head">${avatar(m)}<div class="mc-from"><b>${esc(sender(m))}</b><small>${esc(m.account)} · ${esc(when(m.date))}${m.has_attachments ? ' · 📎' : ''}</small></div></div>
     <div class="mc-subj">${esc(m.subject || t('mail.no_subject'))}</div>
     ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
