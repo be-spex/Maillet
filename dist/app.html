@@ -137,23 +137,21 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .tag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
 .tag.code{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-family:var(--mono)}
 /* Aktionsleiste als Teil der Karte: ein L aus einem Stück in der Ecke oben rechts.
-   Senkrecht am rechten Rand die Standardaktionen (Stern in der Ecke), waagerecht
-   nach links die Sonderaktionen. Die Karte hält rechts Platz frei. */
+   Waagerecht oben die Ausgänge bis in die rechte Ecke (dort Erledigt), senkrecht
+   darunter die Markierungen. Die Karte hält rechts Platz frei. */
 .mcard.has-acts{padding-right:44px;min-height:116px}
 .mc-acts{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .15s}
 .mcard:hover .mc-acts,.mcard:focus-within .mc-acts{opacity:1}
 .acts-v,.acts-h{position:absolute;top:0;display:flex;align-items:center;background:var(--panel2);pointer-events:auto}
 .acts-v{right:0;bottom:0;width:36px;flex-direction:column;padding:4px 0;border-left:1px solid var(--line);border-radius:0 11px 11px 0}
-.acts-h{right:35px;height:36px;flex-direction:row-reverse;padding:0 3px 0 5px;border-bottom:1px solid var(--line);border-left:1px solid var(--line);border-bottom-left-radius:11px;z-index:1}
+.acts-h{right:0;height:36px;padding:0 4px 0 5px;border-bottom:1px solid var(--line);border-left:1px solid var(--line);border-radius:0 11px 0 11px;z-index:1}
+/* Beide zusammen bilden ein L: die senkrechte Leiste beginnt unter der waagerechten,
+   ohne Trennlinie dazwischen. */
+.acts-h+.acts-v,.acts-v.under{padding-top:38px;border-radius:0 11px 11px 0}
+.acts-h.over::after{content:"";position:absolute;right:0;bottom:-1px;width:35px;height:1px;background:var(--panel2)}
 .acts-v .ib,.acts-h .ib{width:28px;height:27px}
 .acts-h .ib.main{color:var(--accent)}
-.acts-h .fchip{height:24px;display:inline-flex;align-items:center;gap:5px;padding:0 7px;margin-right:2px;border-radius:7px;font-size:12px;color:var(--text);max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.acts-h .fchip:hover{background:var(--accent-soft)}
 .cdot{width:8px;height:8px;border-radius:50%;background:var(--c,#3b82f6);flex:none;display:inline-block}
-.split{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.split .ab{border:0;border-radius:0}
-.split .ab+.ab{border-left:1px solid var(--line);padding:0 9px}
-.split .cdot{margin-right:2px}
 .float{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;animation:pop .12s ease}
 .picker{width:240px}
 .menu{min-width:200px}
@@ -332,7 +330,6 @@ const actList = () => (S.status && S.status.actions) || DEFAULT_ACTIONS;
 const can = a => actList().includes(a);
 const DEFAULT_CATS = [{ id: 'info', name: 'Info', folder: 'Info', color: '#3b82f6' }];
 const cats = () => (S.status && S.status.categories && S.status.categories.length ? S.status.categories : DEFAULT_CATS);
-const lastCat = () => cats().find(c => c.id === localStorage.getItem('lastCat')) || cats()[0];
 const keyTip = (text, a) => `${text} (${KEYS[a]})`;
 
 /* ---- Übersetzungen (dist/i18n/*.json, vom Backend geliefert) ---- */
@@ -495,8 +492,7 @@ function actButton(a, m) {
     case 'archive': return b('archive', 'check', keyTip(t('card.archive'), a), 'main');
     case 'task': return b('task', 'task', keyTip(t('card.task'), a));
     case 'delete': return b('trash', 'trash', keyTip(t('card.delete'), a));
-    case 'file': { const c = lastCat(); return b('filePick', 'folder', keyTip(t('card.file'), a))
-      + `<button class="fchip" data-act="fileLast" data-id="${id}" title="${esc(t('card.file_to', { c: c.name, k: cats().indexOf(c) + 1 }))}"><span class="cdot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</button>`; }
+    case 'file': return b('filePick', 'folder', keyTip(t('card.file'), a));
     case 'pin': return b('pin', 'star', keyTip(isPinned(m.id) ? t('card.unpin') : t('card.pin'), a), isPinned(m.id) ? 'on filled' : '');
     case 'read': return m.seen ? b('unread', 'eye-off', keyTip(t('card.unread'), a)) : b('read', 'eye', keyTip(t('card.read'), a));
     case 'noise': return m.from_addr ? (m.bulk
@@ -507,14 +503,17 @@ function actButton(a, m) {
 }
 function cardActs(m) {
   const list = actList();
-  // Erledigt immer in der Ecke (die Leiste läuft von rechts nach links).
-  const exits = list.filter(a => EXITS.includes(a)).sort((x, y) => (y === 'archive') - (x === 'archive'));
+  // Von links nach rechts in der Reihenfolge der Einstellungen; Erledigt fest in der Ecke.
+  const others = list.filter(a => EXITS.includes(a) && a !== 'archive');
+  const done = list.includes('archive');
+  const room = MAX_EXITS - (done ? 1 : 0);
   const marks = list.filter(a => MARKS.includes(a) && (a !== 'noise' || m.from_addr));
-  const more = [...exits.slice(MAX_EXITS), ...marks.slice(MAX_MARKS)];
+  const more = [...others.slice(room), ...marks.slice(MAX_MARKS)];
+  const exits = [...others.slice(0, room), ...(done ? ['archive'] : [])];
   const v = marks.slice(0, MAX_MARKS).map(a => actButton(a, m)).join('');
-  const h = exits.slice(0, MAX_EXITS).map(a => actButton(a, m)).join('')
-    + (more.length ? `<button class="ib sm" data-act="more" data-id="${esc(m.id)}" data-more="${more.join(',')}" title="${t('card.more')}">${ic('more', 'sm')}</button>` : '');
-  return `${v ? `<div class="acts-v">${v}</div>` : ''}${h ? `<div class="acts-h"${v ? '' : ' style="right:0;border-top-right-radius:11px"'}>${h}</div>` : ''}`;
+  const h = (more.length ? `<button class="ib sm" data-act="more" data-id="${esc(m.id)}" data-more="${more.join(',')}" title="${t('card.more')}">${ic('more', 'sm')}</button>` : '')
+    + exits.map(a => actButton(a, m)).join('');
+  return `${h ? `<div class="acts-h ${v ? 'over' : ''}">${h}</div>` : ''}${v ? `<div class="acts-v">${v}</div>` : ''}`;
 }
 function card(m) {
   const codes = (m.findings || []).filter(f => f.feature === 'otp');
@@ -635,10 +634,10 @@ async function openTask(key) {
   if (S.open && S.open.key === key) renderReader();
 }
 function readerActs(m) {
-  const id = esc(m.id), c = lastCat(), out = [];
+  const id = esc(m.id), out = [];
   if (can('archive')) out.push(`<button class="ab main" data-act="archive" data-id="${id}" title="${keyTip(t('card.archive'), 'archive')}">${ic('check', 'sm')}${t('reader.done')}</button>`);
   if (can('task')) out.push(`<button class="ab" data-act="task" data-id="${id}" title="${keyTip(t('card.task'), 'task')}">${ic('task', 'sm')}${t('reader.task')}</button>`);
-  if (can('file')) out.push(`<span class="split"><button class="ab" data-act="fileLast" data-id="${id}" title="${esc(t('card.file_to', { c: c.name, k: cats().indexOf(c) + 1 }))}"><span class="cdot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</button><button class="ab" data-act="filePick" data-id="${id}" title="${keyTip(t('card.file'), 'file')}">▾</button></span>`);
+  if (can('file')) out.push(`<button class="ab" data-act="filePick" data-id="${id}" title="${keyTip(t('card.file'), 'file')}">${ic('folder', 'sm')}${t('reader.file')} ▾</button>`);
   out.push('<span class="grow"></span>');
   for (const a of actList()) {
     if (a === 'pin') out.push(`<button class="ib ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${id}" title="${keyTip(isPinned(m.id) ? t('card.unpin') : t('card.pin'), a)}">${ic('star', isPinned(m.id) ? 'filled' : '')}</button>`);
@@ -805,7 +804,6 @@ async function fileMail(id, catId) {
   if (card) card.style.opacity = .4;
   try {
     const r = await invoke('file_mail', { id, category: catId });
-    localStorage.setItem('lastCat', catId);
     const messageId = r.message_id || mid;
     inboxDrop(id);
     if (S.open && S.open.id === id) closeReader();
@@ -1007,7 +1005,6 @@ document.addEventListener('click', e => {
     case 'pin': togglePin(id); break;
     case 'task': makeTask(id); break;
     case 'filePick': openPicker(id, el); break;
-    case 'fileLast': fileMail(id, lastCat().id); break;
     case 'more': openMore(id, el.dataset.more.split(','), el); break;
     case 'trash': trashMail(id); break;
     case 'openTask': openTask(el.dataset.key); break;

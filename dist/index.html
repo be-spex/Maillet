@@ -237,11 +237,12 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 .pv-subj{font-weight:650;margin:8px 0 3px;padding-right:40px}
 .pv-prev{color:#6b6b7b;padding-right:40px}
 .pv-v{position:absolute;top:0;right:0;bottom:0;width:36px;display:flex;flex-direction:column;align-items:center;padding:4px 0;background:#f8f8fb;border-left:1px solid #e4e4ec;border-radius:0 11px 11px 0}
-.pv-h{position:absolute;top:0;right:35px;height:34px;display:flex;flex-direction:row-reverse;align-items:center;gap:2px;padding:0 4px 0 6px;background:#f8f8fb;border-left:1px solid #e4e4ec;border-bottom:1px solid #e4e4ec;border-bottom-left-radius:11px}
+.pv-h{position:absolute;top:0;right:0;height:36px;display:flex;align-items:center;gap:2px;padding:0 4px 0 6px;background:#f8f8fb;border-left:1px solid #e4e4ec;border-bottom:1px solid #e4e4ec;border-radius:0 11px 0 11px;z-index:1}
+.pv-h.over::after{content:"";position:absolute;right:0;bottom:-1px;width:35px;height:1px;background:#f8f8fb}
+.pv-v.under{padding-top:38px}
+.fixed-pos{width:62px;text-align:center;font-size:12px;opacity:.6}
 .pv-b{width:28px;height:27px;display:grid;place-items:center;color:#6b6b7b}
 .pv-b.main{color:#6c5ce7}
-.pv-chip{display:inline-flex;align-items:center;gap:5px;padding:0 7px;font-size:12px;color:#16161d}
-.pv-dot{width:8px;height:8px;border-radius:50%}
 </style>
 </head>
 <body>
@@ -1661,20 +1662,23 @@ function renderActionLists() {
   const row = (a, list) => {
     const [name, hint, key] = ACTION_INFO[a] || [a, '', '']
     const i = list.indexOf(a)
+    const fixed = a === 'archive'
     return `<div class="act-row ${actOn.has(a) ? '' : 'off'}">
-      <label class="check"><input type="checkbox" ${actOn.has(a) ? 'checked' : ''} onchange="toggleAction('${a}', this.checked)"> ${svg(a)} <b>${esc(name)}</b> <span class="hint">– ${esc(hint)}</span></label>
+      <label class="check"><input type="checkbox" ${actOn.has(a) ? 'checked' : ''} onchange="toggleAction('${a}', this.checked)"> ${svg(a)} <b>${esc(name)}</b> <span class="hint">– ${esc(fixed ? hint + ', always in the top-right corner' : hint)}</span></label>
       <span class="kbd">${key}</span>
-      <button class="btn-sm" title="Move up" ${i === 0 ? 'disabled' : ''} onclick="moveAction('${a}', -1)">↑</button>
-      <button class="btn-sm" title="Move down" ${i === list.length - 1 ? 'disabled' : ''} onclick="moveAction('${a}', 1)">↓</button>
+      ${fixed ? '<span class="fixed-pos" title="Fixed position">📌</span>' : `<button class="btn-sm" title="Move up" ${i === 0 ? 'disabled' : ''} onclick="moveAction('${a}', -1)">↑</button>
+      <button class="btn-sm" title="Move down" ${i === list.length - 1 ? 'disabled' : ''} onclick="moveAction('${a}', 1)">↓</button>`}
     </div>`
   }
-  const exits = actOrder.filter(a => EXIT_ACTIONS.includes(a)), marks = actOrder.filter(a => MARK_ACTIONS.includes(a))
-  document.getElementById('act-exits').innerHTML = exits.map(a => row(a, exits)).join('')
+  // Oben nach unten = in der Leiste links nach rechts; Done steht fest am Ende.
+  const exits = actOrder.filter(a => EXIT_ACTIONS.includes(a) && a !== 'archive'), marks = actOrder.filter(a => MARK_ACTIONS.includes(a))
+  document.getElementById('act-exits').innerHTML = exits.map(a => row(a, exits)).join('') + row('archive', [])
   document.getElementById('act-marks').innerHTML = marks.map(a => row(a, marks)).join('')
 }
 function toggleAction(a, on) { on ? actOn.add(a) : actOn.delete(a); renderActionLists(); renderPreview(); saveActions() }
 function moveAction(a, dir) {
-  const group = EXIT_ACTIONS.includes(a) ? EXIT_ACTIONS : MARK_ACTIONS
+  if (a === 'archive') return
+  const group = EXIT_ACTIONS.includes(a) ? EXIT_ACTIONS.filter(x => x !== 'archive') : MARK_ACTIONS
   const members = actOrder.filter(x => group.includes(x))
   const i = members.indexOf(a), j = i + dir
   if (j < 0 || j >= members.length) return
@@ -1690,19 +1694,19 @@ async function saveActions() {
 // Vorschau einer Karte, so wie sie im Fenster beim Überfahren aussieht.
 function renderPreview() {
   const on = actOrder.filter(a => actOn.has(a))
-  const exits = on.filter(a => EXIT_ACTIONS.includes(a)).sort((x, y) => (y === 'archive') - (x === 'archive'))
+  const done = on.includes('archive')
+  const others = on.filter(a => EXIT_ACTIONS.includes(a) && a !== 'archive')
+  const room = 4 - (done ? 1 : 0)
+  const exits = [...others.slice(0, room), ...(done ? ['archive'] : [])]
   const marks = on.filter(a => MARK_ACTIONS.includes(a))
-  const more = exits.length > 4 || marks.length > 3
-  const cat = categories[0] || { name: 'Info', color: '#3b82f6' }
-  const hBtn = a => a === 'file'
-    ? `<span class="pv-b">${svg('file')}</span><span class="pv-chip"><span class="pv-dot" style="background:${esc(cat.color)}"></span>${esc(cat.name)}</span>`
-    : `<span class="pv-b ${a === 'archive' ? 'main' : ''}">${svg(a)}</span>`
+  const more = others.length > room || marks.length > 3
+  const hBtn = a => `<span class="pv-b ${a === 'archive' ? 'main' : ''}">${svg(a)}</span>`
   document.getElementById('act-preview').innerHTML = `<div class="pv-card">
     <div class="pv-head"><span class="pv-av">JW</span><div><b>Jana Wolff</b><small>Work · 14:40</small></div></div>
     <div class="pv-subj">Atlas: review of the specification</div>
     <div class="pv-prev">Could you look through it by Friday?</div>
-    ${marks.length ? `<div class="pv-v">${marks.slice(0, 3).map(a => `<span class="pv-b">${svg(a)}</span>`).join('')}</div>` : ''}
-    ${exits.length || more ? `<div class="pv-h" style="${marks.length ? '' : 'right:0;border-top-right-radius:11px'}">${exits.slice(0, 4).map(hBtn).join('')}${more ? `<span class="pv-b">${svg('more')}</span>` : ''}</div>` : ''}
+    ${exits.length || more ? `<div class="pv-h ${marks.length ? 'over' : ''}">${more ? `<span class="pv-b">${svg('more')}</span>` : ''}${exits.map(hBtn).join('')}</div>` : ''}
+    ${marks.length ? `<div class="pv-v ${exits.length || more ? 'under' : ''}">${marks.slice(0, 3).map(a => `<span class="pv-b">${svg(a)}</span>`).join('')}</div>` : ''}
   </div>`
 }
 function renderCategories() {
