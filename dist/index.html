@@ -497,6 +497,11 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
     <div class="hint" style="margin-top:8px">At most 4 exits and 3 marks fit on a card; more go behind “⋯”. Done always sits in the corner.</div>
   </div>
   <div class="card">
+    <h3 class="card-title">Reading</h3>
+    <label class="check"><input type="checkbox" id="mark-read-open" onchange="setMarkReadOnOpen(this.checked)"> Opening a mail marks it as read</label>
+    <div class="hint" style="margin-left:24px">Off: a mail stays unread – and in the overview – until you mark it as read with the eye or move it on (Done, File, Task).</div>
+  </div>
+  <div class="card">
     <h3 class="card-title">Categories</h3>
     <div class="hint">Targets of “File”. The order sets the keys 1–9. A new folder is created on the server on first use; you can also pick an existing one.</div>
     <div id="cat-list" class="cat-list"></div>
@@ -1655,6 +1660,7 @@ async function loadActions() {
   actOrder = [...on, ...(st.all_actions || []).filter(a => !on.includes(a))]
   actOn = new Set(on)
   categories = (st.categories || []).map(c => ({ ...c }))
+  document.getElementById('mark-read-open').checked = st.mark_read_on_open !== false
   renderActionLists(); renderCategories(); renderPreview()
   invoke('list_folders').then(names => { document.getElementById('folder-names').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('') }).catch(() => {})
 }
@@ -1686,6 +1692,9 @@ function moveAction(a, dir) {
   let k = 0
   actOrder = actOrder.map(x => group.includes(x) ? members[k++] : x)
   renderActionLists(); renderPreview(); saveActions()
+}
+async function setMarkReadOnOpen(on) {
+  try { await invoke('set_mark_read_on_open', { on }); showToast(on ? 'Opening a mail marks it as read' : 'Mails stay unread until you decide', 'success') } catch (e) { showToast(String(e), 'error') }
 }
 async function saveActions() {
   const actions = actOrder.filter(a => actOn.has(a))

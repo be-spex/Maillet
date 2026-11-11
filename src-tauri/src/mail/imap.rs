@@ -530,6 +530,8 @@ struct MoveUid {
 }
 impl AsyncOp<()> for MoveUid {
     async fn call(&self, s: &mut Session) -> Result<()> {
+        // A mail that leaves the inbox has been dealt with: read.
+        SetSeen(self.uid, true).call(s).await?;
         move_to(s, self.uid, &self.folder).await
     }
 }
@@ -711,6 +713,10 @@ impl AsyncOp<String> for MoveById {
                 }
                 if self.to.is_none() {
                     SetSeen(uid, true).call(s).await?;
+                }
+                // Back in the inbox it is open again: unread.
+                if target == self.mailbox {
+                    SetSeen(uid, false).call(s).await?;
                 }
                 return move_to(s, uid, &target).await;
             }

@@ -226,6 +226,14 @@ async fn trash_mail(state: State<'_, AppState>, id: String) -> Result<(), String
 }
 
 #[tauri::command]
+async fn set_mark_read_on_open(app: AppHandle, on: bool) -> Result<(), String> {
+    let shared = app.state::<AppState>().config.clone();
+    async_runtime::spawn_blocking(move || config::set_mark_read_on_open(&shared, on)).await.map_err(|e| e.to_string())?.map_err(err)?;
+    let _ = app.emit("settings-changed", ());
+    Ok(())
+}
+
+#[tauri::command]
 async fn set_actions(app: AppHandle, actions: Vec<String>) -> Result<(), String> {
     let shared = app.state::<AppState>().config.clone();
     async_runtime::spawn_blocking(move || config::set_actions(&shared, actions)).await.map_err(|e| e.to_string())?.map_err(err)?;
@@ -413,6 +421,7 @@ fn get_app_status(app: AppHandle, state: State<AppState>, statuses: State<status
         "actions": state.config.try_lock().ok().and_then(|c| c.actions.clone()).unwrap_or_else(|| config::DEFAULT_ACTIONS.map(String::from).to_vec()),
         "all_actions": config::ALL_ACTIONS,
         "categories": categories(&state),
+        "mark_read_on_open": state.config.try_lock().ok().and_then(|c| c.mark_read_on_open).unwrap_or(true),
     })
 }
 
@@ -908,7 +917,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_mail, unfile_mail, set_categories, list_folders, trash_mail, set_actions, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_mail, unfile_mail, set_categories, list_folders, set_mark_read_on_open, trash_mail, set_actions, get_task_mail,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,

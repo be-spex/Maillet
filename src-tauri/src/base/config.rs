@@ -90,6 +90,9 @@ pub struct AppConfig {
     /// missing means [`DEFAULT_ACTIONS`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actions: Option<Vec<String>>,
+    /// Opening a mail marks it as read; missing means on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mark_read_on_open: Option<bool>,
     /// Filing targets for the "File" action; missing means [`default_categories`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub categories: Option<Vec<Category>>,
@@ -415,6 +418,12 @@ pub fn set_categories(config: &SharedConfig, categories: Vec<Category>) -> Resul
         clean.push(c);
     }
     cfg.categories = Some(clean);
+    save_config(&cfg)
+}
+
+pub fn set_mark_read_on_open(config: &SharedConfig, on: bool) -> Result<()> {
+    let mut cfg = config.blocking_lock();
+    cfg.mark_read_on_open = Some(on);
     save_config(&cfg)
 }
 

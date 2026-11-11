@@ -619,13 +619,15 @@ setInterval(() => {
 async function openMail(id) {
   const m = S.data.mails.find(x => x.id === id) || (S.data.pinned || []).find(x => x.id === id) || (S.inbox || []).find(x => x.id === id);
   if (!m) return;
-  (S.inbox || []).forEach(x => { if (x.id === id) x.seen = true; });
-  S.open = m; S.content = null; S.htmlMode = true; S.loadImages = false;
+  // Öffnen setzt auf gelesen, außer der Nutzer will das selbst entscheiden (Einstellungen → Actions).
+  const markRead = !S.status || S.status.mark_read_on_open !== false;
+  if (markRead) (S.inbox || []).forEach(x => { if (x.id === id) x.seen = true; });
+  S.open = markRead ? { ...m, seen: true } : m; S.content = null; S.htmlMode = true; S.loadImages = false;
   renderReader();
   try {
     S.content = await invoke('get_mail', { id });
     if (S.open && S.open.id === id) renderReader();
-    invoke('set_seen', { id, seen: true }).catch(e => toast(String(e), true));
+    if (markRead && !m.seen) invoke('set_seen', { id, seen: true }).catch(e => toast(String(e), true));
   } catch (e) {
     S.content = { error: String(e) };
     renderReader();
@@ -649,7 +651,9 @@ function readerActs(m) {
   out.push('<span class="grow"></span>');
   for (const a of actList()) {
     if (a === 'pin') out.push(`<button class="ib ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${id}" title="${keyTip(isPinned(m.id) ? t('card.unpin') : t('card.pin'), a)}">${ic('star', isPinned(m.id) ? 'filled' : '')}</button>`);
-    if (a === 'read') out.push(`<button class="ib" data-act="unread" data-id="${id}" title="${keyTip(t('card.unread'), a)}">${ic('eye-off')}</button>`);
+    if (a === 'read') out.push(m.seen
+      ? `<button class="ib" data-act="unread" data-id="${id}" title="${keyTip(t('card.unread'), a)}">${ic('eye-off')}</button>`
+      : `<button class="ib" data-act="read" data-id="${id}" title="${keyTip(t('card.read'), a)}">${ic('eye')}</button>`);
     if (a === 'delete') out.push(`<button class="ib" data-act="trash" data-id="${id}" title="${keyTip(t('card.delete'), a)}">${ic('trash')}</button>`);
   }
   return out.join('');
@@ -737,6 +741,7 @@ async function setSeen(id, seen) {
     await invoke('set_seen', { id, seen });
     inboxSeen(id, seen);
     if (!seen) { closeReader(); toast(t('toast.unread')); }
+    else if (S.open && S.open.id === id) { S.open = { ...S.open, seen: true }; renderReader(); }
   } catch (e) { toast(String(e), true); }
 }
 async function check() {
