@@ -1,5 +1,6 @@
 //! Application layer: state, Tauri commands, watcher tasks, tray and windows.
 
+mod shortcut;
 mod tray;
 pub mod windows;
 
@@ -136,6 +137,7 @@ fn get_app_status(app: AppHandle, state: State<AppState>, statuses: State<status
         "version": app.package_info().version.to_string(),
         "accounts": accounts,
         "api": api.status(),
+        "shortcut": app.state::<shortcut::ShortcutStatus>().get(),
     })
 }
 
@@ -480,7 +482,9 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(shortcut::plugin())
         .manage(state)
+        .manage(shortcut::ShortcutStatus::default())
         .manage(status::StatusStore::default())
         .manage(log::LogBuffer::default())
         .manage(popup::LastCode::default())
@@ -498,6 +502,8 @@ pub fn run() {
         .setup(move |app| {
             windows::create(app)?;
             let handle = app.handle().clone();
+            let keys = handle.state::<AppState>().config.blocking_lock().shortcut.clone();
+            shortcut::register(&handle, keys);
 
             // Features: OTP is one of them.
             let state = handle.state::<AppState>();

@@ -73,6 +73,10 @@ pub struct AppConfig {
     pub accounts: Vec<AccountConfig>,
     #[serde(default)]
     pub api: ApiConfig,
+    /// Global shortcut that opens the window, e.g. `Ctrl+Alt+M`.
+    /// Missing: the default; empty: no shortcut.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shortcut: Option<String>,
     /// Contents of `rules.json`.
     #[serde(skip)]
     pub rules: Vec<DetectionRule>,

@@ -303,7 +303,7 @@ async function refreshStatus() {
 function problems() {
   const st = S.status;
   if (!st) return { errors: 0, connecting: false };
-  return { errors: st.accounts.filter(a => a.state === 'error').length + (st.api.state === 'error' ? 1 : 0), connecting: st.accounts.some(a => a.state === 'connecting') };
+  return { errors: st.accounts.filter(a => a.state === 'error').length + (st.api.state === 'error' ? 1 : 0) + (st.shortcut && st.shortcut.error ? 1 : 0), connecting: st.accounts.some(a => a.state === 'connecting') };
 }
 function renderStatusBtn() {
   const b = $('#statusBtn'), p = problems();
@@ -327,7 +327,14 @@ function renderStatusPop() {
     ${st.accounts.map(a => `<div class="sp-row"><span class="dot ${a.state}"></span><div class="grow"><b>${esc(a.label)}</b> <small style="display:inline">${esc(a.server)} · ${esc(a.mailbox)}</small>${accountLine(a)}</div></div>`).join('') || '<div class="sp-row"><small>Noch kein Konto eingerichtet.</small></div>'}
     ${api.state !== 'off' ? `<div class="sp-title">Lokale API (Codes)</div>
       <div class="sp-row"><span class="dot ${api.state}"></span><div class="grow"><b>${api.state === 'listening' ? 'Läuft' : 'Fehler'}</b><small class="msg ${api.state === 'error' ? 'error' : ''}">${esc(api.message)}</small>${api.last_request ? `<small>letzte Anfrage ${hhmm(api.last_request)}</small>` : ''}</div></div>` : ''}
+    ${shortcutRow(st.shortcut)}
     <div class="sp-foot"><button class="btn" data-act="check">${ic('refresh', 'sm')}Jetzt prüfen</button><button class="btn" data-act="settings">${ic('gear', 'sm')}Einstellungen</button></div>`;
+}
+function shortcutRow(sc) {
+  if (!sc) return '';
+  const keys = sc.keys ? sc.keys.replace(/\bctrl\b/i, 'Strg').replace(/\bsuper\b/i, 'Super') : 'aus';
+  const text = sc.error ? `<small class="msg error">nicht verfügbar: ${esc(sc.error)}</small>` : sc.keys ? '<small>öffnet und schließt Maillet</small>' : '<small>in der config.json festlegen</small>';
+  return `<div class="sp-title">Tastenkürzel</div><div class="sp-row"><span class="dot ${sc.error ? 'error' : sc.keys ? 'ok' : 'off'}"></span><div class="grow"><b>${esc(keys)}</b>${text}</div></div>`;
 }
 function toggleStatus(force) {
   const pop = $('#statusPop'), show = force ?? !pop.classList.contains('show');
