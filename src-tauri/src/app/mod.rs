@@ -470,12 +470,6 @@ async fn set_notifications(app: AppHandle, enabled: bool) -> Result<(), String> 
     async_runtime::spawn_blocking(move || config::set_notifications(&shared, enabled)).await.map_err(|e| e.to_string())?.map_err(err)
 }
 
-/// The window reports the height its content needs; the popup adapts to it.
-#[tauri::command]
-fn fit_main(app: AppHandle, height: f64) {
-    windows::fit_content(&app, height);
-}
-
 #[tauri::command]
 fn hide_main(app: AppHandle) {
     if let Some(w) = app.get_webview_window(windows::MAIN) {
@@ -840,7 +834,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, get_task_mail,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,

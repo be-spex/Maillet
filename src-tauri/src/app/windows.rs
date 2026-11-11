@@ -1,8 +1,8 @@
 //! Windows: the Maillet window, settings, about and the OTP code popup.
 //!
 //! The Maillet window has two forms:
-//! - **Popup** (tray click): next to the tray icon, only as tall as its
-//!   content, hides when clicking elsewhere.
+//! - **Popup** (tray click): next to the tray icon, fixed size, hides when
+//!   clicking elsewhere.
 //! - **Sidebar** (global shortcut): docked to the right edge, full height,
 //!   stays open until closed.
 
@@ -11,12 +11,11 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
 pub const MAIN: &str = "main";
-const WIDTH: f64 = 420.0;
-/// Popup height before the content has reported its size.
-const POPUP_DEFAULT_HEIGHT: f64 = 600.0;
-const POPUP_MIN_HEIGHT: f64 = 260.0;
-/// The popup never takes more than this share of the screen height.
-const POPUP_MAX_SHARE: f64 = 0.8;
+/// Fixed window size (logical px): enough to read a mail comfortably. It is
+/// both default and minimum; features the user turns on may add to it later.
+/// The size never changes with the content – no resizing, no flicker.
+const WIDTH: f64 = 700.0;
+const HEIGHT: f64 = 700.0;
 /// Gap between window and tray icon / screen edge.
 const MARGIN: i32 = 8;
 
@@ -31,8 +30,6 @@ pub enum Form {
 pub struct MainWindowState {
     form: Mutex<Form>,
     last_click: Mutex<Option<(i32, i32)>>,
-    /// Height the content asked for (logical px), used for the popup.
-    content_height: Mutex<Option<f64>>,
     /// Last geometry sent to the window (x, y, physical height).
     applied: Mutex<Option<(i32, i32, i32)>>,
     hidden_on_blur: Mutex<Option<Instant>>,
@@ -42,8 +39,7 @@ pub struct MainWindowState {
 pub fn create(app: &tauri::App) -> tauri::Result<()> {
     let main = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("app.html".into()))
         .title("Maillet")
-        .inner_size(WIDTH, POPUP_DEFAULT_HEIGHT)
-        .min_inner_size(320.0, POPUP_MIN_HEIGHT)
+        .inner_size(WIDTH, HEIGHT)
         .decorations(false)
         .skip_taskbar(true)
         .visible(false)
@@ -170,16 +166,6 @@ fn show_form(app: &AppHandle, form: Form, at: Option<(i32, i32)>) {
     activate_x11(&w);
 }
 
-/// The content reports how tall it wants to be; only the popup follows.
-pub fn fit_content(app: &AppHandle, height: f64) {
-    let state = app.state::<MainWindowState>();
-    *state.content_height.lock().unwrap() = Some(height);
-    let Some(w) = app.get_webview_window(MAIN) else { return };
-    if current_form(app) == Form::Popup && w.is_visible().unwrap_or(false) {
-        layout(app, &w);
-    }
-}
-
 /// Sets size and position for the current form.
 fn layout(app: &AppHandle, w: &WebviewWindow) {
     let state = app.state::<MainWindowState>();
@@ -194,14 +180,13 @@ fn layout(app: &AppHandle, w: &WebviewWindow) {
     let scale = monitor.scale_factor();
     let area = monitor.work_area();
     let (ax, ay, aw, ah) = (area.position.x, area.position.y, area.size.width as i32, area.size.height as i32);
-    let width = (WIDTH * scale).round() as i32;
+    let width = ((WIDTH * scale).round() as i32).min(aw);
 
     let (height, x, y) = match form {
         Form::Sidebar => (ah, ax + aw - width, ay),
         Form::Popup => {
-            let max = (ah as f64 * POPUP_MAX_SHARE).round() as i32;
-            let wanted = state.content_height.lock().unwrap().unwrap_or(POPUP_DEFAULT_HEIGHT).max(POPUP_MIN_HEIGHT);
-            let height = ((wanted * scale).round() as i32).min(max);
+            // Smaller only if the screen itself is smaller.
+            let height = ((HEIGHT * scale).round() as i32).min(ah - 2 * MARGIN);
             let (x, y) = match anchor {
                 // Above the icon if the panel is at the bottom, else below it.
                 Some((cx, cy)) => (cx - width / 2, if cy > ay + ah / 2 { cy - height - MARGIN } else { cy + MARGIN }),
@@ -222,7 +207,7 @@ fn layout(app: &AppHandle, w: &WebviewWindow) {
     };
     // (Wayland compositors may ignore positions.)
     if resize {
-        let _ = w.set_size(LogicalSize::new(WIDTH, height as f64 / scale));
+        let _ = w.set_size(LogicalSize::new(width as f64 / scale, height as f64 / scale));
     }
     if !moved {
         return;

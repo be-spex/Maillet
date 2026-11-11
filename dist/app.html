@@ -344,7 +344,6 @@ function render() {
   $('#navInbox').classList.toggle('on', S.view === 'inbox');
   $('#view').innerHTML = S.accounts && !S.accounts.length ? onboarding() : S.view === 'tasks' ? tasksView() : S.view === 'inbox' ? inboxView(d) : home(d, total);
   tickCodes();
-  scheduleFit();
 }
 
 function onboarding() {
@@ -478,26 +477,6 @@ function card(m) {
   </div>`;
 }
 
-/* ---- Fensterhöhe: das Popup ist nur so hoch wie sein Inhalt ---- */
-let fitQueued = false, lastFit = 0;
-function scheduleFit() {
-  if (fitQueued) return;
-  fitQueued = true;
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    fitQueued = false;
-    let h;
-    if (S.open) {
-      // Lesen: einmal auf volle Popup-Höhe (das Backend begrenzt sie), statt
-      // bei Skelett, Text, Rahmen und Bildern jeweils nachzuwachsen.
-      h = 10000;
-    } else {
-      const kids = [...$('#view').children];
-      h = kids.length ? Math.max(...kids.map(k => k.offsetTop + k.offsetHeight)) + 24 : 300;
-    }
-    h = Math.ceil(h);
-    if (Math.abs(h - lastFit) > 4) { lastFit = h; invoke('fit_main', { height: h }).catch(() => {}); }
-  }));
-}
 
 /* ---- Status (Kopfzeile) ---- */
 async function refreshStatus() {
@@ -572,7 +551,7 @@ setInterval(() => {
     if (left <= 0) expired = true;
     r.style.setProperty('--p', Math.max(0, left / CODE_TTL));
   });
-  if (expired) { tickCodes(); scheduleFit(); }
+  if (expired) { tickCodes(); }
 }, 500);
 
 /* ---- Mail-Ansicht ---- */
@@ -633,7 +612,6 @@ function renderReader() {
     </div></div>`;
   if (oldWrap) r.querySelector('.html-wrap').replaceWith(oldWrap);
   else if (c && c.html && S.htmlMode) showHtml(c.html);
-  scheduleFit();
 }
 /* ---- HTML-Mail: bereinigt (Backend) und zusätzlich in einem Rahmen ohne
    Skripte, mit strenger Content-Security-Policy. Bilder aus dem Netz nur auf Wunsch. ---- */
@@ -658,14 +636,14 @@ function showHtml(html) {
       const url = a.getAttribute('href');
       if (/^(https?:|mailto:)/i.test(url)) invoke('open_link', { url }).catch(err => toast(String(err), true));
     });
-    const fit = () => { frame.style.height = Math.max(120, doc.documentElement.scrollHeight) + 'px'; scheduleFit(); };
+    const fit = () => { frame.style.height = Math.max(120, doc.documentElement.scrollHeight) + 'px'; };
     fit();
     doc.querySelectorAll('img').forEach(img => img.addEventListener('load', fit));
     new ResizeObserver(fit).observe(doc.body);
   }, { once: true });
   frame.srcdoc = mailDoc(html, S.loadImages);
 }
-function closeReader() { S.open = null; S.content = null; $('#reader').dataset.frameKey = ''; renderReader(); scheduleFit(); }
+function closeReader() { S.open = null; S.content = null; $('#reader').dataset.frameKey = ''; renderReader(); }
 
 /* ---- Aktionen ---- */
 function inboxDrop(id) { if (S.inbox) { S.inbox = S.inbox.filter(m => m.id !== id); if (S.view === 'inbox') render(); } }
