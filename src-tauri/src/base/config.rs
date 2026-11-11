@@ -80,6 +80,9 @@ pub struct AppConfig {
     /// Desktop notifications for new mails; missing means on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notifications: Option<bool>,
+    /// UI language code (`en`, `de`); missing means English.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
     /// Tray counts only mails from people (no bulk mail); missing means all.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tray_people_only: Option<bool>,
@@ -344,6 +347,12 @@ pub fn set_api_config(config: &SharedConfig, api: ApiConfig) -> Result<()> {
 pub fn set_shortcut(config: &SharedConfig, keys: &str) -> Result<()> {
     let mut cfg = config.blocking_lock();
     cfg.shortcut = Some(keys.trim().to_string());
+    save_config(&cfg)
+}
+
+pub fn set_language(config: &SharedConfig, code: &str) -> Result<()> {
+    let mut cfg = config.blocking_lock();
+    cfg.language = Some(code.to_string());
     save_config(&cfg)
 }
 

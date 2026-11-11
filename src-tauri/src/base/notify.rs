@@ -23,7 +23,7 @@ pub fn show_clickable(title: impl Into<String>, body: impl Into<String>, on_clic
             .summary(&title)
             .body(&escape(&body))
             .icon("mail-unread")
-            .action("default", "Öffnen")
+            .action("default", &super::i18n::t("notify.open", &[]))
             .show();
         match shown {
             // Blocks this thread until the notification is clicked or closed.

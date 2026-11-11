@@ -69,14 +69,14 @@ pub fn create(app: &tauri::App) -> tauri::Result<()> {
     });
 
     let settings = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("index.html".into()))
-        .title("Maillet – Einstellungen")
+        .title(crate::base::i18n::t("win.settings", &[]))
         .inner_size(820.0, 760.0)
         .visible(false)
         .build()?;
     hide_on_close(&settings);
 
     let about = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("about.html".into()))
-        .title("Über Maillet")
+        .title(crate::base::i18n::t("win.about", &[]))
         .inner_size(360.0, 340.0)
         .resizable(false)
         .visible(false)
@@ -84,7 +84,7 @@ pub fn create(app: &tauri::App) -> tauri::Result<()> {
     hide_on_close(&about);
 
     WebviewWindowBuilder::new(app, "code", WebviewUrl::App("code.html".into()))
-        .title("Maillet – Code")
+        .title(crate::base::i18n::t("win.code", &[]))
         .inner_size(crate::features::otp::popup::POPUP_WIDTH, 250.0)
         .resizable(false)
         .decorations(false)

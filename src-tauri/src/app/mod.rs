@@ -253,6 +253,30 @@ fn open_window(app: AppHandle, label: String) {
     windows::show(&app, &label);
 }
 
+/// Strings of the current language for the window, plus the available languages.
+#[tauri::command]
+fn get_i18n() -> serde_json::Value {
+    use crate::base::i18n;
+    serde_json::json!({
+        "language": i18n::language(),
+        "languages": i18n::languages().into_iter().map(|(code, name)| serde_json::json!({ "code": code, "name": name })).collect::<Vec<_>>(),
+        "strings": i18n::table(),
+    })
+}
+
+/// Switches the UI language at once (window, tray, notifications).
+#[tauri::command]
+async fn set_language(app: AppHandle, code: String) -> Result<(), String> {
+    crate::base::i18n::set_language(&code);
+    let state = app.state::<AppState>();
+    state.store.touch(); // re-renders tray menu and tooltip
+    let shared = state.config.clone();
+    let lang = crate::base::i18n::language();
+    async_runtime::spawn_blocking(move || config::set_language(&shared, &lang)).await.map_err(|e| e.to_string())?.map_err(err)?;
+    let _ = app.emit("settings-changed", ());
+    Ok(())
+}
+
 /// Sets the global shortcut; it takes effect at once. Returns the new status.
 #[tauri::command]
 async fn set_shortcut(app: AppHandle, keys: String) -> Result<shortcut::Status, String> {
@@ -534,7 +558,7 @@ fn hide_window(window: tauri::WebviewWindow) {
 fn get_app_info(app: AppHandle) -> serde_json::Value {
     serde_json::json!({
         "name": "Maillet",
-        "tagline": "neue Mails im Blick, direkt im Tray",
+        "tagline": crate::base::i18n::t("status.tagline", &[]),
         "version": app.package_info().version.to_string(),
     })
 }
@@ -604,7 +628,7 @@ async fn run_with_reconnect(watch: Watch) {
         tracing::error!("[{label}] connection failed (attempt {failures}): {e:#}");
         log::event(&app, &id, &label, "error", format!("{e:#} – retry {failures} in {}s", delay.as_secs()));
         if failures == 1 {
-            crate::base::notify::show(format!("Maillet – {label}"), format!("Verbindung fehlgeschlagen: {e:#}"));
+            crate::base::notify::show(format!("Maillet – {label}"), crate::base::i18n::t("notify.failed", &[("e", &format!("{e:#}"))]));
         }
         status::set(&app, &id, "error", format!("{e:#} – retrying in {}s", delay.as_secs()));
         tokio::select! {
@@ -620,21 +644,22 @@ fn tray_tooltip(app: &AppHandle) -> String {
     let snap = app.state::<AppState>().store.snapshot();
     let total: usize = snap.accounts.iter().map(|a| a.unread_total).sum();
     let errors = app.state::<status::StatusStore>().all().into_iter().filter(|s| s.state == "error").count();
+    use crate::base::i18n::t;
     let mut text = match total {
-        0 => "Maillet – keine neuen Mails".to_string(),
-        1 => "Maillet – 1 neue Mail".to_string(),
-        n => format!("Maillet – {n} neue Mails"),
+        0 => t("tip.none", &[]),
+        1 => t("tip.one", &[]),
+        n => t("tip.n", &[("n", &n.to_string())]),
     };
     let state = app.state::<AppState>();
     if state.tray_people_only.load(std::sync::atomic::Ordering::Relaxed) {
-        text = format!("Maillet – {} von Menschen, {total} insgesamt", state.store.unread_people());
+        text = t("tip.people", &[("p", &state.store.unread_people().to_string()), ("n", &total.to_string())]);
     }
     if snap.accounts.len() > 1 && total > 0 {
         let parts: Vec<String> = snap.accounts.iter().filter(|a| a.unread_total > 0).map(|a| format!("{} {}", a.account, a.unread_total)).collect();
         text += &format!(" ({})", parts.join(", "));
     }
     if errors > 0 {
-        text += &format!(" · {errors} Konto/Konten mit Verbindungsproblem");
+        text += &t("tip.problems", &[("n", &errors.to_string())]);
     }
     text
 }
@@ -667,6 +692,7 @@ pub fn run() {
 
     let accounts = config::load_accounts_with_passwords().unwrap_or_default();
     let config = config::load_config().unwrap_or_default();
+    crate::base::i18n::set_language(config.language.as_deref().unwrap_or(crate::base::i18n::DEFAULT));
     let (rules, _) = watch::channel(config.rules.clone());
     let notifications = Arc::new(std::sync::atomic::AtomicBool::new(config.notifications.unwrap_or(true)));
     let tray_people_only = Arc::new(std::sync::atomic::AtomicBool::new(config.tray_people_only.unwrap_or(false)));
@@ -697,7 +723,7 @@ pub fn run() {
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
         .invoke_handler(tauri::generate_handler![
-            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, set_pinned, make_task, list_tasks, task_done, task_back, task_reopen, get_task_mail,
+            list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, fit_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, task_done, task_back, task_reopen, get_task_mail,
             get_accounts, add_account, update_account, remove_account, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,

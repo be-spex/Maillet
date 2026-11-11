@@ -432,6 +432,11 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 <section class="section" data-sec="general">
   <div class="page-head"><h1>General</h1></div>
   <div class="card">
+    <h3 class="card-title">Language</h3>
+    <div class="hint">Language of the Maillet window, the tray menu and notifications. This settings window is English for now.</div>
+    <select id="lang-select" style="margin-top:10px;max-width:260px" onchange="setLanguage(this.value)"></select>
+  </div>
+  <div class="card">
     <h3 class="card-title">Global shortcut</h3>
     <div class="hint">Opens Maillet as a sidebar from anywhere and closes it again. Click the field and press the keys you want; Backspace clears, Esc cancels.</div>
     <div class="shortcut-row">
@@ -1553,6 +1558,8 @@ invoke('get_api_settings').then(st => renderApiStatus(st.status)).catch(() => {}
 // ---- General & Notifications ----
 let pendingShortcut = null
 async function loadPreferences() {
+  const i18n = await invoke('get_i18n')
+  document.getElementById('lang-select').innerHTML = i18n.languages.map(l => `<option value="${l.code}" ${l.code === i18n.language ? 'selected' : ''}>${esc(l.name)}</option>`).join('')
   const st = await invoke('get_app_status')
   document.getElementById('nt-enabled').checked = st.notifications
   document.getElementById('nt-people').checked = st.tray_people_only
@@ -1607,6 +1614,9 @@ async function saveShortcut(keys) {
     showShortcut(st)
     showToast(value ? (st.error ? 'Saved, but not available' : `Shortcut ${value} active`) : 'Shortcut switched off', st.error ? 'error' : 'success')
   } catch (e) { showToast(String(e), 'error') }
+}
+async function setLanguage(code) {
+  try { await invoke('set_language', { code }); showToast('Language changed', 'success') } catch (e) { showToast(String(e), 'error') }
 }
 async function setNotifications(on) {
   try { await invoke('set_notifications', { enabled: on }); showToast(on ? 'Notifications on' : 'Notifications off', 'success') } catch (e) { showToast(String(e), 'error') }

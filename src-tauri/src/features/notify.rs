@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter};
 use super::Feature;
 use crate::app::windows;
 use crate::base::config::AccountConfig;
+use crate::base::i18n::t;
 use crate::base::notify;
 use crate::mail::model::{Finding, MailBody, MailSummary};
 
@@ -57,7 +58,7 @@ impl NotifyFeature {
                 std::thread::sleep(wait);
                 let n = std::mem::take(&mut burst.lock().unwrap().held_back);
                 if n > 0 {
-                    let text = if n == 1 { "1 weitere neue Mail".to_string() } else { format!("{n} weitere neue Mails") };
+                    let text = if n == 1 { t("notify.more_one", &[]) } else { t("notify.more", &[("n", &n.to_string())]) };
                     notify::show_clickable("Maillet", text, move || windows::show_main(&app, None));
                 }
             });
@@ -77,9 +78,8 @@ impl Feature for NotifyFeature {
         if !self.enabled.load(Ordering::Relaxed) || mail.bulk || code_shown || !self.admit() {
             return vec![];
         }
-        let sender = mail.from_name.clone().or_else(|| mail.from_addr.clone()).unwrap_or_else(|| "Neue Mail".into());
-        let subject = if mail.subject.is_empty() { "(kein Betreff)" } else { &mail.subject };
-        let mut body = subject.to_string();
+        let sender = mail.from_name.clone().or_else(|| mail.from_addr.clone()).unwrap_or_else(|| t("mail.new", &[]));
+        let mut body = if mail.subject.is_empty() { t("mail.no_subject", &[]) } else { mail.subject.clone() };
         if !mail.preview.is_empty() {
             let preview: String = mail.preview.chars().take(BODY_LEN).collect();
             body += &format!("\n{preview}{}", if mail.preview.chars().count() > BODY_LEN { "…" } else { "" });

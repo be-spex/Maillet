@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -190,18 +190,18 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 <div id="app">
   <nav class="rail">
     <img class="logo" src="icon.png" alt="Maillet" title="Maillet">
-    <button class="nav on" id="navHome" data-act="home" title="Übersicht"><svg class="i"><use href="#i-home"/></svg><span class="badge" id="navBadge" hidden></span></button>
-    <button class="nav" id="navTasks" data-act="tasks" title="Aufgaben" hidden><svg class="i"><use href="#i-task"/></svg><span class="badge" id="taskBadge" hidden></span></button>
+    <button class="nav on" id="navHome" data-act="home" data-t-title="app.overview"><svg class="i"><use href="#i-home"/></svg><span class="badge" id="navBadge" hidden></span></button>
+    <button class="nav" id="navTasks" data-act="tasks" data-t-title="app.tasks" hidden><svg class="i"><use href="#i-task"/></svg><span class="badge" id="taskBadge" hidden></span></button>
     <div class="spacer"></div>
-    <button class="nav" data-act="settings" title="Einstellungen"><svg class="i"><use href="#i-gear"/></svg></button>
+    <button class="nav" data-act="settings" data-t-title="app.settings"><svg class="i"><use href="#i-gear"/></svg></button>
   </nav>
   <main>
     <header class="top">
       <div class="grow" data-tauri-drag-region></div>
-      <button class="ib" id="statusBtn" data-act="status" title="Status"><svg class="i"><use href="#i-activity"/></svg></button>
-      <button class="ib" id="checkBtn" data-act="check" title="Jetzt prüfen"><svg class="i"><use href="#i-refresh"/></svg></button>
-      <button class="ib" data-act="theme" title="Hell / Dunkel"><svg class="i"><use href="#i-moon"/></svg></button>
-      <button class="ib" data-act="hide" title="Schließen (Esc)"><svg class="i"><use href="#i-x"/></svg></button>
+      <button class="ib" id="statusBtn" data-act="status" data-t-title="app.status"><svg class="i"><use href="#i-activity"/></svg></button>
+      <button class="ib" id="checkBtn" data-act="check" data-t-title="app.check"><svg class="i"><use href="#i-refresh"/></svg></button>
+      <button class="ib" data-act="theme" data-t-title="app.theme"><svg class="i"><use href="#i-moon"/></svg></button>
+      <button class="ib" data-act="hide" data-t-title="app.close"><svg class="i"><use href="#i-x"/></svg></button>
     </header>
     <section id="view"></section>
   </main>
@@ -245,24 +245,33 @@ const ic = (n, cls = '') => `<svg class="i ${cls}"><use href="#i-${n}"/></svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const hue = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 const initials = n => n.replace(/@.*/, '').replace(/[^\p{L}\s.-]/gu, ' ').split(/[\s.-]+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
-const sender = m => m.from_name || m.from_addr || 'Unbekannt';
+const sender = m => m.from_name || m.from_addr || t('mail.unknown');
 const avatar = (m, cls = '') => { const n = sender(m); return `<span class="av ${cls}" style="--h:${hue(n)}">${esc(initials(n))}</span>`; };
 const CODE_TTL = 120000;
+
+/* ---- Übersetzungen (dist/i18n/*.json, vom Backend geliefert) ---- */
+let T = {};
+const t = (key, vars) => { let s = T[key] ?? key; if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(v); return s; };
+const LOCALE = () => T.locale || 'en-GB';
+async function loadI18n() {
+  try { const r = await invoke('get_i18n'); T = r.strings; document.documentElement.lang = r.language; } catch (e) { /* bleibt bei den Schlüsseln */ }
+  document.querySelectorAll('[data-t-title]').forEach(el => { el.title = t(el.dataset.tTitle); });
+}
 
 const S = { data: null, accounts: null, filter: 'all', group: 'all', view: 'home', tasks: null, open: null, content: null, codes: [], loading: true };
 
 function when(ts, long) {
   if (!ts) return '';
   const d = new Date(ts * 1000), now = new Date();
-  const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-  if (long) return d.toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const time = d.toLocaleTimeString(LOCALE(), { hour: '2-digit', minute: '2-digit' });
+  if (long) return d.toLocaleString(LOCALE(), { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const days = Math.floor((new Date(now.toDateString()) - new Date(d.toDateString())) / 86400000);
   if (days === 0) return time;
-  if (days === 1) return 'gestern';
-  if (days < 7) return d.toLocaleDateString('de-DE', { weekday: 'short' });
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  if (days === 1) return t('date.yesterday');
+  if (days < 7) return d.toLocaleDateString(LOCALE(), { weekday: 'short' });
+  return d.toLocaleDateString(LOCALE(), { day: '2-digit', month: '2-digit' });
 }
-function greet() { const h = new Date().getHours(); return h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend'; }
+function greet() { const h = new Date().getHours(); return t(h < 11 ? 'greet.morning' : h < 18 ? 'greet.day' : 'greet.evening'); }
 
 async function refresh() {
   try {
@@ -288,9 +297,9 @@ function render() {
 }
 
 function onboarding() {
-  return `<div class="empty"><div class="big">📬</div><h1>Willkommen bei Maillet</h1>
-    <p class="muted">Verbinde ein Postfach. Neue Mails erscheinen dann hier und als Zahl im Tray.</p>
-    <button class="btn primary" data-act="settings">${ic('mail', 'sm')}Konto hinzufügen</button></div>`;
+  return `<div class="empty"><div class="big">📬</div><h1>${t('onb.title')}</h1>
+    <p class="muted">${t('onb.text')}</p>
+    <button class="btn primary" data-act="settings">${ic('mail', 'sm')}${t('onb.add')}</button></div>`;
 }
 
 function home(d, total) {
@@ -299,37 +308,37 @@ function home(d, total) {
   const people = inAccount.filter(m => !m.bulk), noise = inAccount.filter(m => m.bulk);
   const shown = d.accounts.reduce((a, x) => a + (S.filter === 'all' || x.account_id === S.filter ? x.unread_total : 0), 0);
   const summary = S.loading || (!d.accounts.length && d.status.some(s => s.state === 'connecting'))
-    ? 'Postfächer werden geprüft …'
-    : total ? `<b>${total} neue Mail${total > 1 ? 's' : ''}</b>${noise.length ? `, davon ${noise.length} Rauschen` : ''}.` : 'Keine neuen Mails.';
+    ? t('home.checking')
+    : total ? `${total > 1 ? t('home.summary', { n: total }) : t('home.summary_one')}${noise.length ? t('home.of_noise', { n: noise.length }) : ''}.` : t('home.none');
   const gchip = (k, label, n) => `<button class="chip ${S.group === k ? 'on' : ''}" data-act="group" data-g="${k}">${label}${n === undefined ? '' : ` <span class="faint">${n}</span>`}</button>`;
-  const noiseHead = noise.length ? `<div class="zone noise-head">${ic('mute', 'sm')}Rauschen<span class="faint">${noise.length}</span><span class="grow"></span><button class="link" data-act="archiveNoise" title="Alle Newsletter und Massenmails archivieren">Alles erledigen</button></div>` : '';
+  const noiseHead = noise.length ? `<div class="zone noise-head">${ic('mute', 'sm')}${t('home.noise')}<span class="faint">${noise.length}</span><span class="grow"></span><button class="link" data-act="archiveNoise" title="${t('home.noise_all_tip')}">${t('home.noise_all')}</button></div>` : '';
   let list;
-  if (S.group === 'people') list = `<div class="cards">${people.map(card).join('') || empty('Keine neuen Mails von Menschen.')}</div>`;
-  else if (S.group === 'noise') list = noise.length ? `${noiseHead}<div class="cards">${noise.map(card).join('')}</div>` : `<div class="cards">${empty('Kein Rauschen. 🌿')}</div>`;
-  else list = `<div class="cards">${people.map(card).join('') || (noise.length ? '' : (S.loading ? skeleton() : empty('Nichts Neues. Genieß die Ruhe.')))}</div>${noiseHead}${noise.length ? `<div class="cards">${noise.map(card).join('')}</div>` : ''}`;
+  if (S.group === 'people') list = `<div class="cards">${people.map(card).join('') || empty(t('home.empty_people'))}</div>`;
+  else if (S.group === 'noise') list = noise.length ? `${noiseHead}<div class="cards">${noise.map(card).join('')}</div>` : `<div class="cards">${empty(t('home.empty_noise'))}</div>`;
+  else list = `<div class="cards">${people.map(card).join('') || (noise.length ? '' : (S.loading ? skeleton() : empty(t('home.empty'))))}</div>${noiseHead}${noise.length ? `<div class="cards">${noise.map(card).join('')}</div>` : ''}`;
   return `
     <div class="hero"><h1>${greet()}.</h1><p>${summary}</p></div>
     <div id="codes"></div>
-    ${(d.pinned || []).length ? `<div class="zone">${ic('star', 'sm')}Angepinnt<span class="grow"></span><span class="faint">${d.pinned.length}</span></div>${d.pinned.map(pinRow).join('')}` : ''}
-    <div class="zone">${ic('mail', 'sm')}Neu<span class="grow"></span>${total ? `<span class="faint">${total}</span>` : ''}</div>
-    <div class="chips">${gchip('all', 'Alle')}${gchip('people', 'Menschen', people.length)}${gchip('noise', 'Rauschen', noise.length)}</div>
-    ${multi ? `<div class="chips"><button class="chip ${S.filter === 'all' ? 'on' : ''}" data-act="filter" data-f="all">Alle Konten</button>${d.accounts.map(a => `<button class="chip ${S.filter === a.account_id ? 'on' : ''}" data-act="filter" data-f="${esc(a.account_id)}">${esc(a.account)} <span class="faint">${a.unread_total}</span></button>`).join('')}</div>` : ''}
+    ${(d.pinned || []).length ? `<div class="zone">${ic('star', 'sm')}${t('home.pinned')}<span class="grow"></span><span class="faint">${d.pinned.length}</span></div>${d.pinned.map(pinRow).join('')}` : ''}
+    <div class="zone">${ic('mail', 'sm')}${t('home.new')}<span class="grow"></span>${total ? `<span class="faint">${total}</span>` : ''}</div>
+    <div class="chips">${gchip('all', t('home.all'))}${gchip('people', t('home.people'), people.length)}${gchip('noise', t('home.noise'), noise.length)}</div>
+    ${multi ? `<div class="chips"><button class="chip ${S.filter === 'all' ? 'on' : ''}" data-act="filter" data-f="all">${t('home.all_accounts')}</button>${d.accounts.map(a => `<button class="chip ${S.filter === a.account_id ? 'on' : ''}" data-act="filter" data-f="${esc(a.account_id)}">${esc(a.account)} <span class="faint">${a.unread_total}</span></button>`).join('')}</div>` : ''}
     ${list}
-    ${shown > inAccount.length ? `<div class="more">Die neuesten ${inAccount.length} von ${shown} ungelesenen Mails</div>` : ''}
+    ${shown > inAccount.length ? `<div class="more">${t('home.more', { shown: inAccount.length, total: shown })}</div>` : ''}
     `;
 }
 const isPinned = id => ((S.data && S.data.pinned) || []).some(p => p.id === id || (p.message_id && S.data.mails.some(m => m.id === id && m.message_id === p.message_id)));
-const pinRow = m => `<button class="pin-row" data-act="open" data-id="${esc(m.id)}">${ic('star', 'sm filled star')}<span class="grow"><b>${esc(m.subject || '(kein Betreff)')}</b><small>${esc(sender(m))} · ${esc(when(m.date))}</small></span></button>`;
+const pinRow = m => `<button class="pin-row" data-act="open" data-id="${esc(m.id)}">${ic('star', 'sm filled star')}<span class="grow"><b>${esc(m.subject || t('mail.no_subject'))}</b><small>${esc(sender(m))} · ${esc(when(m.date))}</small></span></button>`;
 function tasksView() {
-  if (!S.tasks) return `<div class="hero"><h1>Aufgaben</h1><p>Wird geladen …</p></div>${skeleton()}`;
-  return `<div class="hero"><h1>Aufgaben</h1><p>${S.tasks.length ? `<b>${S.tasks.length} offen</b> – Mails im Ordner „Aufgaben“ auf dem Server.` : 'Mails im Ordner „Aufgaben“ auf dem Server.'}</p></div>
-    <div class="cards">${S.tasks.map(taskCard).join('') || empty('Keine offenen Aufgaben. 🎉')}</div>`;
+  if (!S.tasks) return `<div class="hero"><h1>${t('app.tasks')}</h1><p>${t('tasks.loading')}</p></div>${skeleton()}`;
+  return `<div class="hero"><h1>${t('app.tasks')}</h1><p>${S.tasks.length ? t('tasks.open', { n: S.tasks.length }) : ''}${t('tasks.folder')}</p></div>
+    <div class="cards">${S.tasks.map(taskCard).join('') || empty(t('tasks.empty'))}</div>`;
 }
 const taskCard = m => `<div class="mcard" data-act="openTask" data-id="${esc(m.id)}" tabindex="0">
     <div class="mc-head">${avatar(m)}<div class="mc-from"><b>${esc(sender(m))}</b><small>${esc(m.account)} · ${esc(when(m.date))}</small></div></div>
-    <div class="mc-subj">${esc(m.subject || '(kein Betreff)')}</div>
+    <div class="mc-subj">${esc(m.subject || t('mail.no_subject'))}</div>
     ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
-    <div class="task-acts"><button class="ab main sm" data-act="taskDone" data-id="${esc(m.id)}">${ic('check', 'sm')}Erledigt</button><button class="ab sm" data-act="taskBack" data-id="${esc(m.id)}" title="Keine Aufgabe mehr – zurück in den Posteingang">${ic('inbox', 'sm')}Zurück in den Eingang</button></div>
+    <div class="task-acts"><button class="ab main sm" data-act="taskDone" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('tasks.done')}</button><button class="ab sm" data-act="taskBack" data-id="${esc(m.id)}" title="${t('tasks.back_tip')}">${ic('inbox', 'sm')}${t('tasks.back')}</button></div>
   </div>`;
 const empty = text => `<div class="empty"><div class="big">🌿</div>${esc(text)}</div>`;
 
@@ -339,17 +348,17 @@ function card(m) {
   const codes = (m.findings || []).filter(f => f.feature === 'otp');
   return `<div class="mcard ${m.bulk ? 'bulk' : ''}" data-act="open" data-id="${esc(m.id)}" tabindex="0">
     <div class="mc-head">${avatar(m)}<div class="mc-from"><b>${esc(sender(m))}</b><small>${esc(m.account)} · ${esc(when(m.date))}${m.has_attachments ? ' · 📎' : ''}</small></div></div>
-    <div class="mc-subj">${esc(m.subject || '(kein Betreff)')}</div>
+    <div class="mc-subj">${esc(m.subject || t('mail.no_subject'))}</div>
     ${m.preview ? `<div class="mc-prev">${esc(m.preview)}</div>` : ''}
-    ${codes.length || m.bulk ? `<div class="mc-tags">${codes.map(f => `<span class="tag code">${f.kind === 'link' ? 'Login-Link' : esc(f.value)}</span>`).join('')}${m.bulk ? '<span class="tag">Newsletter</span>' : ''}</div>` : ''}
+    ${codes.length || m.bulk ? `<div class="mc-tags">${codes.map(f => `<span class="tag code">${f.kind === 'link' ? t('mail.login_link') : esc(f.value)}</span>`).join('')}${m.bulk ? `<span class="tag">${t('mail.newsletter')}</span>` : ''}</div>` : ''}
     <div class="mc-acts">
       ${m.from_addr ? (m.bulk
-        ? `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="0" title="Ist ein Mensch – Absender künftig nicht mehr als Rauschen">${ic('user', 'sm')}</button>`
-        : `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="1" title="Ist Rauschen – Absender künftig gedämpft">${ic('mute', 'sm')}</button>`) : ''}
-      <button class="ib sm ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}" title="${isPinned(m.id) ? 'Lösen' : 'Anpinnen (Stern)'}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}</button>
-      <button class="ib sm" data-act="task" data-id="${esc(m.id)}" title="Als Aufgabe – in den Ordner „Aufgaben“">${ic('task', 'sm')}</button>
-      <button class="ib sm" data-act="read" data-id="${esc(m.id)}" title="Als gelesen markieren">${ic('dot', 'sm')}</button>
-      <button class="ib sm" data-act="archive" data-id="${esc(m.id)}" title="Erledigt (archivieren)">${ic('check', 'sm')}</button>
+        ? `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="0" title="${t('card.is_person')}">${ic('user', 'sm')}</button>`
+        : `<button class="ib sm" data-act="kind" data-addr="${esc(m.from_addr)}" data-bulk="1" title="${t('card.is_noise')}">${ic('mute', 'sm')}</button>`) : ''}
+      <button class="ib sm ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}" title="${isPinned(m.id) ? t('card.unpin') : t('card.pin')}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}</button>
+      <button class="ib sm" data-act="task" data-id="${esc(m.id)}" title="${t('card.task')}">${ic('task', 'sm')}</button>
+      <button class="ib sm" data-act="read" data-id="${esc(m.id)}" title="${t('card.read')}">${ic('dot', 'sm')}</button>
+      <button class="ib sm" data-act="archive" data-id="${esc(m.id)}" title="${t('card.archive')}">${ic('check', 'sm')}</button>
     </div>
   </div>`;
 }
@@ -389,33 +398,31 @@ function renderStatusBtn() {
   const b = $('#statusBtn'), p = problems();
   b.classList.toggle('warn', p.errors > 0);
   b.innerHTML = p.errors ? ic('alert') : ic('activity') + (p.connecting ? '<span class="sdot"></span>' : '');
-  b.title = p.errors ? `Status: ${p.errors} Problem${p.errors > 1 ? 'e' : ''}` : p.connecting ? 'Status: verbindet …' : 'Status: alles in Ordnung';
+  b.title = p.errors ? (p.errors > 1 ? t('status.problems', { n: p.errors }) : t('status.problems_one')) : t(p.connecting ? 'status.connecting' : 'status.ok');
 }
-const hhmm = ts => ts ? new Date(ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+const hhmm = ts => ts ? new Date(ts * 1000).toLocaleTimeString(LOCALE(), { hour: '2-digit', minute: '2-digit' }) : '';
 function accountLine(a) {
-  if (a.state === 'ok') return `<small>Verbunden · ${a.unread ?? 0} ungelesen${a.timestamp ? ' · geprüft ' + hhmm(a.timestamp) : ''}</small>`;
-  if (a.state === 'connecting') return '<small>Verbindet …</small>';
-  return `<small class="msg error">${esc(a.message)}</small>${a.timestamp ? `<small>seit ${hhmm(a.timestamp)}</small>` : ''}`;
+  if (a.state === 'ok') return `<small>${t('status.connected', { n: a.unread ?? 0 })}${a.timestamp ? t('status.checked', { t: hhmm(a.timestamp) }) : ''}</small>`;
+  if (a.state === 'connecting') return `<small>${t('status.connecting_short')}</small>`;
+  return `<small class="msg error">${esc(a.message)}</small>${a.timestamp ? `<small>${t('status.since', { t: hhmm(a.timestamp) })}</small>` : ''}`;
 }
 function renderStatusPop() {
   const st = S.status, pop = $('#statusPop');
-  if (!st) { pop.innerHTML = '<div class="loading">Status wird geladen …</div>'; return; }
+  if (!st) { pop.innerHTML = `<div class="loading">${t('status.loading')}</div>`; return; }
   const api = st.api;
   pop.innerHTML = `
-    <div class="sp-head"><img src="icon.png" alt=""><div><b>Maillet ${esc(st.version)}</b><br><small>neue Mails im Blick, direkt im Tray</small></div></div>
-    <div class="sp-title">Konten</div>
-    ${st.accounts.map(a => `<div class="sp-row"><span class="dot ${a.state}"></span><div class="grow"><b>${esc(a.label)}</b> <small style="display:inline">${esc(a.server)} · ${esc(a.mailbox)}</small>${accountLine(a)}</div></div>`).join('') || '<div class="sp-row"><small>Noch kein Konto eingerichtet.</small></div>'}
-    ${api.state !== 'off' ? `<div class="sp-title">Lokale API (Codes)</div>
-      <div class="sp-row"><span class="dot ${api.state}"></span><div class="grow"><b>${api.state === 'listening' ? 'Läuft' : 'Fehler'}</b><small class="msg ${api.state === 'error' ? 'error' : ''}">${esc(api.message)}</small>${api.last_request ? `<small>letzte Anfrage ${hhmm(api.last_request)}</small>` : ''}</div></div>` : ''}
+    <div class="sp-head"><img src="icon.png" alt=""><div><b>Maillet ${esc(st.version)}</b><br><small>${t('status.tagline')}</small></div></div>
+    <div class="sp-title">${t('status.accounts')}</div>
+    ${st.accounts.map(a => `<div class="sp-row"><span class="dot ${a.state}"></span><div class="grow"><b>${esc(a.label)}</b> <small style="display:inline">${esc(a.server)} · ${esc(a.mailbox)}</small>${accountLine(a)}</div></div>`).join('') || `<div class="sp-row"><small>${t('status.no_account')}</small></div>`}
+    ${api.state !== 'off' ? `<div class="sp-title">${t('status.api')}</div>
+      <div class="sp-row"><span class="dot ${api.state}"></span><div class="grow"><b>${api.state === 'listening' ? t('status.api_running') : t('status.api_error')}</b><small class="msg ${api.state === 'error' ? 'error' : ''}">${esc(api.message)}</small>${api.last_request ? `<small>${t('status.last_request', { t: hhmm(api.last_request) })}</small>` : ''}</div></div>` : ''}
     ${shortcutRow(st.shortcut)}
-    <div class="sp-foot"><button class="btn" data-act="check">${ic('refresh', 'sm')}Jetzt prüfen</button><button class="btn" data-act="settings">${ic('gear', 'sm')}Einstellungen</button></div>`;
+    <div class="sp-foot"><button class="btn" data-act="check">${ic('refresh', 'sm')}${t('app.check')}</button><button class="btn" data-act="settings">${ic('gear', 'sm')}${t('app.settings')}</button></div>`;
 }
 // Only a broken shortcut shows up here; it is configured in the settings (General).
 function shortcutRow(sc) {
   if (!sc || !sc.error) return '';
-  const keys = sc.keys ? sc.keys.replace(/\bctrl\b/i, 'Strg').replace(/\bsuper\b/i, 'Super') : 'aus';
-  const text = sc.error ? `<small class="msg error">nicht verfügbar: ${esc(sc.error)}</small>` : sc.keys ? '<small>öffnet und schließt Maillet</small>' : '<small>in der config.json festlegen</small>';
-  return `<div class="sp-title">Tastenkürzel</div><div class="sp-row"><span class="dot ${sc.error ? 'error' : sc.keys ? 'ok' : 'off'}"></span><div class="grow"><b>${esc(keys)}</b>${text}</div></div>`;
+  return `<div class="sp-title">${t('status.shortcut')}</div><div class="sp-row"><span class="dot error"></span><div class="grow"><b>${esc(sc.keys)}</b><small class="msg error">${t('status.shortcut_na', { e: esc(sc.error) })}</small></div></div>`;
 }
 function toggleStatus(force) {
   const pop = $('#statusPop'), show = force ?? !pop.classList.contains('show');
@@ -436,10 +443,10 @@ function tickCodes() {
   S.codes = S.codes.filter(c => c.exp > Date.now());
   const box = $('#codes');
   if (!box) return;
-  box.innerHTML = S.codes.length ? `<div class="zone" style="margin-top:4px">${ic('key', 'sm')}Frische Codes</div><div class="codes">${S.codes.map((c, i) => `
-    <button class="otp" data-act="code" data-i="${i}" title="${c.kind === 'link' ? 'Link öffnen' : 'Klick kopiert den Code'}">
+  box.innerHTML = S.codes.length ? `<div class="zone" style="margin-top:4px">${ic('key', 'sm')}${t('codes.title')}</div><div class="codes">${S.codes.map((c, i) => `
+    <button class="otp" data-act="code" data-i="${i}" title="${c.kind === 'link' ? t('codes.open_link') : t('codes.copy_tip')}">
       <span class="ring" data-exp="${c.exp}"></span>
-      <span class="grow"><small>${esc(c.rule || '')} · ${esc(c.account || '')}</small>${c.kind === 'link' ? '<span class="link">Login-Link öffnen</span>' : `<span class="code">${esc(c.code)}</span>`}</span>
+      <span class="grow"><small>${esc(c.rule || '')} · ${esc(c.account || '')}</small>${c.kind === 'link' ? `<span class="link">${t('codes.login_link')}</span>` : `<span class="code">${esc(c.code)}</span>`}</span>
       <span class="faint">${ic('copy')}</span></button>`).join('')}</div>` : '';
 }
 setInterval(() => {
@@ -482,22 +489,22 @@ function renderReader() {
   r.classList.toggle('show', !!m);
   if (!m) return;
   const c = S.content;
-  r.innerHTML = `<div class="rd-top"><button class="ib" data-act="close" title="Zurück (Esc)">${ic('back')}</button>
+  r.innerHTML = `<div class="rd-top"><button class="ib" data-act="close" title="${t('app.back')}">${ic('back')}</button>
       <span class="muted" style="font-size:12.5px">${esc(m.account)}</span><span class="grow"></span></div>
     <div class="rd-scroll"><div class="rd-inner">
       <div class="rd-head">${avatar(m, 'lg')}<div class="grow"><b>${esc(sender(m))}</b><br><small>${esc(m.from_addr || '')}${m.date ? ' · ' + esc(when(m.date, true)) : ''}</small></div></div>
-      <h2 class="rd-subj">${esc(m.subject || '(kein Betreff)')}</h2>
+      <h2 class="rd-subj">${esc(m.subject || t('mail.no_subject'))}</h2>
       <div class="rd-actions">${m.task
-        ? `<button class="ab main" data-act="taskDone" data-id="${esc(m.id)}">${ic('check', 'sm')}Aufgabe erledigt</button>
-           <button class="ab" data-act="taskBack" data-id="${esc(m.id)}">${ic('inbox', 'sm')}Zurück in den Eingang</button>`
-        : `<button class="ab main" data-act="archive" data-id="${esc(m.id)}">${ic('check', 'sm')}Erledigt</button>
-           <button class="ab" data-act="task" data-id="${esc(m.id)}">${ic('task', 'sm')}Aufgabe</button>
-           <button class="ab ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}${isPinned(m.id) ? 'Gepinnt' : 'Anpinnen'}</button>
-           <button class="ab" data-act="unread" data-id="${esc(m.id)}">${ic('dot', 'sm')}Ungelesen</button>`}
+        ? `<button class="ab main" data-act="taskDone" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('tasks.task_done')}</button>
+           <button class="ab" data-act="taskBack" data-id="${esc(m.id)}">${ic('inbox', 'sm')}${t('tasks.back')}</button>`
+        : `<button class="ab main" data-act="archive" data-id="${esc(m.id)}">${ic('check', 'sm')}${t('reader.done')}</button>
+           <button class="ab" data-act="task" data-id="${esc(m.id)}">${ic('task', 'sm')}${t('reader.task')}</button>
+           <button class="ab ${isPinned(m.id) ? 'on' : ''}" data-act="pin" data-id="${esc(m.id)}">${ic('star', isPinned(m.id) ? 'sm filled' : 'sm')}${isPinned(m.id) ? t('reader.pinned') : t('reader.pin')}</button>
+           <button class="ab" data-act="unread" data-id="${esc(m.id)}">${ic('dot', 'sm')}${t('reader.unread')}</button>`}
       </div>
       ${!c ? `<div class="loading"><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`
-        : c.error ? `<div class="loading" style="color:var(--danger)">Mail konnte nicht geladen werden: ${esc(c.error)}</div>`
-        : `<div class="rd-body">${esc(c.text.trim() || '(kein Text)')}</div>
+        : c.error ? `<div class="loading" style="color:var(--danger)">${t('reader.load_error', { e: esc(c.error) })}</div>`
+        : `<div class="rd-body">${esc(c.text.trim() || t('mail.no_text'))}</div>
            ${c.attachments.length ? `<div class="att-row">${c.attachments.map(a => `<span class="att">${ic('file', 'sm')}${esc(a)}</span>`).join('')}</div>` : ''}`}
     </div></div>`;
   scheduleFit();
@@ -511,7 +518,7 @@ async function archive(id) {
   try {
     const folder = await invoke('archive_mail', { id });
     if (S.open && S.open.id === id) closeReader();
-    toast(`Erledigt – liegt in „${folder}“`);
+    toast(t('toast.archived', { f: folder }));
   } catch (e) {
     if (card) card.style.opacity = 1;
     toast(String(e), true);
@@ -520,7 +527,7 @@ async function archive(id) {
 async function setSeen(id, seen) {
   try {
     await invoke('set_seen', { id, seen });
-    if (!seen) { closeReader(); toast('Wieder ungelesen'); }
+    if (!seen) { closeReader(); toast(t('toast.unread')); }
   } catch (e) { toast(String(e), true); }
 }
 async function check() {
@@ -553,7 +560,7 @@ async function togglePin(id) {
   const pinned = isPinned(id);
   try {
     await invoke('set_pinned', { id, pinned: !pinned });
-    toast(pinned ? 'Gelöst' : 'Angepinnt – Stern auch auf dem Server');
+    toast(pinned ? t('toast.unpinned') : t('toast.pinned'));
     setTimeout(refresh, 600);
   } catch (e) { toast(String(e), true); }
 }
@@ -565,22 +572,22 @@ async function makeTask(id) {
   try {
     const ref = await invoke('make_task', { id });
     if (S.open && S.open.id === id) closeReader();
-    toast('Als Aufgabe abgelegt', false, ref.message_id ? {
-      label: 'Rückgängig', run: () => invoke('task_back', { accountId: ref.account_id, messageId: ref.message_id }).then(() => toast('Wieder im Eingang')).catch(e => toast(String(e), true)),
+    toast(t('toast.task'), false, ref.message_id ? {
+      label: t('toast.undo'), run: () => invoke('task_back', { accountId: ref.account_id, messageId: ref.message_id }).then(() => toast(t('toast.back_inbox'))).catch(e => toast(String(e), true)),
     } : undefined);
   } catch (e) { toast(String(e), true); }
 }
 async function taskAction(id, act) {
   const m = (S.tasks || []).find(x => x.id === id);
-  if (!m || !m.message_id) { toast('Diese Mail hat keine Message-ID und lässt sich nicht verschieben', true); return; }
+  if (!m || !m.message_id) { toast(t('toast.no_mid'), true); return; }
   const args = { accountId: m.account_id, messageId: m.message_id };
   try {
     if (act === 'done') {
       const folder = await invoke('task_done', args);
-      toast('Erledigt – liegt im Archiv', false, { label: 'Rückgängig', run: () => invoke('task_reopen', { ...args, folder }).catch(e => toast(String(e), true)) });
+      toast(t('toast.task_done'), false, { label: t('toast.undo'), run: () => invoke('task_reopen', { ...args, folder }).catch(e => toast(String(e), true)) });
     } else {
       await invoke('task_back', args);
-      toast('Zurück im Eingang');
+      toast(t('toast.back_inbox'));
     }
     if (S.open && S.open.id === id) closeReader();
   } catch (e) { toast(String(e), true); }
@@ -588,20 +595,20 @@ async function taskAction(id, act) {
 async function archiveNoise() {
   const ids = S.data.mails.filter(m => m.bulk && (S.filter === 'all' || m.account_id === S.filter)).map(m => m.id);
   if (!ids.length) return;
-  toast(`${ids.length} Mails werden archiviert …`);
+  toast(t('toast.archiving', { n: ids.length }));
   try {
     const done = await invoke('archive_mails', { ids });
-    toast(`${done.length} Mails aus dem Rauschen erledigt`, false, {
-      label: 'Rückgängig',
-      run: () => invoke('unarchive_mails', { items: done }).then(n => toast(`${n} Mails zurückgeholt`)).catch(e => toast(String(e), true)),
+    toast(t('toast.noise_done', { n: done.length }), false, {
+      label: t('toast.undo'),
+      run: () => invoke('unarchive_mails', { items: done }).then(n => toast(t('toast.restored', { n }))).catch(e => toast(String(e), true)),
     });
   } catch (e) { toast(String(e), true); }
 }
 async function setKind(addr, bulk) {
   try {
     await invoke('set_sender_kind', { addr, bulk });
-    toast(bulk ? `${addr} gilt jetzt als Rauschen` : `${addr} gilt jetzt als Mensch`, false, {
-      label: 'Rückgängig', run: () => invoke('set_sender_kind', { addr, bulk: null }).then(() => toast('Wieder automatisch erkannt')),
+    toast(t(bulk ? 'toast.is_noise' : 'toast.is_person', { a: addr }), false, {
+      label: t('toast.undo'), run: () => invoke('set_sender_kind', { addr, bulk: null }).then(() => toast(t('toast.auto'))),
     });
   } catch (e) { toast(String(e), true); }
 }
@@ -638,7 +645,7 @@ document.addEventListener('click', e => {
       const c = S.codes[+el.dataset.i];
       if (!c) break;
       if (c.kind === 'link') invoke('open_link', { url: c.code }).catch(err => toast(String(err), true));
-      else invoke('copy_code', { code: c.code }).then(() => toast('Code kopiert')).catch(err => toast(String(err), true));
+      else invoke('copy_code', { code: c.code }).then(() => toast(t('codes.copied'))).catch(err => toast(String(err), true));
       break;
     }
   }
@@ -660,10 +667,8 @@ setInterval(refreshTasks, 120000);
 listen('open-mail', async ev => { await refresh(); toggleStatus(false); openMail(ev.payload); });
 listen('auth-code', ev => addCode(ev.payload));
 invoke('get_last_code').then(p => { if (p) { const c = JSON.parse(p); if (Date.now() / 1000 - c.timestamp < CODE_TTL / 1000) addCode(c); } }).catch(() => {});
-render();
-refresh();
-refreshStatus();
-refreshTasks();
+listen('settings-changed', async () => { await loadI18n(); render(); renderReader(); refreshStatus(); });
+loadI18n().then(() => { render(); refresh(); refreshStatus(); refreshTasks(); });
 </script>
 </body>
 </html>

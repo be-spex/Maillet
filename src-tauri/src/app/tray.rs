@@ -7,6 +7,7 @@ use ksni::{Icon, MenuItem, ToolTip, Tray, TrayMethods};
 use tauri::{AppHandle, Manager};
 
 use super::windows;
+use crate::base::i18n::t;
 
 pub struct MailletTray {
     app: AppHandle,
@@ -78,7 +79,7 @@ impl Tray for MailletTray {
     }
 
     fn tool_tip(&self) -> ToolTip {
-        ToolTip { title: self.tooltip.clone(), description: "Klick öffnet Maillet".into(), ..Default::default() }
+        ToolTip { title: self.tooltip.clone(), description: t("tray.click", &[]), ..Default::default() }
     }
 
     fn watcher_online(&self) {
@@ -95,15 +96,15 @@ impl Tray for MailletTray {
     }
 
     fn menu(&self) -> Vec<MenuItem<Self>> {
-        let open = if self.count > 0 { format!("Maillet öffnen ({} neu)", self.count) } else { "Maillet öffnen".into() };
+        let open = if self.count > 0 { t("tray.open_n", &[("n", &self.count.to_string())]) } else { t("tray.open", &[]) };
         vec![
             StandardItem { label: open, activate: Box::new(|t: &mut Self| windows::show_main(&t.app, None)), ..Default::default() }.into(),
-            StandardItem { label: "Jetzt prüfen".into(), activate: Box::new(|t: &mut Self| super::check_now_sync(&t.app)), ..Default::default() }.into(),
+            StandardItem { label: t("tray.check", &[]), activate: Box::new(|t: &mut Self| super::check_now_sync(&t.app)), ..Default::default() }.into(),
             MenuItem::Separator,
-            StandardItem { label: "Einstellungen".into(), activate: Box::new(|t: &mut Self| windows::show(&t.app, "settings")), ..Default::default() }.into(),
-            StandardItem { label: "Über Maillet".into(), activate: Box::new(|t: &mut Self| windows::show(&t.app, "about")), ..Default::default() }.into(),
+            StandardItem { label: t("tray.settings", &[]), activate: Box::new(|t: &mut Self| windows::show(&t.app, "settings")), ..Default::default() }.into(),
+            StandardItem { label: t("tray.about", &[]), activate: Box::new(|t: &mut Self| windows::show(&t.app, "about")), ..Default::default() }.into(),
             MenuItem::Separator,
-            StandardItem { label: "Beenden".into(), activate: Box::new(|t: &mut Self| t.app.exit(0)), ..Default::default() }.into(),
+            StandardItem { label: t("tray.quit", &[]), activate: Box::new(|t: &mut Self| t.app.exit(0)), ..Default::default() }.into(),
         ]
     }
 }

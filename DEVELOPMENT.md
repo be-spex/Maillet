@@ -19,6 +19,12 @@ Maillet is built in layers; dependencies only point downwards:
 - **Tray:** the number of unread mails is drawn into the icon; a left click opens the window at the icon. Built on StatusNotifierItem directly, because libappindicator does not report left clicks. On X11 the window activates itself like a pager would (`_NET_ACTIVE_WINDOW`), otherwise focus-stealing prevention keeps it unfocused.
 - Bodies are decoded with `mail-parser` (multipart, quoted-printable, base64, charsets); cut-off MIME parts of the preview are closed before parsing.
 
+## Translations
+
+User-facing texts of the Maillet window, the tray menu, notifications and window titles live in `dist/i18n/<code>.json` (flat `key → text`, `{name}` placeholders). English (`en.json`) is the default and the fallback for missing keys; German (`de.json`) is available. The language is chosen under *Settings → General* and stored as `language` in `config.json`.
+
+To add a language: copy `en.json` to `<code>.json`, translate the values, and add the file to `TABLES` in `src-tauri/src/base/i18n.rs`. A unit test checks that every table has the same keys. The settings window is still English-only.
+
 ## Building from Source
 
 Requirements: Linux with GTK 3 and WebKit2GTK 4.1, a StatusNotifierItem tray (Cinnamon, KDE, XFCE; GNOME with the AppIndicator extension); Rust 1.90+.
