@@ -14,7 +14,8 @@
   "bundle": {
     "active": true,
     "targets": [
-      "deb"
+      "deb",
+      "appimage"
     ],
     "publisher": "Bert Speckels <skrrytch@speckels.net>",
     "copyright": "© 2026 Bert Speckels",
@@ -39,6 +40,15 @@
           "gnome-keyring"
         ]
       }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI5N0MxRTlFMjlGN0FCNkQKUldSdHEvY3BuaDU4dVJ4WVlqTll2b25sMmdhUlVjNXJhZDFZMEZNU3RxeVlqdXRZWlJyeGdsbUoK",
+      "endpoints": [
+        "https://github.com/be-spex/Maillet/releases/latest/download/latest.json"
+      ]
     }
   }
 }

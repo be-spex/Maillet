@@ -3,6 +3,7 @@
 mod attachments;
 mod shortcut;
 mod tray;
+mod updates;
 pub mod windows;
 
 use std::sync::{Arc, OnceLock};
@@ -1050,6 +1051,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(shortcut::plugin())
         .manage(state)
         .manage(shortcut::ShortcutStatus::default())
@@ -1075,6 +1077,7 @@ pub fn run() {
             let handle = app.handle().clone();
             let keys = handle.state::<AppState>().config.blocking_lock().shortcut.clone();
             shortcut::register(&handle, keys);
+            updates::check_in_background(&handle);
 
             // Features: OTP is one of them.
             let state = handle.state::<AppState>();

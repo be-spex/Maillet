@@ -64,16 +64,16 @@ To try the whole app against it, add an account *127.0.0.1:31993, SSL, accept se
 
 ```bash
 cargo install tauri-cli --version "^2" --locked
-cargo tauri build --bundles deb      # → target/release/bundle/deb/
+cargo tauri build --bundles deb      # → target/release/bundle/deb/ (add appimage for the AppImage)
 ```
 
-The menu entry in the package comes from `src-tauri/maillet.desktop` (a Tauri template, `Categories=Network;Email;`). It is wired up for deb via `bundle.linux.deb.desktopTemplate`; add the same setting for rpm when that target is added. For a local run, copy the file to `~/.local/share/applications/` and fill in `Exec` and `Icon`.
+The menu entry in the package comes from `src-tauri/maillet.desktop` (a Tauri template, `Categories=Network;Email;`). It is wired up for deb via `bundle.linux.deb.desktopTemplate`. For a local run, copy the file to `~/.local/share/applications/` and fill in `Exec` and `Icon`.
 
-A package built locally only runs on systems with the same or a newer glibc. Official releases are therefore built by GitHub Actions on Ubuntu 22.04 ([`.github/workflows/release.yml`](.github/workflows/release.yml)):
+A package built locally only runs on systems with the same or a newer glibc. Official releases are therefore built by GitHub Actions on Ubuntu 24.04 ([`.github/workflows/release.yml`](.github/workflows/release.yml)):
 
 1. Bump `version` in `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
 2. Commit, then tag and push: `git tag v0.4.0 && git push origin v0.4.0`
-3. The workflow tests, builds the `.deb`, and publishes a GitHub release with the package and `SHA256SUMS`.
+3. The workflow tests, builds the `.deb` and the signed AppImage, and publishes a GitHub release with both, `latest.json` (read by the AppImage's updater) and `SHA256SUMS`. It needs the repository secret `TAURI_SIGNING_PRIVATE_KEY` (the updater key, see `plugins.updater.pubkey`).
 4. Add the release notes: the workflow only writes the install section, since there are no pull requests to generate notes from. Put a *What's new* section on top, grouped by feature area as in earlier releases, and apply it with `gh release edit v0.4.0 --notes-file notes.md`.
 
 ## Screenshots

@@ -47,9 +47,10 @@ You log in somewhere and the site sends you a code by email. Instead of switchin
 
 ## Install
 
-For Ubuntu 22.04+, Linux Mint 21+ and Debian 12+:
+For Ubuntu 24.04+, Linux Mint 22+ and Debian 13+:
 
 1. Download the `.deb` file from the [latest release](https://github.com/be-spex/Maillet/releases/latest).
+   (Or take the AppImage from the same release: it runs on its own and offers updates itself.)
 2. Install it by double-clicking it, or in a terminal:
    ```bash
    sudo apt install ./maillet_*_amd64.deb
