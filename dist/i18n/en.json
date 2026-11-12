@@ -122,6 +122,8 @@
  "tip.none": "Maillet – no new mails",
  "tip.one": "Maillet – 1 new mail",
  "tip.people": "Maillet – {p} from people, {n} in total",
+ "tip.tasks_open": " · open tasks",
+ "tip.tasks_progress": " · tasks in progress",
  "tip.problems": " · {n} account(s) with connection problems",
  "toast.archived": "Done – moved to “{f}”",
  "toast.archiving": "Archiving {n} mails …",

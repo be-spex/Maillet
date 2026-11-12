@@ -37,6 +37,8 @@ pub struct AppState {
     notifications: Arc<std::sync::atomic::AtomicBool>,
     /// Tray counts only mails from people.
     tray_people_only: Arc<std::sync::atomic::AtomicBool>,
+    /// Open tasks for the tray dot: 0 none, 1 open, 2 at least one in progress.
+    task_level: Arc<std::sync::atomic::AtomicU8>,
     /// The user's person/bulk corrections per sender.
     kinds: Arc<crate::mail::classify::SenderKinds>,
 }
@@ -938,10 +940,58 @@ fn tray_tooltip(app: &AppHandle) -> String {
         let parts: Vec<String> = snap.accounts.iter().filter(|a| a.unread_total > 0).map(|a| format!("{} {}", a.account, a.unread_total)).collect();
         text += &format!(" ({})", parts.join(", "));
     }
+    match state.task_level.load(std::sync::atomic::Ordering::Relaxed) {
+        1 => text += &t("tip.tasks_open", &[]),
+        2 => text += &t("tip.tasks_progress", &[]),
+        _ => {}
+    }
     if errors > 0 {
         text += &t("tip.problems", &[("n", &errors.to_string())]);
     }
     text
+}
+
+/// 0 = no open tasks, 1 = open tasks, 2 = at least one in progress. Only asks
+/// the servers whether a task folder holds any mail, not how many.
+async fn task_level(app: &AppHandle) -> u8 {
+    let state = app.state::<AppState>();
+    let Ok(accounts) = config::load_accounts_with_passwords() else { return 0 };
+    let mut level = 0;
+    for account in accounts.into_iter().filter(|a| !a.server.is_empty() && !a.pass.is_empty()) {
+        for (status, rank) in [("progress", 2u8), ("open", 1)] {
+            if rank <= level {
+                continue;
+            }
+            let Ok(Some(folder)) = state_folder(&state, &account, status, false).await else { continue };
+            if state.commands.folder_mails(&account, &folder, 1).await.is_ok_and(|m| !m.is_empty()) {
+                level = rank;
+            }
+        }
+    }
+    level
+}
+
+/// Keeps the tray dot for open tasks up to date: after a short start delay, when
+/// the window moves or creates a task, and every few minutes for changes made
+/// in another mail client.
+fn spawn_task_listener(app: AppHandle, tray: Option<tray::TrayHandle>) {
+    use tauri::Listener;
+    let Some(tray) = tray else { return };
+    let changed = Arc::new(Notify::new());
+    let n = changed.clone();
+    app.listen("tasks-changed", move |_| n.notify_one());
+    async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(15)).await;
+        loop {
+            let level = task_level(&app).await;
+            app.state::<AppState>().task_level.store(level, std::sync::atomic::Ordering::Relaxed);
+            tray::update_tasks(&tray, level, tray_tooltip(&app)).await;
+            tokio::select! {
+                _ = changed.notified() => {}
+                _ = tokio::time::sleep(Duration::from_secs(300)) => {}
+            }
+        }
+    });
 }
 
 /// Keeps tray and window in step with the mail store.
@@ -976,6 +1026,7 @@ pub fn run() {
     let (rules, _) = watch::channel(config.rules.clone());
     let notifications = Arc::new(std::sync::atomic::AtomicBool::new(config.notifications.unwrap_or(true)));
     let tray_people_only = Arc::new(std::sync::atomic::AtomicBool::new(config.tray_people_only.unwrap_or(false)));
+    let task_level = Arc::new(std::sync::atomic::AtomicU8::new(0));
     let kinds = Arc::new(crate::mail::classify::SenderKinds::new(config::sender_kinds(&config)));
     let state = AppState {
         config: Arc::new(Mutex::new(config)),
@@ -987,6 +1038,7 @@ pub fn run() {
         pipeline: OnceLock::new(),
         notifications,
         tray_people_only,
+        task_level,
         kinds,
     };
 
@@ -1030,6 +1082,7 @@ pub fn run() {
                 if tray.is_none() {
                     tray::no_tray_fallback(&handle);
                 }
+                spawn_task_listener(handle.clone(), tray.clone());
                 spawn_store_listener(handle.clone(), tray);
                 spawn_watchers(&handle, accounts).await;
             });

@@ -1,6 +1,7 @@
 //! Tray icon via StatusNotifierItem (ksni). Unlike libappindicator, this
 //! reports left clicks, so a click can open the window. The number of unread
-//! mails is drawn into the icon, which works on every desktop.
+//! mails is drawn into the icon, which works on every desktop. A dot in the
+//! bottom right corner marks open tasks, independent of the count.
 
 use ksni::menu::StandardItem;
 use ksni::{Icon, MenuItem, ToolTip, Tray, TrayMethods};
@@ -12,6 +13,8 @@ use crate::base::i18n::t;
 pub struct MailletTray {
     app: AppHandle,
     count: usize,
+    /// Open tasks: 0 none, 1 open, 2 at least one in progress.
+    tasks: u8,
     tooltip: String,
     icons: Vec<(i32, Vec<u8>)>,
 }
@@ -28,7 +31,7 @@ impl MailletTray {
                 if img.width() == 128 { (64, downscale_half(&argb, 128)) } else { (img.width() as i32, argb) }
             })
             .collect();
-        Self { app, count: 0, tooltip: "Maillet".into(), icons }
+        Self { app, count: 0, tasks: 0, tooltip: "Maillet".into(), icons }
     }
 }
 
@@ -56,6 +59,16 @@ pub async fn update(handle: &TrayHandle, count: usize, tooltip: String) {
         .await;
 }
 
+/// Open tasks changed (`level` as in `MailletTray::tasks`); the tooltip is refreshed along.
+pub async fn update_tasks(handle: &TrayHandle, level: u8, tooltip: String) {
+    handle
+        .update(move |t: &mut MailletTray| {
+            t.tasks = level;
+            t.tooltip = tooltip;
+        })
+        .await;
+}
+
 impl Tray for MailletTray {
     fn id(&self) -> String {
         "maillet".into()
@@ -73,6 +86,7 @@ impl Tray for MailletTray {
                 if self.count > 0 {
                     draw_badge(&mut data, *size, self.count);
                 }
+                draw_task_dot(&mut data, *size, self.tasks);
                 Icon { width: *size, height: *size, data }
             })
             .collect()
@@ -179,6 +193,29 @@ fn draw_badge(data: &mut [u8], size: i32, count: usize) {
     }
 }
 
+/// Dot in the bottom right corner for open tasks: violet = open, orange = at
+/// least one in progress (the colours of the task board). White ring, so it
+/// reads on light and dark panels. Nothing for `level` 0.
+fn draw_task_dot(data: &mut [u8], size: i32, level: u8) {
+    let color = match level {
+        1 => [255, 109, 93, 252],
+        2 => [255, 242, 162, 12],
+        _ => return,
+    };
+    let s = (size / 32).max(1);
+    let (outer, inner) = (6 * s, 4 * s + s / 2);
+    let (cx, cy) = (size - outer, size - outer);
+    for y in cy - outer..=cy + outer {
+        for x in cx - outer..=cx + outer {
+            let d = (x - cx).pow(2) + (y - cy).pow(2);
+            if (0..size).contains(&x) && (0..size).contains(&y) && d <= outer * outer {
+                let i = ((y * size + x) * 4) as usize;
+                data[i..i + 4].copy_from_slice(if d <= inner * inner { &color } else { &[255, 255, 255, 255] });
+            }
+        }
+    }
+}
+
 /// Fallback when there is no tray: show the window on start.
 pub fn no_tray_fallback(app: &AppHandle) {
     if let Some(w) = app.get_webview_window(windows::MAIN) {
@@ -202,6 +239,25 @@ mod tests {
             // Bottom-left corner untouched.
             let i = (((size - 1) * size) * 4) as usize;
             assert_eq!(&data[i..i + 4], &[0, 0, 0, 0]);
+        }
+    }
+
+    #[test]
+    fn test_task_dot_colours_and_bounds() {
+        for size in [32, 64] {
+            let mut none = vec![0u8; (size * size * 4) as usize];
+            draw_task_dot(&mut none, size, 0);
+            assert!(none.iter().all(|b| *b == 0), "no tasks, no dot");
+            for (level, color) in [(1u8, [255, 109, 93, 252]), (2, [255, 242, 162, 12])] {
+                let mut data = vec![0u8; (size * size * 4) as usize];
+                draw_task_dot(&mut data, size, level);
+                let px = data.as_chunks::<4>().0;
+                assert!(px.iter().filter(|p| **p == color).count() > 10, "size {size} level {level}");
+                // Top-left corner untouched; the dot touches the bottom right corner area.
+                assert_eq!(&data[0..4], &[0, 0, 0, 0]);
+                let last = ((size * size - 1) * 4) as usize;
+                assert_eq!(&data[last..last + 4], &[0, 0, 0, 0], "corner pixel stays free");
+            }
         }
     }
 
