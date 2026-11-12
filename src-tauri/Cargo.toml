@@ -1,6 +1,6 @@
 [package]
 name = "maillet"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
 rust-version = "1.90"
 description = "Lightweight tray mail client: watches IMAP mailboxes, shows new mails in the tray and in a compact window"
