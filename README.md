@@ -49,7 +49,7 @@ You log in somewhere and the site sends you a code by email. Instead of switchin
 
 For Ubuntu 22.04+, Linux Mint 21+ and Debian 12+:
 
-1. Download the `.deb` file from the [latest release](https://github.com/Skrrytch/Maillet/releases/latest).
+1. Download the `.deb` file from the [latest release](https://github.com/be-spex/Maillet/releases/latest).
 2. Install it by double-clicking it, or in a terminal:
    ```bash
    sudo apt install ./maillet_*_amd64.deb

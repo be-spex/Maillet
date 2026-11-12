@@ -3,7 +3,7 @@
   "productName": "Maillet",
   "mainBinaryName": "maillet",
   "version": "0.6.0",
-  "identifier": "net.speckels.maillet",
+  "identifier": "net.spex.maillet",
   "build": {
     "frontendDist": "../dist"
   },
@@ -19,7 +19,7 @@
     "publisher": "Bert Speckels <skrrytch@speckels.net>",
     "copyright": "© 2026 Bert Speckels",
     "license": "MIT",
-    "homepage": "https://github.com/Skrrytch/Maillet",
+    "homepage": "https://github.com/be-spex/Maillet",
     "category": "Utility",
     "shortDescription": "Pops up one-time passwords and magic login links from your mailboxes",
     "longDescription": "Maillet watches your IMAP mailboxes and pops up one-time passwords and magic login links the moment they arrive - copy the code or open the link with one click, without opening your mail client.",

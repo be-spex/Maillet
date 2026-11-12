@@ -7,7 +7,7 @@ use crate::base::config;
 use crate::features::otp::rules::DetectionRule;
 
 /// The catalog is maintained on GitHub, independent of releases.
-const CATALOG_URL: &str = "https://raw.githubusercontent.com/Skrrytch/OTP-Scout/main/catalog/catalog.json";
+const CATALOG_URL: &str = "https://raw.githubusercontent.com/be-spex/Maillet/main/catalog/catalog.json";
 /// Last successfully downloaded catalog, used when GitHub is unreachable.
 const CACHE_FILE: &str = "catalog-cache.json";
 /// Highest catalog format version this build understands.

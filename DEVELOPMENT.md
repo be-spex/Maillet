@@ -35,7 +35,7 @@ sudo apt install build-essential pkg-config \
   libwebkit2gtk-4.1-dev libgtk-3-dev \
   librsvg2-dev libssl-dev libdbus-1-dev
 
-git clone https://github.com/Skrrytch/Maillet.git
+git clone https://github.com/be-spex/Maillet.git
 cd maillet/src-tauri
 cargo build --release
 ./target/release/maillet

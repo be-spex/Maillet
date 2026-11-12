@@ -6,7 +6,7 @@ rust-version = "1.90"
 description = "Lightweight tray mail client: watches IMAP mailboxes, shows new mails in the tray and in a compact window"
 authors = ["Bert Speckels <skrrytch@speckels.net>"]
 license = "MIT"
-repository = "https://github.com/Skrrytch/Maillet"
+repository = "https://github.com/be-spex/Maillet"
 keywords = ["mail", "imap", "tray", "tauri", "otp"]
 categories = ["email", "authentication", "gui"]
 

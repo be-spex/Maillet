@@ -3,5 +3,7 @@ pub mod config;
 pub mod html;
 pub mod i18n;
 pub mod log;
+#[cfg(target_os = "linux")]
+pub mod migrate;
 pub mod notify;
 pub mod status;

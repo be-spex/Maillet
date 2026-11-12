@@ -1016,6 +1016,9 @@ fn spawn_store_listener(app: AppHandle, tray: Option<tray::TrayHandle>) {
 // ---------------------------------------------------------------- Start
 
 pub fn run() {
+    // Identifier until 0.6 was net.speckels.maillet (only the webview's data depends on it).
+    #[cfg(target_os = "linux")]
+    crate::base::migrate::from_old_identifiers("net.spex.maillet", &["net.speckels.maillet"]);
     // `RUST_LOG=maillet=debug` shows IDLE wake-ups.
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")))

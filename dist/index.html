@@ -312,7 +312,7 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
             </select>
           </div>
         </div>
-        <div class="hint" style="margin:-6px 0 12px">Maillet reads mail through Microsoft Graph with your own app registration – see <button class="link" onclick="invoke('open_link', { url: 'https://github.com/Skrrytch/Maillet/blob/main/docs/outlook.md' })">docs/outlook.md</button>. Whether you may allow it yourself is decided by your organisation: if Microsoft asks for <i>admin approval</i>, it is not allowed without your IT.</div>
+        <div class="hint" style="margin:-6px 0 12px">Maillet reads mail through Microsoft Graph with your own app registration – see <button class="link" onclick="invoke('open_link', { url: 'https://github.com/be-spex/Maillet/blob/main/docs/outlook.md' })">docs/outlook.md</button>. Whether you may allow it yourself is decided by your organisation: if Microsoft asks for <i>admin approval</i>, it is not allowed without your IT.</div>
         <div class="graph-signin">
           <div id="g-signed" class="hint"></div>
           <button class="btn-primary" id="g-start" onclick="graphSignIn()">Sign in with Microsoft</button>
@@ -1167,7 +1167,7 @@ async function deleteRule() {
 // ================= Sharing =================
 let shownRules = [], suggest = null
 let importItems = [], importError = '', importTags = [ALL], importSeq = 0
-const CATALOG_ISSUE = 'https://github.com/Skrrytch/OTP-Scout/issues/new'
+const CATALOG_ISSUE = 'https://github.com/be-spex/Maillet/issues/new'
 const IMPORT_STATUS = { new:'New', update:'Update', unchanged:'Unchanged' }
 const FIELD_LABEL = { kind:'type', sender:'sender', subject:'subject', body:'body', code_pattern:'code format', link_prefix:'link' }
 const slug = s => s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
@@ -1346,7 +1346,7 @@ async function applyImport() {
 
 // ================= Catalog =================
 let catalog = null, catalogPick = null
-const CATALOG_PAGE = 'https://github.com/Skrrytch/OTP-Scout/tree/main/catalog'
+const CATALOG_PAGE = 'https://github.com/be-spex/Maillet/tree/main/catalog'
 const KIND_LABEL = { code:'🔢 Code', link:'🔗 Link' }
 const sameRule = (a, b) => a.kind === b.kind && a.sender === b.sender && a.subject === b.subject && a.link_prefix === b.link_prefix
 
