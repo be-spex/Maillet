@@ -233,7 +233,9 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 .img-note{font-size:12px;color:var(--muted);line-height:1.6}
 .img-note svg{vertical-align:-3px;margin-right:4px}
 .img-note .link{font-size:12px}
-.html-wrap{border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#fff}
+.html-wrap{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#fff}
+.link-layer{position:absolute;inset:0;pointer-events:none}
+.link-layer span{position:absolute;cursor:pointer;pointer-events:auto}
 #mailframe{display:block;width:100%;height:160px;border:0;background:#fff}
 .rd-body{white-space:pre-wrap;font-size:14.5px;line-height:1.65;overflow-wrap:anywhere}
 .att-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
@@ -729,37 +731,69 @@ function renderReader() {
            ${c.html && S.htmlMode ? '<div class="html-wrap"><iframe id="mailframe" sandbox="allow-same-origin" referrerpolicy="no-referrer" title="Mail"></iframe></div>' : `<div class="rd-body">${esc(c.text.trim() || t('mail.no_text'))}</div>`}
            ${c.attachments.length ? `<div class="att-row">${c.attachments.map(a => `<span class="att">${ic('file', 'sm')}${esc(a)}</span>`).join('')}</div>` : ''}`}
     </div></div>`;
-  if (oldWrap) r.querySelector('.html-wrap').replaceWith(oldWrap);
+  if (oldWrap) { r.querySelector('.html-wrap').replaceWith(oldWrap); watchFrame(oldWrap.querySelector('#mailframe')); }
   else if (c && c.html && S.htmlMode) showHtml(c.html);
 }
 /* ---- HTML-Mail: bereinigt (Backend) und zusätzlich in einem Rahmen ohne
    Skripte, mit strenger Content-Security-Policy. Bilder aus dem Netz nur auf Wunsch. ---- */
 function mailDoc(html, images) {
   const csp = `default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data:${images ? ' https: http:' : ''}`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}">
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><base target="_blank">
 <style>html,body{margin:0;background:#fff;color:#1a1a1a;font:14px/1.55 "Inter","Cantarell","Noto Sans",system-ui,sans-serif;overflow-wrap:anywhere}
 body{padding:14px}img{max-width:100%;height:auto}table{max-width:100%!important}a{color:#2563eb}pre{white-space:pre-wrap}</style></head><body>${html}</body></html>`;
+}
+/* Der Rahmen lädt sein Dokument neu, wenn er im DOM verschoben wird (Lesebereich neu aufgebaut).
+   Die Verdrahtung hängt daher am jeweiligen Dokument und wird für jedes genau einmal angelegt –
+   ob über das load-Ereignis oder über die Nachprüfung.
+   Klicks auf Links lassen sich nicht im Rahmen abfangen: WebKit führt in einem Rahmen ohne
+   allow-scripts auch Handler der Hauptseite nicht aus. Deshalb liegen unsichtbare Klickflächen
+   in der Hauptseite über den Links der Mail (placeLinks); die Abschottung bleibt vollständig. */
+function placeLinks(frame, doc) {
+  const wrap = frame.parentElement;
+  let layer = wrap.querySelector('.link-layer');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.className = 'link-layer';
+    wrap.appendChild(layer);
+    layer.addEventListener('click', e => {
+      const l = e.target.closest('[data-url]');
+      if (l) invoke('open_link', { url: l.dataset.url }).catch(err => toast(String(err), true));
+    });
+  }
+  layer.textContent = '';
+  doc.querySelectorAll('a[href]').forEach(a => {
+    const url = a.getAttribute('href');
+    if (!/^(https?:|mailto:)/i.test(url)) return;
+    for (const r of a.getClientRects()) {
+      if (r.width < 1 || r.height < 1) continue;
+      const hit = document.createElement('span');
+      hit.dataset.url = url;
+      hit.title = url;
+      hit.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px`;
+      layer.appendChild(hit);
+    }
+  });
+}
+function wireFrame(frame) {
+  const doc = frame.contentDocument;
+  if (!doc || !doc.body || doc.__wired || doc.location.href !== 'about:srcdoc') return;
+  doc.__wired = true;
+  if (S.loadImages) doc.querySelectorAll('img[data-remote-src]').forEach(img => { img.src = img.dataset.remoteSrc; });
+  const fit = () => { frame.style.height = Math.max(120, doc.documentElement.scrollHeight) + 'px'; placeLinks(frame, doc); };
+  fit();
+  doc.querySelectorAll('img').forEach(img => img.addEventListener('load', fit));
+  new ResizeObserver(fit).observe(doc.body);
+  window.addEventListener('resize', fit);
+}
+function watchFrame(frame) {
+  if (!frame.__watched) { frame.__watched = true; frame.addEventListener('load', () => wireFrame(frame)); }
+  // Nachprüfung, falls ein load-Ereignis ausbleibt (etwa beim Wiedereinsetzen des Rahmens).
+  [0, 100, 400, 1000, 2500].forEach(ms => setTimeout(() => wireFrame(frame), ms));
 }
 function showHtml(html) {
   const frame = document.getElementById('mailframe');
   if (!frame) return;
-  frame.addEventListener('load', () => {
-    const doc = frame.contentDocument;
-    if (!doc) return;
-    if (S.loadImages) doc.querySelectorAll('img[data-remote-src]').forEach(img => { img.src = img.dataset.remoteSrc; });
-    // Links nie im Rahmen öffnen, sondern im Browser.
-    doc.addEventListener('click', e => {
-      const a = e.target.closest && e.target.closest('a[href]');
-      if (!a) return;
-      e.preventDefault();
-      const url = a.getAttribute('href');
-      if (/^(https?:|mailto:)/i.test(url)) invoke('open_link', { url }).catch(err => toast(String(err), true));
-    });
-    const fit = () => { frame.style.height = Math.max(120, doc.documentElement.scrollHeight) + 'px'; };
-    fit();
-    doc.querySelectorAll('img').forEach(img => img.addEventListener('load', fit));
-    new ResizeObserver(fit).observe(doc.body);
-  }, { once: true });
+  watchFrame(frame);
   frame.srcdoc = mailDoc(html, S.loadImages);
 }
 function closeReader() { S.open = null; S.content = null; $('#reader').dataset.frameKey = ''; renderReader(); }
