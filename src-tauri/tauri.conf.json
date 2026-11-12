@@ -31,6 +31,7 @@
     ],
     "linux": {
       "deb": {
+        "desktopTemplate": "maillet.desktop",
         "depends": [
           "xdg-utils"
         ],

@@ -67,6 +67,8 @@ cargo install tauri-cli --version "^2" --locked
 cargo tauri build --bundles deb      # → target/release/bundle/deb/
 ```
 
+The menu entry in the package comes from `src-tauri/maillet.desktop` (a Tauri template, `Categories=Network;Email;`). It is wired up for deb via `bundle.linux.deb.desktopTemplate`; add the same setting for rpm when that target is added. For a local run, copy the file to `~/.local/share/applications/` and fill in `Exec` and `Icon`.
+
 A package built locally only runs on systems with the same or a newer glibc. Official releases are therefore built by GitHub Actions on Ubuntu 22.04 ([`.github/workflows/release.yml`](.github/workflows/release.yml)):
 
 1. Bump `version` in `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
