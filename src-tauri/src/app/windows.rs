@@ -162,6 +162,9 @@ fn show_form(app: &AppHandle, form: Form, at: Option<(i32, i32)>) {
     layout(app, &w);
     let _ = w.show();
     layout(app, &w);
+    // Both forms must stay visible above other always-on-top windows (a drop-down
+    // terminal such as Guake) when summoned.
+    let _ = w.set_always_on_top(true);
     let _ = w.set_focus();
     activate_x11(&w);
 }
