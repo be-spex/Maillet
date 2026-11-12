@@ -239,7 +239,11 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
 #mailframe{display:block;width:100%;height:160px;border:0;background:#fff}
 .rd-body{white-space:pre-wrap;font-size:14.5px;line-height:1.65;overflow-wrap:anywhere}
 .att-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
-.att{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:10px;border:1px solid var(--line);font-size:12.5px;font-weight:600}
+.att{display:inline-flex;align-items:center;gap:2px;padding:3px 4px;border-radius:10px;border:1px solid var(--line);font-size:12.5px;font-weight:600;max-width:100%}
+.att .att-name{display:inline-flex;align-items:center;gap:8px;min-width:0;padding:4px 7px;border-radius:7px;font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.att .att-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att .att-name small{color:var(--muted);font-weight:500}
+.att .att-name:hover{background:var(--hover)}
 .loading{color:var(--muted);padding:20px 0}
 .skel{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--hover),var(--panel2),var(--hover));background-size:200% 100%;animation:shimmer 1.2s infinite;margin:10px 0}
 
@@ -322,6 +326,7 @@ h1{font-size:20px;margin:0;letter-spacing:-.02em}
     <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h4"/></symbol>
     <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6z"/><path d="M14 2v5h5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></symbol>
     <symbol id="i-clip" viewBox="0 0 24 24"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 7"/></symbol>
   </defs>
 </svg>
@@ -704,6 +709,16 @@ function readerActs(m) {
   }
   return out.join('');
 }
+function fileSize(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+}
+/* Anhang: Name bzw. Auge = ansehen (temporäre Kopie, registriertes Programm), Pfeil = speichern.
+   Zu große Anhänge (viewable = false) lassen sich nur speichern: Die Kopie zum Ansehen läge im RAM. */
+const attChip = a => `<span class="att"><button class="att-name" data-act="${a.viewable ? 'attView' : 'attSave'}" data-i="${a.index}" title="${a.viewable ? t('att.view_tip') : t('att.too_big_tip', { size: fileSize(a.size) })}">${ic('file', 'sm')}<span>${esc(a.name)}</span><small>${fileSize(a.size)}</small></button>
+  ${a.viewable ? `<button class="ib sm" data-act="attView" data-i="${a.index}" title="${t('att.view')} – ${t('att.view_tip')}">${ic('eye', 'sm')}</button>` : ''}
+  <button class="ib sm" data-act="attSave" data-i="${a.index}" title="${t('att.save')} – ${t('att.save_tip')}">${ic('download', 'sm')}</button></span>`;
 function renderReader() {
   const r = $('#reader'), m = S.open;
   r.classList.toggle('show', !!m);
@@ -729,7 +744,7 @@ function renderReader() {
         : `${c.html ? `<div class="view-bar"><div class="seg2"><button class="${S.htmlMode ? 'on' : ''}" data-act="htmlMode" data-v="1">${t('reader.html')}</button><button class="${S.htmlMode ? '' : 'on'}" data-act="htmlMode" data-v="0">${t('reader.text')}</button></div>
               ${S.htmlMode && c.remote_images && !S.loadImages ? `<span class="img-note">${ic('image', 'sm')}${c.remote_images > 1 ? t('reader.images_blocked', { n: c.remote_images }) : t('reader.images_blocked_one')} · <button class="link" data-act="loadImages">${t('reader.load_images')}</button></span>` : ''}</div>` : ''}
            ${c.html && S.htmlMode ? '<div class="html-wrap"><iframe id="mailframe" sandbox="allow-same-origin" referrerpolicy="no-referrer" title="Mail"></iframe></div>' : `<div class="rd-body">${esc(c.text.trim() || t('mail.no_text'))}</div>`}
-           ${c.attachments.length ? `<div class="att-row">${c.attachments.map(a => `<span class="att">${ic('file', 'sm')}${esc(a)}</span>`).join('')}</div>` : ''}`}
+           ${c.attachments.length ? `<div class="att-row">${c.attachments.map(attChip).join('')}</div>` : ''}`}
     </div></div>`;
   if (oldWrap) { r.querySelector('.html-wrap').replaceWith(oldWrap); watchFrame(oldWrap.querySelector('#mailframe')); }
   else if (c && c.html && S.htmlMode) showHtml(c.html);
@@ -1092,6 +1107,9 @@ document.addEventListener('click', e => {
     case 'close': closeReader(); break;
     case 'htmlMode': S.htmlMode = el.dataset.v === '1'; renderReader(); break;
     case 'loadImages': S.loadImages = true; renderReader(); break;
+    case 'attView': if (S.content && S.content.key) invoke('view_attachment', { key: S.content.key, index: +el.dataset.i }).catch(e => toast(String(e), true)); break;
+    case 'attSave': if (S.content && S.content.key) invoke('save_attachment', { key: S.content.key, index: +el.dataset.i })
+      .then(path => { if (path) toast(t('att.saved', { path })); }).catch(e => toast(String(e), true)); break;
     case 'home': closeReader(); S.view = 'home'; render(); break;
     case 'tasks': closeReader(); S.view = 'tasks'; render(); refreshTasks(); break;
     case 'inbox': openInbox(el.dataset.acc || S.inboxAccount || (S.data && S.data.accounts[0] && S.data.accounts[0].account_id)); break;

@@ -1,5 +1,6 @@
 //! Application layer: state, Tauri commands, watcher tasks, tray and windows.
 
+mod attachments;
 mod shortcut;
 mod tray;
 pub mod windows;
@@ -82,9 +83,9 @@ fn locate(state: &AppState, id: &str) -> Result<(AccountConfig, u32), String> {
 }
 
 #[tauri::command]
-async fn get_mail(state: State<'_, AppState>, id: String) -> Result<MailContent, String> {
+async fn get_mail(state: State<'_, AppState>, cache: State<'_, attachments::AttachmentCache>, id: String) -> Result<MailContent, String> {
     let (account, uid) = locate(&state, &id)?;
-    state.commands.content(&account, uid).await.map_err(err)
+    state.commands.content(&account, uid).await.map(|c| cache.keep(c)).map_err(err)
 }
 
 #[tauri::command]
@@ -216,9 +217,9 @@ async fn list_account_folders(state: State<'_, AppState>, account_id: String) ->
 /// A mail from another folder, found by its Message-ID (its uid belongs to
 /// that folder, not to the watched inbox).
 #[tauri::command]
-async fn get_folder_mail(state: State<'_, AppState>, account_id: String, folder: String, message_id: String) -> Result<MailContent, String> {
+async fn get_folder_mail(state: State<'_, AppState>, cache: State<'_, attachments::AttachmentCache>, account_id: String, folder: String, message_id: String) -> Result<MailContent, String> {
     let account = account_by_id(&account_id)?;
-    state.commands.content_by_message_id(&account, vec![folder], &message_id).await.map_err(err)
+    state.commands.content_by_message_id(&account, vec![folder], &message_id).await.map(|c| cache.keep(c)).map_err(err)
 }
 
 /// Folder names of all accounts, for choosing an existing folder as target.
@@ -387,7 +388,7 @@ async fn set_inbox_days(app: AppHandle, days: u32) -> Result<(), String> {
 
 /// Text of a task mail (it lives in one of the task folders).
 #[tauri::command]
-async fn get_task_mail(state: State<'_, AppState>, account_id: String, message_id: String) -> Result<MailContent, String> {
+async fn get_task_mail(state: State<'_, AppState>, cache: State<'_, attachments::AttachmentCache>, account_id: String, message_id: String) -> Result<MailContent, String> {
     let account = account_by_id(&account_id)?;
     let mut folders = vec![];
     for (status, _, _) in STATES {
@@ -396,7 +397,7 @@ async fn get_task_mail(state: State<'_, AppState>, account_id: String, message_i
         }
     }
     folders.push(account.mailbox.clone());
-    state.commands.content_by_message_id(&account, folders, &message_id).await.map_err(err)
+    state.commands.content_by_message_id(&account, folders, &message_id).await.map(|c| cache.keep(c)).map_err(err)
 }
 
 /// Deletes the mail a code/link came from (code popup).
@@ -1054,16 +1055,19 @@ pub fn run() {
         .manage(popup::LastCode::default())
         .manage(api::ApiServer::default())
         .manage(windows::MainWindowState::default())
+        .manage(attachments::AttachmentCache::default())
         .invoke_handler(tauri::generate_handler![
             list_mails, get_app_status, get_mail, set_seen, archive_mail, delete_mail, check_now, open_window, hide_main, set_notifications, set_tray_people_only, set_sender_kind, archive_mails, unarchive_mails, set_shortcut, get_i18n, set_language, set_pinned, make_task, list_tasks, list_inbox, set_inbox_days, move_task, file_mail, unfile_mail, set_categories, list_folders, list_account_folders, get_folder_mail, set_mark_read_on_open, trash_mail, set_actions, get_task_mail,
             get_accounts, add_account, update_account, remove_account, graph_sign_in_start, graph_sign_in_finish, graph_sign_in_cancel, rename_tag, test_connection, restart_imap,
             get_status, get_log, clear_log,
             get_rules, save_rule, delete_rule, move_rule, export_rules, preview_import, apply_import, test_rule,
             get_default_rules, get_catalog, get_api_settings, set_api_settings, regenerate_api_token,
-            save_json_file, open_json_file, show_about, hide_window, get_app_info,
+            save_json_file, open_json_file, attachments::view_attachment, attachments::save_attachment, show_about, hide_window, get_app_info,
             popup::get_last_code, popup::copy_code, popup::open_link, popup::hide_code_popup, popup::resize_code_popup,
         ])
         .setup(move |app| {
+            // Copies of viewed attachments from the last run.
+            attachments::cleanup();
             windows::create(app)?;
             let handle = app.handle().clone();
             let keys = handle.state::<AppState>().config.blocking_lock().shortcut.clone();
@@ -1091,6 +1095,8 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, event| {
-            if let RunEvent::ExitRequested { .. } = event {}
+            if let RunEvent::Exit = event {
+                attachments::cleanup();
+            }
         });
 }

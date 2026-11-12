@@ -1,8 +1,8 @@
 //! Turns raw IMAP data into the mail model (folded headers, RFC 2047, MIME, charsets).
 
-use mail_parser::{Message, MessageParser, MimeHeaders};
+use mail_parser::{Message, MessageParser, MessagePart, MimeHeaders};
 
-use super::model::{MailBody, MailContent, MailSummary};
+use super::model::{Attachment, MailBody, MailContent, MailSummary};
 
 const PREVIEW_LEN: usize = 220;
 
@@ -153,7 +153,12 @@ pub fn parse_content(raw: &[u8]) -> MailContent {
     let parsed = MessageParser::default().parse(raw);
     let attachments = parsed
         .as_ref()
-        .map(|m| m.attachments().filter(|a| a.content_id().is_none() || a.attachment_name().is_some()).map(|a| a.attachment_name().unwrap_or("Attachment").to_string()).collect())
+        .map(|m| {
+            listed_attachments(m)
+                .enumerate()
+                .map(|(index, a)| Attachment { index, name: attachment_name(a), mime: mime_type(a), size: a.contents().len(), viewable: true })
+                .collect()
+        })
         .unwrap_or_default();
     let safe = parsed.as_ref().filter(|_| !body.html.trim().is_empty()).map(|m| super::sanitize::sanitize(&body.html, &super::sanitize::inline_images(m)));
     MailContent {
@@ -161,7 +166,35 @@ pub fn parse_content(raw: &[u8]) -> MailContent {
         remote_images: safe.as_ref().map_or(0, |s| s.remote_images),
         html: safe.map(|s| s.html),
         attachments,
+        key: String::new(),
+        raw: raw.to_vec(),
     }
+}
+
+/// Attachments shown in the reader: inline images referenced by the HTML are left out.
+fn listed_attachments<'a>(msg: &'a Message<'a>) -> impl Iterator<Item = &'a MessagePart<'a>> {
+    msg.attachments().filter(|a| a.content_id().is_none() || a.attachment_name().is_some())
+}
+
+fn attachment_name(part: &MessagePart) -> String {
+    part.attachment_name().unwrap_or("Attachment").to_string()
+}
+
+fn mime_type(part: &MessagePart) -> String {
+    part.content_type()
+        .map(|ct| match ct.subtype() {
+            Some(sub) => format!("{}/{}", ct.ctype(), sub),
+            None => ct.ctype().to_string(),
+        })
+        .unwrap_or_else(|| "application/octet-stream".into())
+        .to_ascii_lowercase()
+}
+
+/// Name and decoded content of the attachment at `index` (as listed by [`parse_content`]).
+pub fn attachment(raw: &[u8], index: usize) -> Option<(String, Vec<u8>)> {
+    let msg = MessageParser::default().parse(raw)?;
+    let part = listed_attachments(&msg).nth(index)?;
+    Some((attachment_name(part), part.contents().to_vec()))
 }
 
 #[cfg(test)]
@@ -247,6 +280,27 @@ Content-Type: multipart/related; boundary=\"r\"\r\n\r\n\
         assert_eq!(c.remote_images, 1);
         assert!(c.attachments.is_empty(), "inline image is no attachment: {:?}", c.attachments);
         assert!(c.text.contains("Hallo"));
+    }
+
+    #[test]
+    fn test_content_lists_and_extracts_attachments() {
+        let raw = "From: a@b.example\r\nSubject: Rechnung\r\nMIME-Version: 1.0\r\n\
+Content-Type: multipart/mixed; boundary=\"m\"\r\n\r\n\
+--m\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nAnbei.\r\n\
+--m\r\nContent-Type: application/PDF; name=\"Rechnung.pdf\"\r\nContent-Disposition: attachment; filename=\"Rechnung.pdf\"\r\n\
+Content-Transfer-Encoding: base64\r\n\r\nJVBERi0xLjQ=\r\n\
+--m\r\nContent-Type: text/xml; name=\"daten.xml\"\r\nContent-Disposition: attachment\r\n\r\n<a/>\r\n--m--\r\n";
+        let c = parse_content(raw.as_bytes());
+        assert_eq!(
+            c.attachments,
+            vec![
+                Attachment { index: 0, name: "Rechnung.pdf".into(), mime: "application/pdf".into(), size: 8, viewable: true },
+                Attachment { index: 1, name: "daten.xml".into(), mime: "text/xml".into(), size: 4, viewable: true },
+            ]
+        );
+        assert_eq!(attachment(&c.raw, 0), Some(("Rechnung.pdf".into(), b"%PDF-1.4".to_vec())));
+        assert_eq!(attachment(&c.raw, 1).map(|(n, _)| n), Some("daten.xml".into()));
+        assert_eq!(attachment(&c.raw, 2), None);
     }
 
     #[test]

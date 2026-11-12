@@ -48,13 +48,37 @@ pub struct MailSummary {
     pub findings: Vec<Finding>,
 }
 
+/// An attachment as the reader lists it; `index` addresses it for opening and saving.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Attachment {
+    pub index: usize,
+    pub name: String,
+    /// MIME type, e.g. `application/pdf`.
+    pub mime: String,
+    /// Decoded size in bytes.
+    pub size: usize,
+    /// Small enough to be viewed from a temporary copy; larger ones can only be saved.
+    pub viewable: bool,
+}
+
 /// Full content for the reader.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct MailContent {
     pub text: String,
     /// Sanitized HTML, if the mail has an HTML part.
     pub html: Option<String>,
     /// Remote images in `html`, blocked until loaded on request.
     pub remote_images: usize,
-    pub attachments: Vec<String>,
+    pub attachments: Vec<Attachment>,
+    /// Key of the raw mail in the app's attachment cache (set by the app layer).
+    pub key: String,
+    /// The raw mail, kept so attachments can be opened without fetching it again.
+    #[serde(skip)]
+    pub raw: Vec<u8>,
+}
+
+impl std::fmt::Debug for MailContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MailContent").field("text", &self.text).field("attachments", &self.attachments).field("raw_len", &self.raw.len()).finish_non_exhaustive()
+    }
 }

@@ -903,7 +903,11 @@ mod tests {
         assert!(!older);
         let content = cmds.content(&account, jana.uid).await.unwrap();
         assert!(content.text.contains("Login-Flow (v0.9)"));
-        assert_eq!(content.attachments, vec!["Atlas-Spec-v0.9.pdf".to_string()]);
+        let names: Vec<_> = content.attachments.iter().map(|a| a.name.as_str()).collect();
+        assert_eq!(names, vec!["Atlas-Spec-v0.9.pdf"]);
+        let (name, data) = parse::attachment(&content.raw, 0).expect("attachment");
+        assert_eq!(name, "Atlas-Spec-v0.9.pdf");
+        assert_eq!(data.len(), content.attachments[0].size);
 
         cmds.set_seen(&account, jana.uid, true).await.unwrap();
         s.noop().await.unwrap();

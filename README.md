@@ -68,6 +68,7 @@ To uninstall: `sudo apt remove maillet`. Your settings in `~/.config/maillet/` a
 ## Everyday Use
 
 - **Popup:** Enter or a click copies the code, Esc dismisses it. Several codes at once are stacked, and each disappears after two minutes. Hovering over the popup pauses the countdown.
+- **Attachments:** in an open mail, *View* opens an attachment with the program registered for its type (image viewer, PDF reader, editor). It works on a temporary copy that never lands in your Downloads folder. Attachments over 25 MB can only be saved. *Save* asks where to store it, starting in Downloads.
 - **Tray menu:** *Check now* checks all mailboxes immediately. The menu also opens *Settings* and *About*, and *Quit* ends Maillet.
 - **Connection problems** show up on the account card and as a desktop notification. Maillet reconnects on its own.
 - **No popup for a mail?** The *Log* tab shows every checked mail and why each rule did or didn't match. See [Why wasn't a code detected?](docs/rules.md#why-wasnt-a-code-detected)
@@ -76,7 +77,7 @@ To uninstall: `sudo apt remove maillet`. Your settings in `~/.config/maillet/` a
 
 - **Everything stays on your computer.** Maillet talks only to your mail servers. The only other request loads the rule catalog from GitHub.
 - **It reads as little as possible.** Only sender and subject of new mails are fetched. The mail text is downloaded only when a rule needs it. Nothing is marked as read.
-- **Nothing is written to disk.** Codes and mail text aren't stored. The *Log* tab keeps sender, subject and rule results in memory only, with codes masked.
+- **Nothing is written to disk.** Codes and mail text aren't stored. The *Log* tab keeps sender, subject and rule results in memory only, with codes masked. Viewed attachments are read-only copies in `$XDG_RUNTIME_DIR` (memory, emptied at logout) and are removed when Maillet quits or starts, or after a day at the latest.
 - **Your passwords stay safe.** They're kept in the system keyring (GNOME Keyring, KWallet), never in a plain text file.
 
 ## Documentation
