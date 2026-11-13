@@ -1,9 +1,13 @@
 [Desktop Entry]
 Type=Application
 Name={{name}}
+GenericName=Mail Tray
+GenericName[de]=Mail-Tray
 Comment={{comment}}
+Comment[de]=Posteingang im Tray: neue Mails und Login-Codes auf einen Blick – by be-spex
 Exec={{exec}}
 Icon={{icon}}
 Terminal=false
 Categories=Network;Email;
-Keywords=mail;otp;password;code;login;
+Keywords=mail;inbox;imap;tray;otp;password;code;login;be-spex;bespex;spex;
+Keywords[de]=mail;posteingang;imap;tray;otp;passwort;code;login;be-spex;bespex;spex;
