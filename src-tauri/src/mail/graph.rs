@@ -396,6 +396,8 @@ impl Graph {
 
     pub async fn delete(&self, account: &AccountConfig, uid: u32) -> Result<()> {
         let id = self.graph_id(&account.id, uid).await?;
+        // Deleted mails count as dealt with: read.
+        self.patch(account, &id, json!({ "isRead": true })).await?;
         self.move_id(account, &id, "deleteditems").await
     }
 
@@ -431,8 +433,8 @@ impl Graph {
         Ok(found.pointer("/value/0").cloned())
     }
 
-    /// Moves a mail found by Message-ID to `to` (`None` = archive, then read).
-    /// Back in the inbox it is unread again. Returns the target folder.
+    /// Moves a mail found by Message-ID to `to` (`None` = archive) and marks
+    /// it read – back in the inbox it is unread again. Returns the target folder.
     pub async fn move_found(&self, account: &AccountConfig, message_id: &str, to: Option<&str>) -> Result<String> {
         let mail = self.find_by_message_id(account, message_id).await?.context("Mail not found – it may have been moved or deleted elsewhere")?;
         let id = str_field(&mail, "id").unwrap_or_default();
@@ -440,12 +442,9 @@ impl Graph {
             None => ("archive".to_string(), "Archive".to_string()),
             Some(path) => (self.folder_id(account, path, true).await?.context("Folder could not be created")?, path.to_string()),
         };
-        if to.is_none() {
-            self.patch(account, &id, json!({ "isRead": true })).await?;
-        }
-        if to.is_some_and(|p| Self::is_inbox(account, p)) {
-            self.patch(account, &id, json!({ "isRead": false })).await?;
-        }
+        // Out of the inbox it has been dealt with: read. Back in the inbox it is open again: unread.
+        let back_in_inbox = to.is_some_and(|p| Self::is_inbox(account, p));
+        self.patch(account, &id, json!({ "isRead": !back_in_inbox })).await?;
         let here = str_field(&mail, "parentFolderId").unwrap_or_default();
         let target_real = if target_id.contains('-') || target_id.len() > 20 { target_id.clone() } else { self.well_known_id(account, &target_id).await? };
         if here != target_real {
@@ -867,9 +866,19 @@ mod tests {
 
         // Undo: found by Message-ID, back in the inbox and unread again.
         g.move_found(&acc, "m1@x.example", Some("INBOX")).await.unwrap();
-        let st = state.lock().unwrap();
-        assert_eq!(st.mails[0]["parentFolderId"], "F-inbox");
-        assert_eq!(st.mails[0]["isRead"], false);
+        {
+            let st = state.lock().unwrap();
+            assert_eq!(st.mails[0]["parentFolderId"], "F-inbox");
+            assert_eq!(st.mails[0]["isRead"], false);
+        }
+
+        // Moving between task folders (e.g. to "Done") marks read.
+        g.move_found(&acc, "m1@x.example", Some("Tasks")).await.unwrap();
+        {
+            let st = state.lock().unwrap();
+            assert_eq!(st.mails[0]["parentFolderId"], "F-1");
+            assert_eq!(st.mails[0]["isRead"], true);
+        }
     }
 
 }

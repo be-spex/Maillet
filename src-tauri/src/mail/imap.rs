@@ -446,7 +446,8 @@ impl Commands {
     }
 
     /// Moves a mail found by Message-ID from `from` to `to` (`None` = the archive
-    /// folder, then marked as read). Returns the target folder.
+    /// folder). Marks it read, or unread when it goes back to the inbox.
+    /// Returns the target folder.
     #[cfg_attr(not(test), allow(dead_code))]
     pub async fn move_by_message_id(&self, account: &AccountConfig, from: &str, message_id: &str, to: Option<&str>) -> Result<String> {
         self.move_found(account, &[from.to_string()], message_id, to).await
@@ -759,13 +760,8 @@ impl AsyncOp<String> for MoveById {
                 if *folder == target {
                     return Ok(());
                 }
-                if self.to.is_none() {
-                    SetSeen(uid, true).call(s).await?;
-                }
-                // Back in the inbox it is open again: unread.
-                if target == self.mailbox {
-                    SetSeen(uid, false).call(s).await?;
-                }
+                // Out of the inbox it has been dealt with: read. Back in the inbox it is open again: unread.
+                SetSeen(uid, target != self.mailbox).call(s).await?;
                 return move_to(s, uid, &target).await;
             }
             // Not in any source: maybe it already reached the target.
@@ -850,7 +846,11 @@ struct Delete(u32, String);
 impl AsyncOp<()> for Delete {
     async fn call(&self, s: &mut Session) -> Result<()> {
         match find_folder(s, &[NameAttribute::Trash], &[], &self.1).await? {
-            Some(trash) => move_to(s, self.0, &trash).await,
+            Some(trash) => {
+                // Deleted mails count as dealt with: read.
+                SetSeen(self.0, true).call(s).await?;
+                move_to(s, self.0, &trash).await
+            }
             None => {
                 let _: Vec<_> = with_timeout(s.uid_store(self.0.to_string(), "+FLAGS.SILENT (\\Deleted)")).await?.try_collect().await?;
                 let _: Vec<_> = with_timeout(s.uid_expunge(self.0.to_string())).await?.try_collect().await?;
@@ -939,6 +939,7 @@ mod tests {
         assert!(!s.uid_search("ALL").await.unwrap().contains(&tom.uid));
         s.select("Trash").await.unwrap();
         assert_eq!(s.uid_search("ALL").await.unwrap().len(), 1);
+        assert!(s.uid_search("UNSEEN").await.unwrap().is_empty(), "deleted mails are read");
         s.logout().await.ok();
     }
 
@@ -1010,7 +1011,12 @@ mod tests {
         assert_eq!(cmds.folder_mails(&account, "Tasks", 100).await.unwrap().len(), 1);
         cmds.move_by_message_id(&account, "Tasks", &mid, Some("INBOX")).await.unwrap();
         s.noop().await.unwrap();
-        assert_eq!(s.uid_search(format!("HEADER Message-ID \"{}\"", mid.trim_matches(['<', '>']))).await.unwrap().len(), 1);
+        let mid_search = format!("HEADER Message-ID \"{}\"", mid.trim_matches(['<', '>']));
+        assert_eq!(s.uid_search(&mid_search).await.unwrap().len(), 1);
+        assert_eq!(s.uid_search(format!("UNSEEN {mid_search}")).await.unwrap().len(), 1, "back in the inbox: unread");
+        // Out of the inbox into a task state folder (e.g. "Done"): read.
+        cmds.move_by_message_id(&account, "INBOX", &mid, Some(&progress)).await.unwrap();
+        assert!(cmds.folder_mails(&account, &progress, 100).await.unwrap()[0].seen, "moved out of the inbox: read");
         // A missing folder lists as empty, not as error.
         assert!(cmds.folder_mails(&account, "GibtEsNicht", 10).await.unwrap().is_empty());
         s.logout().await.ok();
