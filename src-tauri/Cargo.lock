@@ -2494,7 +2494,7 @@ dependencies = [
 
 [[package]]
 name = "maillet"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "ammonia",
  "anyhow",

@@ -1,6 +1,6 @@
 [package]
 name = "maillet"
-version = "0.6.3"
+version = "0.6.4"
 edition = "2021"
 rust-version = "1.90"
 description = "Mail inbox in your tray: new mails and login codes at a glance – by be-spex"
