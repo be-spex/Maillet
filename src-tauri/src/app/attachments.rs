@@ -65,7 +65,7 @@ pub async fn view_attachment(cache: State<'_, AttachmentCache>, key: String, ind
         return Err(crate::base::i18n::t("att.too_big", &[]));
     }
     let path = async_runtime::spawn_blocking(move || write_temp(&name, &data)).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
-    std::process::Command::new("xdg-open").arg(&path).spawn().map(|_| ()).map_err(|e| format!("xdg-open: {e}"))
+    crate::base::open::xdg_open(&path).map_err(|e| format!("xdg-open: {e}"))
 }
 
 /// Asks for a target file (Downloads by default) and saves the attachment there.

@@ -25,11 +25,7 @@ pub fn open_link(url: String) -> Result<(), String> {
     if !(url.starts_with("https://") || url.starts_with("http://") || url.starts_with("mailto:")) {
         return Err("Only http(s) and mailto links can be opened".into());
     }
-    std::process::Command::new("xdg-open")
-        .arg(&url)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| format!("Failed to open browser: {e}"))
+    crate::base::open::xdg_open(&url).map_err(|e| format!("Failed to open browser: {e}"))
 }
 
 #[tauri::command]

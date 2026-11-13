@@ -6,4 +6,5 @@ pub mod log;
 #[cfg(target_os = "linux")]
 pub mod migrate;
 pub mod notify;
+pub mod open;
 pub mod status;
