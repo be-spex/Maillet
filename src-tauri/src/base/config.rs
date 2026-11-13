@@ -236,8 +236,35 @@ fn keyring_entry(account_id: &str) -> Result<Entry> {
         .context("Failed to create keyring entry")
 }
 
+/// Secrets read from or written to the keyring in this run. The keyring is a
+/// blocking D-Bus call that may never return (e.g. while the secret service
+/// restarts), so it is asked once per account, not for every mail action.
+static SECRETS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<String, String>>> = std::sync::LazyLock::new(Default::default);
+
+fn cached(account_id: &str) -> Option<String> {
+    SECRETS.lock().unwrap().get(account_id).cloned()
+}
+
+fn remember(account_id: &str, secret: &str) {
+    SECRETS.lock().unwrap().insert(account_id.to_string(), secret.to_string());
+}
+
+/// Runs blocking keyring work off the async workers and gives up after a
+/// while: a call that hangs then costs one blocking thread, not a worker of
+/// the runtime that serves the window and the tray.
+pub async fn off_thread<T: Send + 'static>(f: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
+    match tokio::time::timeout(std::time::Duration::from_secs(30), tokio::task::spawn_blocking(f)).await {
+        Ok(joined) => joined.context("Keyring access failed")?,
+        Err(_) => anyhow::bail!("The keyring (secret service) does not answer"),
+    }
+}
+
 fn load_password(account_id: &str) -> Result<String> {
+    if let Some(pass) = cached(account_id) {
+        return Ok(pass);
+    }
     if let Ok(pass) = keyring_entry(account_id)?.get_password() {
+        remember(account_id, &pass);
         return Ok(pass);
     }
     // Copy from the legacy service; the old entry is kept as a fallback.
@@ -252,10 +279,13 @@ fn load_password(account_id: &str) -> Result<String> {
 fn store_password(account_id: &str, password: &str) -> Result<()> {
     keyring_entry(account_id)?
         .set_password(password)
-        .context("Failed to store password in keyring")
+        .context("Failed to store password in keyring")?;
+    remember(account_id, password);
+    Ok(())
 }
 
 fn delete_password(account_id: &str) -> Result<()> {
+    SECRETS.lock().unwrap().remove(account_id);
     keyring_entry(account_id)?
         .delete_credential()
         .context("Failed to delete password from keyring")
@@ -505,9 +535,15 @@ fn new_token() -> String {
 
 /// Returns the API token, creating one on first use.
 pub fn api_token() -> Result<String> {
+    if let Some(token) = cached(API_TOKEN_KEY) {
+        return Ok(token);
+    }
     let entry = keyring_entry(API_TOKEN_KEY)?;
     match entry.get_password() {
-        Ok(token) => Ok(token),
+        Ok(token) => {
+            remember(API_TOKEN_KEY, &token);
+            Ok(token)
+        }
         Err(_) => regenerate_api_token(),
     }
 }
@@ -523,12 +559,18 @@ pub fn get_accounts(config: &SharedConfig) -> Vec<AccountConfig> {
 }
 
 /// Load all accounts from config, injecting passwords from keyring.
+/// Blocking; async code uses [`accounts_with_passwords`].
 pub fn load_accounts_with_passwords() -> Result<Vec<AccountConfig>> {
     let mut accounts = load_config()?.accounts;
     for account in &mut accounts {
         account.pass = load_password(&account.id).unwrap_or_default();
     }
     Ok(accounts)
+}
+
+/// [`load_accounts_with_passwords`] for async code.
+pub async fn accounts_with_passwords() -> Result<Vec<AccountConfig>> {
+    off_thread(load_accounts_with_passwords).await
 }
 
 /// Fills in the stored password if the dialog left it blank (existing account).

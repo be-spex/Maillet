@@ -65,7 +65,7 @@ fn list_mails(state: State<AppState>, statuses: State<status::StatusStore>) -> s
 }
 
 /// Account and UID of a mail id (`account:uidvalidity:uid`).
-fn locate(state: &AppState, id: &str) -> Result<(AccountConfig, u32), String> {
+async fn locate(state: &AppState, id: &str) -> Result<(AccountConfig, u32), String> {
     let (account_id, uid) = match state.store.find(id) {
         Some(MailSummary { account_id, uid, .. }) => (account_id, uid),
         None => {
@@ -75,7 +75,7 @@ fn locate(state: &AppState, id: &str) -> Result<(AccountConfig, u32), String> {
             (account_id, uid)
         }
     };
-    let account = config::load_accounts_with_passwords()
+    let account = config::accounts_with_passwords().await
         .map_err(err)?
         .into_iter()
         .find(|a| a.id == account_id)
@@ -85,13 +85,13 @@ fn locate(state: &AppState, id: &str) -> Result<(AccountConfig, u32), String> {
 
 #[tauri::command]
 async fn get_mail(state: State<'_, AppState>, cache: State<'_, attachments::AttachmentCache>, id: String) -> Result<MailContent, String> {
-    let (account, uid) = locate(&state, &id)?;
+    let (account, uid) = locate(&state, &id).await?;
     state.commands.content(&account, uid).await.map(|c| cache.keep(c)).map_err(err)
 }
 
 #[tauri::command]
 async fn set_seen(state: State<'_, AppState>, id: String, seen: bool) -> Result<(), String> {
-    let (account, uid) = locate(&state, &id)?;
+    let (account, uid) = locate(&state, &id).await?;
     state.commands.set_seen(&account, uid, seen).await.map_err(err)?;
     if seen {
         state.store.remove(&account.id, uid);
@@ -103,7 +103,7 @@ async fn set_seen(state: State<'_, AppState>, id: String, seen: bool) -> Result<
 
 #[tauri::command]
 async fn archive_mail(state: State<'_, AppState>, id: String) -> Result<String, String> {
-    let (account, uid) = locate(&state, &id)?;
+    let (account, uid) = locate(&state, &id).await?;
     let folder = state.commands.archive(&account, uid).await.map_err(err)?;
     state.store.remove(&account.id, uid);
     Ok(folder)
@@ -117,8 +117,8 @@ async fn archive_mail(state: State<'_, AppState>, id: String) -> Result<String, 
 const TASK_FOLDER: &str = "Tasks";
 
 
-fn account_by_id(id: &str) -> Result<AccountConfig, String> {
-    config::load_accounts_with_passwords().map_err(err)?.into_iter().find(|a| a.id == id).ok_or_else(|| "Account not found".into())
+async fn account_by_id(id: &str) -> Result<AccountConfig, String> {
+    config::accounts_with_passwords().await.map_err(err)?.into_iter().find(|a| a.id == id).ok_or_else(|| "Account not found".into())
 }
 
 /// The account's task folder; `create` makes it on first use.
@@ -143,7 +143,7 @@ async fn state_folder(state: &AppState, account: &AccountConfig, status: &str, c
 /// Pins (star on the server) or unpins a mail.
 #[tauri::command]
 async fn set_pinned(state: State<'_, AppState>, id: String, pinned: bool) -> Result<(), String> {
-    let (account, uid) = locate(&state, &id)?;
+    let (account, uid) = locate(&state, &id).await?;
     state.commands.set_flagged(&account, uid, pinned).await.map_err(err)?;
     state.check_now.notify_waiters();
     Ok(())
@@ -160,7 +160,7 @@ struct TaskRef {
 #[tauri::command]
 async fn make_task(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<TaskRef, String> {
     let message_id = state.store.find(&id).and_then(|m| m.message_id);
-    let (account, uid) = locate(&state, &id)?;
+    let (account, uid) = locate(&state, &id).await?;
     let folder = task_folder(&state, &account, true).await?;
     state.commands.move_to_folder(&account, uid, &folder).await.map_err(err)?;
     state.store.remove(&account.id, uid);
@@ -184,7 +184,7 @@ struct Filed {
 async fn file_mail(state: State<'_, AppState>, id: String, category: String) -> Result<Filed, String> {
     let cat = categories(&state).into_iter().find(|c| c.id == category).ok_or("Unknown category")?;
     let message_id = state.store.find(&id).and_then(|m| m.message_id);
-    let (account, uid) = locate(&state, &id)?;
+    let (account, uid) = locate(&state, &id).await?;
     let folder = state.commands.resolve_folder(&account, &cat.folder, true).await.map_err(err)?.ok_or("Folder could not be created")?;
     state.commands.move_to_folder(&account, uid, &folder).await.map_err(err)?;
     state.store.remove(&account.id, uid);
@@ -194,7 +194,7 @@ async fn file_mail(state: State<'_, AppState>, id: String, category: String) -> 
 /// Undo of [`file_mail`]: back to the inbox.
 #[tauri::command]
 async fn unfile_mail(state: State<'_, AppState>, account_id: String, message_id: String, folder: String) -> Result<(), String> {
-    let account = account_by_id(&account_id)?;
+    let account = account_by_id(&account_id).await?;
     state.commands.move_found(&account, &[folder], &message_id, Some(&account.mailbox)).await.map_err(err)?;
     state.check_now.notify_waiters();
     Ok(())
@@ -211,7 +211,7 @@ async fn set_categories(app: AppHandle, categories: Vec<config::Category>) -> Re
 /// Folders of one account, for switching the inbox view.
 #[tauri::command]
 async fn list_account_folders(state: State<'_, AppState>, account_id: String) -> Result<Vec<String>, String> {
-    let account = account_by_id(&account_id)?;
+    let account = account_by_id(&account_id).await?;
     state.commands.list_folders(&account).await.map_err(err)
 }
 
@@ -219,14 +219,14 @@ async fn list_account_folders(state: State<'_, AppState>, account_id: String) ->
 /// that folder, not to the watched inbox).
 #[tauri::command]
 async fn get_folder_mail(state: State<'_, AppState>, cache: State<'_, attachments::AttachmentCache>, account_id: String, folder: String, message_id: String) -> Result<MailContent, String> {
-    let account = account_by_id(&account_id)?;
+    let account = account_by_id(&account_id).await?;
     state.commands.content_by_message_id(&account, vec![folder], &message_id).await.map(|c| cache.keep(c)).map_err(err)
 }
 
 /// Folder names of all accounts, for choosing an existing folder as target.
 #[tauri::command]
 async fn list_folders(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    let accounts: Vec<_> = config::load_accounts_with_passwords().map_err(err)?.into_iter().filter(|a| !a.server.is_empty() && !a.pass.is_empty()).collect();
+    let accounts: Vec<_> = config::accounts_with_passwords().await.map_err(err)?.into_iter().filter(|a| !a.server.is_empty() && !a.pass.is_empty()).collect();
     let commands = &state.commands;
     let lists = futures_util::future::join_all(accounts.iter().map(|a| commands.list_folders(a))).await;
     let mut all: Vec<String> = lists.into_iter().filter_map(Result::ok).flatten().collect();
@@ -238,7 +238,7 @@ async fn list_folders(state: State<'_, AppState>) -> Result<Vec<String>, String>
 /// Moves a mail to the trash (by its window id).
 #[tauri::command]
 async fn trash_mail(state: State<'_, AppState>, id: String) -> Result<(), String> {
-    let (account, uid) = locate(&state, &id)?;
+    let (account, uid) = locate(&state, &id).await?;
     state.commands.delete(&account, uid).await.map_err(err)?;
     state.store.remove(&account.id, uid);
     Ok(())
@@ -270,7 +270,7 @@ struct TaskItem {
 #[tauri::command]
 async fn list_tasks(state: State<'_, AppState>) -> Result<Vec<TaskItem>, String> {
     let mut all = vec![];
-    for account in config::load_accounts_with_passwords().map_err(err)? {
+    for account in config::accounts_with_passwords().await.map_err(err)? {
         if account.server.is_empty() || account.pass.is_empty() {
             continue;
         }
@@ -299,7 +299,7 @@ async fn list_tasks(state: State<'_, AppState>) -> Result<Vec<TaskItem>, String>
 /// Returns the target folder, so the move can be undone.
 #[tauri::command]
 async fn move_task(app: AppHandle, state: State<'_, AppState>, account_id: String, message_id: String, from: String, to: String, from_folder: Option<String>) -> Result<String, String> {
-    let account = account_by_id(&account_id)?;
+    let account = account_by_id(&account_id).await?;
     let source = match from_folder {
         Some(f) => f,
         None => state_folder(&state, &account, &from, false).await?.ok_or("Task folder not found")?,
@@ -346,7 +346,7 @@ struct InboxPage {
 async fn list_inbox(state: State<'_, AppState>, days: u32, account_id: Option<String>, folder: Option<String>) -> Result<InboxPage, String> {
     let days = days.clamp(1, 3650);
     let started = Instant::now();
-    let accounts: Vec<_> = config::load_accounts_with_passwords()
+    let accounts: Vec<_> = config::accounts_with_passwords().await
         .map_err(err)?
         .into_iter()
         .filter(|a| !a.server.is_empty() && !a.pass.is_empty() && account_id.as_ref().is_none_or(|id| *id == a.id))
@@ -390,7 +390,7 @@ async fn set_inbox_days(app: AppHandle, days: u32) -> Result<(), String> {
 /// Text of a task mail (it lives in one of the task folders).
 #[tauri::command]
 async fn get_task_mail(state: State<'_, AppState>, cache: State<'_, attachments::AttachmentCache>, account_id: String, message_id: String) -> Result<MailContent, String> {
-    let account = account_by_id(&account_id)?;
+    let account = account_by_id(&account_id).await?;
     let mut folders = vec![];
     for (status, _, _) in STATES {
         if let Some(f) = state_folder(&state, &account, status, false).await? {
@@ -404,7 +404,7 @@ async fn get_task_mail(state: State<'_, AppState>, cache: State<'_, attachments:
 /// Deletes the mail a code/link came from (code popup).
 #[tauri::command]
 async fn delete_mail(state: State<'_, AppState>, account_id: String, uid: u32) -> Result<(), String> {
-    let account = config::load_accounts_with_passwords()
+    let account = config::accounts_with_passwords().await
         .map_err(err)?
         .into_iter()
         .find(|a| a.id == account_id)
@@ -536,7 +536,7 @@ async fn archive_mails(state: State<'_, AppState>, ids: Vec<String>) -> Result<V
     let mut first_error = None;
     for id in ids {
         let message_id = state.store.find(&id).and_then(|m| m.message_id);
-        let (account, uid) = locate(&state, &id)?;
+        let (account, uid) = locate(&state, &id).await?;
         match state.commands.archive(&account, uid).await {
             Ok(folder) => {
                 state.store.remove(&account.id, uid);
@@ -554,7 +554,7 @@ async fn archive_mails(state: State<'_, AppState>, ids: Vec<String>) -> Result<V
 /// Brings archived mails back as unread.
 #[tauri::command]
 async fn unarchive_mails(state: State<'_, AppState>, items: Vec<Archived>) -> Result<usize, String> {
-    let accounts = config::load_accounts_with_passwords().map_err(err)?;
+    let accounts = config::accounts_with_passwords().await.map_err(err)?;
     let mut groups: std::collections::BTreeMap<(String, String), Vec<String>> = Default::default();
     for item in items {
         if let Some(mid) = item.message_id {
@@ -618,7 +618,7 @@ fn rename_tag(state: State<AppState>, account_id: String, tag: String) -> Result
 
 #[tauri::command]
 async fn test_connection(account: AccountConfig) -> Result<String, String> {
-    let account = config::with_stored_password(account).map_err(err)?;
+    let account = config::off_thread(move || config::with_stored_password(account)).await.map_err(err)?;
     imap::test_connection(&account).await.map_err(err)
 }
 
@@ -657,7 +657,10 @@ async fn graph_sign_in_finish(app: AppHandle, label: String, account_id: Option<
     let shared = app.state::<AppState>().config.clone();
     let accounts = match account_id {
         Some(id) => {
-            config::store_secret(&id, &signed.refresh_token).map_err(err)?;
+            {
+                let (id, secret) = (id.clone(), signed.refresh_token.clone());
+                config::off_thread(move || config::store_secret(&id, &secret)).await.map_err(err)?;
+            }
             graph.forget(&id).await;
             config::get_accounts(&shared)
         }
@@ -677,7 +680,7 @@ async fn graph_sign_in_finish(app: AppHandle, label: String, account_id: Option<
             async_runtime::spawn_blocking(move || config::add_account(&shared, account)).await.map_err(|e| e.to_string())?.map_err(err)?
         }
     };
-    let all = config::load_accounts_with_passwords().map_err(err)?;
+    let all = config::accounts_with_passwords().await.map_err(err)?;
     spawn_watchers(&app, all).await;
     Ok(accounts)
 }
@@ -689,7 +692,7 @@ async fn graph_sign_in_cancel() {
 
 #[tauri::command]
 async fn restart_imap(app: AppHandle) -> Result<(), String> {
-    let accounts = config::load_accounts_with_passwords().map_err(err)?;
+    let accounts = config::accounts_with_passwords().await.map_err(err)?;
     spawn_watchers(&app, accounts).await;
     Ok(())
 }
@@ -957,7 +960,7 @@ fn tray_tooltip(app: &AppHandle) -> String {
 /// the servers whether a task folder holds any mail, not how many.
 async fn task_level(app: &AppHandle) -> u8 {
     let state = app.state::<AppState>();
-    let Ok(accounts) = config::load_accounts_with_passwords() else { return 0 };
+    let Ok(accounts) = config::accounts_with_passwords().await else { return 0 };
     let mut level = 0;
     for account in accounts.into_iter().filter(|a| !a.server.is_empty() && !a.pass.is_empty()) {
         for (status, rank) in [("progress", 2u8), ("open", 1)] {

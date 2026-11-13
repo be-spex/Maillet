@@ -170,7 +170,8 @@ impl Graph {
         let expires = Instant::now() + Duration::from_secs(body.get("expires_in").and_then(Value::as_u64).unwrap_or(3600));
         let renewed = str_field(&body, "refresh_token").unwrap_or(refresh.clone());
         if renewed != refresh {
-            if let Err(e) = config::store_secret(&account.id, &renewed) {
+            let (id, secret) = (account.id.clone(), renewed.clone());
+            if let Err(e) = config::off_thread(move || config::store_secret(&id, &secret)).await {
                 tracing::warn!("[{}] could not save the renewed sign-in: {e:#}", account.label);
             }
         }

@@ -89,7 +89,7 @@ pub async fn restart(app: AppHandle) {
         set_status(&app, "off", "Disabled");
         return;
     }
-    match config::api_token() {
+    match config::off_thread(config::api_token).await {
         Ok(token) => server.set_token(token),
         Err(e) => {
             set_status(&app, "error", format!("No API token: {e:#}"));
